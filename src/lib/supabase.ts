@@ -1,9 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import { ShortsProject } from '../types';
 
-const supabaseUrl = 
+const rawSupabaseUrl = 
   (typeof import.meta !== 'undefined' && import.meta.env && (import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_URL)) || 
   '';
+const supabaseUrl = rawSupabaseUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
 
 const supabaseAnonKey = 
   (typeof import.meta !== 'undefined' && import.meta.env && (import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)) || 
