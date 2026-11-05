@@ -103,6 +103,9 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const imageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
+  const [imagesLoadedVersion, setImagesLoadedVersion] = useState<number>(0);
+  const rafIdRef = useRef<number | null>(null);
 
   // Drag tracking ref
   const dragStartRef = useRef<{
@@ -139,6 +142,15 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
       setSelectedCellIndex(images.length - 1);
     }
   }, [images.length, selectedCellIndex]);
+
+  // Cleanup animation frame on unmount
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
+    };
+  }, []);
 
   // Handle multi-image file select
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -387,6 +399,72 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
     };
   };
 
+  // Preload and cache HTMLImageElement instances.
+  // CRITICAL: Decodes images ONCE into cache so clicking, dragging, or zooming never re-allocates base64 data.
+  useEffect(() => {
+    if (!isOpen || images.length === 0) return;
+
+    let isMounted = true;
+    const currentIds = new Set(images.map((img) => img.id));
+
+    // Prune removed images from cache
+    for (const key of imageCacheRef.current.keys()) {
+      if (!currentIds.has(key)) {
+        imageCacheRef.current.delete(key);
+      }
+    }
+
+    images.forEach((imgItem) => {
+      const existing = imageCacheRef.current.get(imgItem.id);
+      if (existing && existing.complete && existing.naturalWidth > 0) {
+        return;
+      }
+
+      const img = new Image();
+      if (!imgItem.dataUrl.startsWith('data:') && !imgItem.dataUrl.startsWith('blob:')) {
+        img.crossOrigin = 'anonymous';
+      }
+      img.onload = () => {
+        if (!isMounted) return;
+        imageCacheRef.current.set(imgItem.id, img);
+        setImagesLoadedVersion((v) => v + 1);
+      };
+      img.onerror = () => {
+        if (!isMounted) return;
+        if (img.crossOrigin) {
+          const retry = new Image();
+          retry.onload = () => {
+            if (!isMounted) return;
+            imageCacheRef.current.set(imgItem.id, retry);
+            setImagesLoadedVersion((v) => v + 1);
+          };
+          retry.src = imgItem.dataUrl;
+          return;
+        }
+        imageCacheRef.current.set(imgItem.id, img);
+        setImagesLoadedVersion((v) => v + 1);
+      };
+      img.src = imgItem.dataUrl;
+      imageCacheRef.current.set(imgItem.id, img);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, images]);
+
+  // Adjust canvas width & height ONLY when aspect ratio / canvasDimensions change.
+  // CRITICAL: Never reassign canvas.width on every click or drag to prevent GPU buffer drops.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const { width: W, height: H } = canvasDimensions;
+    if (canvas.width !== W || canvas.height !== H) {
+      canvas.width = W;
+      canvas.height = H;
+    }
+  }, [canvasDimensions]);
+
   // Pointer & Touch Handlers for Dragging/Moving photos directly on canvas
   const handlePointerDown = (clientX: number, clientY: number) => {
     if (images.length === 0) return;
@@ -424,24 +502,34 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
 
     if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
 
-    setTransforms((prev) => {
-      const cur = prev[imgId] || { scale: 1.0, offsetX: 0, offsetY: 0 };
-      const curScale = Number.isFinite(cur.scale) ? cur.scale : 1.0;
-      const initX = Number.isFinite(dragStartRef.current?.initialOffsetX) ? dragStartRef.current!.initialOffsetX : 0;
-      const initY = Number.isFinite(dragStartRef.current?.initialOffsetY) ? dragStartRef.current!.initialOffsetY : 0;
+    if (rafIdRef.current) {
+      cancelAnimationFrame(rafIdRef.current);
+    }
 
-      return {
-        ...prev,
-        [imgId]: {
-          scale: curScale,
-          offsetX: initX + dx,
-          offsetY: initY + dy,
-        },
-      };
+    rafIdRef.current = requestAnimationFrame(() => {
+      setTransforms((prev) => {
+        const cur = prev[imgId] || { scale: 1.0, offsetX: 0, offsetY: 0 };
+        const curScale = Number.isFinite(cur.scale) ? cur.scale : 1.0;
+        const initX = Number.isFinite(dragStartRef.current?.initialOffsetX) ? dragStartRef.current!.initialOffsetX : 0;
+        const initY = Number.isFinite(dragStartRef.current?.initialOffsetY) ? dragStartRef.current!.initialOffsetY : 0;
+
+        return {
+          ...prev,
+          [imgId]: {
+            scale: curScale,
+            offsetX: initX + dx,
+            offsetY: initY + dy,
+          },
+        };
+      });
     });
   };
 
   const handlePointerUp = () => {
+    if (rafIdRef.current) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
     setIsDragging(false);
     dragStartRef.current = null;
   };
@@ -476,11 +564,8 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
     });
   };
 
-  // Draw on Canvas with Transforms, Object-fit Cover & Drag Highlight
-  useEffect(() => {
-    if (!isOpen) return;
-
-    let isMounted = true;
+  // Draw on Canvas with Cached Images, Transforms & Object-fit Cover
+  const renderCanvasCells = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -488,268 +573,208 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
     if (!ctx) return;
 
     const { width: W, height: H } = canvasDimensions;
-    canvas.width = W;
-    canvas.height = H;
 
-    // Fill background
-    ctx.fillStyle = borderColor === 'transparent' ? '#090d16' : borderColor;
-    ctx.fillRect(0, 0, W, H);
+    try {
+      // Background fill
+      ctx.fillStyle = borderColor === 'transparent' ? '#090d16' : borderColor;
+      ctx.fillRect(0, 0, W, H);
 
-    if (images.length === 0) {
-      // Empty placeholder
-      ctx.fillStyle = '#64748b';
-      ctx.font = 'bold 36px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('사진을 추가해 주세요', W / 2, H / 2 - 20);
-      ctx.font = '24px sans-serif';
-      ctx.fillStyle = '#94a3b8';
-      ctx.fillText('(단일 1장 크기/위치 조절 및 다중 콜라주 분할)', W / 2, H / 2 + 30);
-      return;
-    }
-
-    const scaleFactor = W / 400; // ~2.7x
-    const scaledRadius = Math.max(0, Math.round(borderRadius * scaleFactor));
-
-    // Preload HTMLImages
-    const loadedImages: HTMLImageElement[] = [];
-    let loadedCounter = 0;
-
-    images.forEach((imgItem, idx) => {
-      const img = new Image();
-      if (!imgItem.dataUrl.startsWith('data:') && !imgItem.dataUrl.startsWith('blob:')) {
-        img.crossOrigin = 'anonymous';
+      if (images.length === 0) {
+        ctx.fillStyle = '#64748b';
+        ctx.font = 'bold 36px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('사진을 추가해 주세요', W / 2, H / 2 - 20);
+        ctx.font = '24px sans-serif';
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText('(단일 1장 크기/위치 조절 및 다중 콜라주 분할)', W / 2, H / 2 + 30);
+        return;
       }
-      img.onload = () => {
-        if (!isMounted) return;
-        loadedCounter++;
-        if (loadedCounter === images.length) {
-          renderCanvasCells();
+
+      const scaleFactor = W / 400; // ~2.7x
+      const scaledRadius = Math.max(0, Math.round(borderRadius * scaleFactor));
+      const safeImagesLen = Math.max(1, images.length);
+
+      activeCells.forEach((cell, idx) => {
+        if (!cell || cell.w <= 0 || cell.h <= 0) return;
+        const imgItem = images[idx % safeImagesLen];
+        const img = imgItem ? imageCacheRef.current.get(imgItem.id) : null;
+        const transform = (imgItem && transforms[imgItem.id]) || {
+          scale: 1.0,
+          offsetX: 0,
+          offsetY: 0,
+        };
+
+        ctx.save();
+        try {
+          // 1. Rounded corners clipping
+          const cellW = Math.max(1, cell.w);
+          const cellH = Math.max(1, cell.h);
+          if (scaledRadius > 0 && typeof (ctx as any).roundRect === 'function') {
+            const maxR = Math.min(cellW, cellH) / 2;
+            const safeR = Math.max(0, Math.min(scaledRadius, maxR));
+            ctx.beginPath();
+            try {
+              (ctx as any).roundRect(cell.x, cell.y, cellW, cellH, safeR);
+            } catch {
+              ctx.rect(cell.x, cell.y, cellW, cellH);
+            }
+            ctx.clip();
+          } else {
+            ctx.beginPath();
+            ctx.rect(cell.x, cell.y, cellW, cellH);
+            ctx.clip();
+          }
+
+          // 2. Draw Image with Object-Fit Cover + Transform (Scale & Offset)
+          if (img && img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
+            const imgRatio = img.naturalWidth / img.naturalHeight;
+            const cellRatio = cellW / cellH;
+            let fitW = cellW;
+            let fitH = cellH;
+
+            if (imgRatio > cellRatio) {
+              fitH = cellH;
+              fitW = cellH * imgRatio;
+            } else {
+              fitW = cellW;
+              fitH = cellW / (imgRatio || 1);
+            }
+
+            const cx = cell.x + cellW / 2;
+            const cy = cell.y + cellH / 2;
+
+            const safeScale = Number.isFinite(transform.scale) && transform.scale > 0 ? transform.scale : 1.0;
+            const safeOffsetX = Number.isFinite(transform.offsetX) ? transform.offsetX : 0;
+            const safeOffsetY = Number.isFinite(transform.offsetY) ? transform.offsetY : 0;
+
+            ctx.translate(cx + safeOffsetX, cy + safeOffsetY);
+            ctx.scale(safeScale, safeScale);
+
+            if (Number.isFinite(fitW) && Number.isFinite(fitH) && fitW > 0 && fitH > 0) {
+              ctx.drawImage(img, -fitW / 2, -fitH / 2, fitW, fitH);
+            }
+          } else {
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(cell.x, cell.y, cellW, cellH);
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = 'bold 30px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(`사진 ${idx + 1} 대기중`, cell.x + cellW / 2, cell.y + cellH / 2);
+          }
+        } catch (cellErr) {
+          console.warn('Canvas cell render warning:', cellErr);
+        } finally {
+          ctx.restore();
         }
-      };
-      img.onerror = () => {
-        if (!isMounted) return;
-        // If anonymous crossOrigin failed, try fallback without crossOrigin
-        if (img.crossOrigin) {
-          const retryImg = new Image();
-          retryImg.onload = () => {
-            if (!isMounted) return;
-            loadedImages[idx] = retryImg;
-            loadedCounter++;
-            if (loadedCounter === images.length) renderCanvasCells();
-          };
-          retryImg.onerror = () => {
-            if (!isMounted) return;
-            loadedCounter++;
-            if (loadedCounter === images.length) renderCanvasCells();
-          };
-          retryImg.src = imgItem.dataUrl;
-          return;
-        }
-        loadedCounter++;
-        if (loadedCounter === images.length) {
-          renderCanvasCells();
-        }
-      };
-      img.src = imgItem.dataUrl;
-      loadedImages[idx] = img;
-    });
 
-    const renderCanvasCells = () => {
-      if (!isMounted) return;
-
-      try {
-        // Redraw base background
-        ctx.fillStyle = borderColor === 'transparent' ? '#090d16' : borderColor;
-        ctx.fillRect(0, 0, W, H);
-
-        const safeImagesLen = Math.max(1, images.length);
-        const safeLoadedLen = Math.max(1, loadedImages.length);
-
-        activeCells.forEach((cell, idx) => {
-          if (!cell || cell.w <= 0 || cell.h <= 0) return;
-          const img = loadedImages[idx % safeLoadedLen];
-          const imgItem = images[idx % safeImagesLen];
-          const transform = (imgItem && transforms[imgItem.id]) || {
-            scale: 1.0,
-            offsetX: 0,
-            offsetY: 0,
-          };
-
+        // 3. Selection border indicator for active cell (shown when multi-image or when dragging)
+        if (idx === selectedCellIndex && images.length > 0 && (images.length > 1 || layout !== 'single')) {
           ctx.save();
           try {
-            // 1. Rounded corners clipping
-            const cellW = Math.max(1, cell.w);
-            const cellH = Math.max(1, cell.h);
+            ctx.strokeStyle = '#a855f7';
+            ctx.lineWidth = Math.max(5, Math.round(W / 180));
+            ctx.setLineDash([16, 10]);
+            const strokeW = Math.max(1, cell.w - 6);
+            const strokeH = Math.max(1, cell.h - 6);
             if (scaledRadius > 0 && typeof (ctx as any).roundRect === 'function') {
-              const maxR = Math.min(cellW, cellH) / 2;
+              const maxR = Math.min(strokeW, strokeH) / 2;
               const safeR = Math.max(0, Math.min(scaledRadius, maxR));
               ctx.beginPath();
               try {
-                (ctx as any).roundRect(cell.x, cell.y, cellW, cellH, safeR);
-              } catch {
-                ctx.rect(cell.x, cell.y, cellW, cellH);
-              }
-              ctx.clip();
-            } else {
-              ctx.beginPath();
-              ctx.rect(cell.x, cell.y, cellW, cellH);
-              ctx.clip();
-            }
-
-            // 2. Draw Image with Object-Fit Cover + Transform (Scale & Offset)
-            if (img && img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
-              const imgRatio = img.naturalWidth / img.naturalHeight;
-              const cellRatio = cellW / cellH;
-              let fitW = cellW;
-              let fitH = cellH;
-
-              if (imgRatio > cellRatio) {
-                fitH = cellH;
-                fitW = cellH * imgRatio;
-              } else {
-                fitW = cellW;
-                fitH = cellW / (imgRatio || 1);
-              }
-
-              const cx = cell.x + cellW / 2;
-              const cy = cell.y + cellH / 2;
-
-              const safeScale = Number.isFinite(transform.scale) && transform.scale > 0 ? transform.scale : 1.0;
-              const safeOffsetX = Number.isFinite(transform.offsetX) ? transform.offsetX : 0;
-              const safeOffsetY = Number.isFinite(transform.offsetY) ? transform.offsetY : 0;
-
-              ctx.translate(cx + safeOffsetX, cy + safeOffsetY);
-              ctx.scale(safeScale, safeScale);
-
-              if (Number.isFinite(fitW) && Number.isFinite(fitH) && fitW > 0 && fitH > 0) {
-                ctx.drawImage(img, -fitW / 2, -fitH / 2, fitW, fitH);
-              }
-            } else {
-              // Placeholder for empty cell
-              ctx.fillStyle = '#1e293b';
-              ctx.fillRect(cell.x, cell.y, cellW, cellH);
-              ctx.fillStyle = '#94a3b8';
-              ctx.font = 'bold 30px sans-serif';
-              ctx.textAlign = 'center';
-              ctx.fillText(`사진 ${idx + 1} 대기중`, cell.x + cellW / 2, cell.y + cellH / 2);
-            }
-          } catch (cellErr) {
-            console.warn('Canvas cell render warning:', cellErr);
-          } finally {
-            ctx.restore();
-          }
-
-          // 3. Selection border indicator for active cell (shown when multi-image or when dragging)
-          if (idx === selectedCellIndex && images.length > 0 && (images.length > 1 || layout !== 'single')) {
-            ctx.save();
-            try {
-              ctx.strokeStyle = '#a855f7'; // purple-500
-              ctx.lineWidth = Math.max(5, Math.round(W / 180));
-              ctx.setLineDash([16, 10]);
-              const strokeW = Math.max(1, cell.w - 6);
-              const strokeH = Math.max(1, cell.h - 6);
-              if (scaledRadius > 0 && typeof (ctx as any).roundRect === 'function') {
-                const maxR = Math.min(strokeW, strokeH) / 2;
-                const safeR = Math.max(0, Math.min(scaledRadius, maxR));
-                ctx.beginPath();
-                try {
-                  (ctx as any).roundRect(cell.x + 3, cell.y + 3, strokeW, strokeH, safeR);
-                  ctx.stroke();
-                } catch {
-                  ctx.strokeRect(cell.x + 3, cell.y + 3, strokeW, strokeH);
-                }
-              } else {
-                ctx.strokeRect(cell.x + 3, cell.y + 3, strokeW, strokeH);
-              }
-            } catch (borderErr) {
-              console.warn('Canvas border render warning:', borderErr);
-            } finally {
-              ctx.restore();
-            }
-          }
-        });
-
-        // 4. Render optional text badge / overlay banner
-        if (badgeText.trim()) {
-          ctx.save();
-          try {
-            const text = badgeText.trim();
-            ctx.font = '900 44px sans-serif';
-            const metrics = ctx.measureText(text);
-            const textW = metrics.width;
-            const boxW = Math.min(W - 40, textW + 80);
-            const boxH = 80;
-            const boxX = (W - boxW) / 2;
-            let boxY = H / 2 - boxH / 2;
-
-            if (badgePosition === 'top') boxY = 60;
-            else if (badgePosition === 'bottom') boxY = H - 140;
-
-            // Banner Pill Shadow & Box
-            ctx.shadowColor = 'rgba(0,0,0,0.6)';
-            ctx.shadowBlur = 24;
-            ctx.shadowOffsetY = 6;
-
-            ctx.fillStyle = 'rgba(15, 23, 42, 0.90)';
-            if (typeof (ctx as any).roundRect === 'function') {
-              ctx.beginPath();
-              try {
-                (ctx as any).roundRect(boxX, boxY, boxW, boxH, 40);
-                ctx.fill();
-              } catch {
-                ctx.fillRect(boxX, boxY, boxW, boxH);
-              }
-            } else {
-              ctx.fillRect(boxX, boxY, boxW, boxH);
-            }
-
-            // Inner glowing border
-            ctx.strokeStyle = '#eab308';
-            ctx.lineWidth = 4;
-            if (typeof (ctx as any).roundRect === 'function') {
-              ctx.beginPath();
-              try {
-                (ctx as any).roundRect(boxX, boxY, boxW, boxH, 40);
+                (ctx as any).roundRect(cell.x + 3, cell.y + 3, strokeW, strokeH, safeR);
                 ctx.stroke();
               } catch {
-                ctx.strokeRect(boxX, boxY, boxW, boxH);
+                ctx.strokeRect(cell.x + 3, cell.y + 3, strokeW, strokeH);
               }
+            } else {
+              ctx.strokeRect(cell.x + 3, cell.y + 3, strokeW, strokeH);
             }
-
-            // Text
-            ctx.shadowBlur = 0;
-            ctx.fillStyle = '#ffffff';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(text, W / 2, boxY + boxH / 2);
-          } catch (badgeErr) {
-            console.warn('Canvas badge render warning:', badgeErr);
+          } catch (borderErr) {
+            console.warn('Canvas border render warning:', borderErr);
           } finally {
             ctx.restore();
           }
         }
-      } catch (err) {
-        console.error('Fatal canvas rendering error:', err);
-      }
-    };
+      });
 
-    return () => {
-      isMounted = false;
-    };
+      // 4. Render optional text badge / overlay banner
+      if (badgeText.trim()) {
+        ctx.save();
+        try {
+          const text = badgeText.trim();
+          ctx.font = '900 44px sans-serif';
+          const metrics = ctx.measureText(text);
+          const textW = metrics.width;
+          const boxW = Math.min(W - 40, textW + 80);
+          const boxH = 80;
+          const boxX = (W - boxW) / 2;
+          let boxY = H / 2 - boxH / 2;
+
+          if (badgePosition === 'top') boxY = 60;
+          else if (badgePosition === 'bottom') boxY = H - 140;
+
+          ctx.shadowColor = 'rgba(0,0,0,0.6)';
+          ctx.shadowBlur = 24;
+          ctx.shadowOffsetY = 6;
+
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.90)';
+          if (typeof (ctx as any).roundRect === 'function') {
+            ctx.beginPath();
+            try {
+              (ctx as any).roundRect(boxX, boxY, boxW, boxH, 40);
+              ctx.fill();
+            } catch {
+              ctx.fillRect(boxX, boxY, boxW, boxH);
+            }
+          } else {
+            ctx.fillRect(boxX, boxY, boxW, boxH);
+          }
+
+          ctx.strokeStyle = '#eab308';
+          ctx.lineWidth = 4;
+          if (typeof (ctx as any).roundRect === 'function') {
+            ctx.beginPath();
+            try {
+              (ctx as any).roundRect(boxX, boxY, boxW, boxH, 40);
+              ctx.stroke();
+            } catch {
+              ctx.strokeRect(boxX, boxY, boxW, boxH);
+            }
+          }
+
+          ctx.shadowBlur = 0;
+          ctx.fillStyle = '#ffffff';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(text, W / 2, boxY + boxH / 2);
+        } catch (badgeErr) {
+          console.warn('Canvas badge render warning:', badgeErr);
+        } finally {
+          ctx.restore();
+        }
+      }
+    } catch (err) {
+      console.error('Fatal canvas rendering error:', err);
+    }
   }, [
-    isOpen,
     images,
     layout,
-    aspectRatio,
-    borderRadius,
-    borderColor,
-    badgeText,
-    badgePosition,
     canvasDimensions,
     activeCells,
     transforms,
     selectedCellIndex,
+    borderColor,
+    borderRadius,
+    badgeText,
+    badgePosition,
   ]);
+
+  // Execute render whenever scene properties or cached images update
+  useEffect(() => {
+    if (isOpen) {
+      renderCanvasCells();
+    }
+  }, [isOpen, renderCanvasCells, imagesLoadedVersion]);
 
   // Handle Apply to Scene
   const handleApply = () => {
@@ -1282,23 +1307,33 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
             <div className="relative w-full flex items-center justify-center flex-1 min-h-[300px] max-h-[420px] select-none">
               <canvas
                 ref={canvasRef}
-                onMouseDown={(e) => handlePointerDown(e.clientX, e.clientY)}
-                onMouseMove={(e) => handlePointerMove(e.clientX, e.clientY)}
-                onMouseUp={handlePointerUp}
-                onMouseLeave={handlePointerUp}
-                onTouchStart={(e) => {
-                  if (e.touches.length > 0) {
-                    handlePointerDown(e.touches[0].clientX, e.touches[0].clientY);
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  try {
+                    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+                  } catch {}
+                  handlePointerDown(e.clientX, e.clientY);
+                }}
+                onPointerMove={(e) => {
+                  if (isDragging) {
+                    e.preventDefault();
+                    handlePointerMove(e.clientX, e.clientY);
                   }
                 }}
-                onTouchMove={(e) => {
-                  if (e.touches.length > 0) {
-                    handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
-                  }
+                onPointerUp={(e) => {
+                  try {
+                    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+                  } catch {}
+                  handlePointerUp();
                 }}
-                onTouchEnd={handlePointerUp}
+                onPointerCancel={(e) => {
+                  try {
+                    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+                  } catch {}
+                  handlePointerUp();
+                }}
                 onWheel={handleCanvasWheel}
-                className={`max-h-[400px] max-w-full rounded-xl shadow-2xl border border-slate-800 object-contain ${
+                className={`max-h-[400px] max-w-full rounded-xl shadow-2xl border border-slate-800 object-contain touch-none select-none ${
                   isDragging ? 'cursor-grabbing' : 'cursor-grab'
                 }`}
                 style={{
