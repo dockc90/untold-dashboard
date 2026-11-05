@@ -20,9 +20,11 @@ import {
   ZoomOut,
   Move,
   Hand,
+  Maximize2,
 } from 'lucide-react';
 
 export type CollageLayout =
+  | 'single'         // 단일 1장 전체화면 (위치 이동 & 크기 조절/줌 전용)
   | 'vertical-2'     // 상하 2분할 (9:16 쇼츠 핵심)
   | 'horizontal-2'   // 좌우 2분할
   | 'top1-bottom2'   // 상단 1개 + 하단 2개 (3분할)
@@ -34,7 +36,7 @@ export type CollageLayout =
 export type CollageAspectRatio = '9:16' | '1:1' | '4:5';
 
 export interface ImageTransform {
-  scale: number;    // 0.5 ~ 4.0
+  scale: number;    // 0.4 ~ 4.0
   offsetX: number;  // px in canvas coordinates
   offsetY: number;  // px in canvas coordinates
 }
@@ -56,6 +58,7 @@ interface ScenePhotoCollageModalProps {
 }
 
 const LAYOUT_PRESETS: { id: CollageLayout; label: string; desc: string; icon: any; minImages: number }[] = [
+  { id: 'single', label: '단일 전체', desc: '1장 위치/크기/줌 조절', icon: Maximize2, minImages: 1 },
   { id: 'vertical-2', label: '상하 2분할', desc: '쇼츠 9:16 추천 (인물 + 자료)', icon: Rows, minImages: 2 },
   { id: 'horizontal-2', label: '좌우 2분할', desc: '과거 vs 현재 비교', icon: Columns, minImages: 2 },
   { id: 'top1-bottom2', label: '1+2 3분할', desc: '상단 메인 + 하단 2장', icon: Layers, minImages: 3 },
@@ -84,10 +87,10 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
   onApplyImage,
 }) => {
   const [images, setImages] = useState<ImageItem[]>([]);
-  const [layout, setLayout] = useState<CollageLayout>('vertical-2');
+  const [layout, setLayout] = useState<CollageLayout>('single');
   const [aspectRatio, setAspectRatio] = useState<CollageAspectRatio>('9:16');
-  const [gap, setGap] = useState<number>(8); // px in UI
-  const [borderRadius, setBorderRadius] = useState<number>(12); // px
+  const [gap, setGap] = useState<number>(0); // px in UI (default 0 for single photo)
+  const [borderRadius, setBorderRadius] = useState<number>(0); // px
   const [borderColor, setBorderColor] = useState<string>('#000000');
   const [badgeText, setBadgeText] = useState<string>(''); // e.g. "과거 vs 현재"
   const [badgePosition, setBadgePosition] = useState<'top' | 'center' | 'bottom'>('center');
@@ -121,6 +124,9 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
             name: `기존 씬 ${sceneNumber} 사진`,
           },
         ]);
+        setLayout('single');
+        setGap(0);
+        setBorderRadius(0);
       }
     }
   }, [isOpen, existingImageUrl, sceneNumber]);
@@ -157,9 +163,20 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
           setImages((prev) => {
             const combined = [...prev, ...newItems].slice(0, 8); // max 8 images
             // Auto suggest layout based on total count
-            if (combined.length === 2) setLayout('vertical-2');
-            else if (combined.length === 3) setLayout('top1-bottom2');
-            else if (combined.length >= 4) setLayout('grid-4');
+            if (combined.length === 1) {
+              setLayout('single');
+              setGap(0);
+              setBorderRadius(0);
+            } else if (combined.length === 2) {
+              setLayout('vertical-2');
+              setGap((prevGap) => (prevGap === 0 ? 8 : prevGap));
+            } else if (combined.length === 3) {
+              setLayout('top1-bottom2');
+              setGap((prevGap) => (prevGap === 0 ? 8 : prevGap));
+            } else if (combined.length >= 4) {
+              setLayout('grid-4');
+              setGap((prevGap) => (prevGap === 0 ? 8 : prevGap));
+            }
             return combined;
           });
         }
@@ -171,7 +188,13 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
   };
 
   const handleRemoveImage = (id: string) => {
-    setImages((prev) => prev.filter((img) => img.id !== id));
+    setImages((prev) => {
+      const next = prev.filter((img) => img.id !== id);
+      if (next.length === 1) {
+        setLayout('single');
+      }
+      return next;
+    });
     setTransforms((prev) => {
       const copy = { ...prev };
       delete copy[id];
@@ -197,6 +220,7 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
     setTransforms({});
     setBadgeText('');
     setSelectedCellIndex(0);
+    setLayout('single');
   };
 
   // Canvas dimension based on aspect ratio
@@ -216,6 +240,10 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
     const cells: { x: number; y: number; w: number; h: number }[] = [];
 
     switch (currentLayout) {
+      case 'single': {
+        cells.push({ x: g, y: g, w: w - g * 2, h: h - g * 2 });
+        break;
+      }
       case 'vertical-2': {
         const cellH = (h - g * 3) / 2;
         const cellW = w - g * 2;
@@ -452,10 +480,10 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
       ctx.fillStyle = '#64748b';
       ctx.font = 'bold 36px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('사진을 2장 이상 추가해 주세요', W / 2, H / 2 - 20);
+      ctx.fillText('사진을 추가해 주세요', W / 2, H / 2 - 20);
       ctx.font = '24px sans-serif';
       ctx.fillStyle = '#94a3b8';
-      ctx.fillText('(상하 2분할, 3분할, 4컷 격자 자동 조합)', W / 2, H / 2 + 30);
+      ctx.fillText('(단일 1장 크기/위치 조절 및 다중 콜라주 분할)', W / 2, H / 2 + 30);
       return;
     }
 
@@ -546,8 +574,8 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
 
         ctx.restore();
 
-        // 3. Selection border indicator for active cell
-        if (idx === selectedCellIndex && images.length > 0) {
+        // 3. Selection border indicator for active cell (shown when multi-image or when dragging)
+        if (idx === selectedCellIndex && images.length > 0 && (images.length > 1 || layout !== 'single')) {
           ctx.save();
           ctx.strokeStyle = '#a855f7'; // purple-500
           ctx.lineWidth = Math.max(5, Math.round(W / 180));
@@ -651,7 +679,7 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
     const canvas = canvasRef.current;
     if (!canvas) return;
     const link = document.createElement('a');
-    link.download = `scene-${sceneNumber}-collage-${aspectRatio}.jpg`;
+    link.download = `scene-${sceneNumber}-photo-${aspectRatio}.jpg`;
     link.href = canvas.toDataURL('image/jpeg', 0.95);
     link.click();
   };
@@ -670,14 +698,14 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
             <div>
               <div className="flex items-center space-x-2">
                 <h3 className="text-base font-black text-slate-900">
-                  씬 {sceneNumber} 다중 사진 콜라주 편집기
+                  씬 {sceneNumber} 사진 편집 & 콜라주 스튜디오
                 </h3>
                 <span className="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-extrabold">
                   {timeRange}
                 </span>
                 <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-[10px] font-extrabold flex items-center gap-1">
                   <Sparkles className="w-2.5 h-2.5" />
-                  드래그 이동 & 줌 조절 탑재
+                  단일 줌/위치 조절 & 다중 분할
                 </span>
               </div>
               <p className="text-xs text-slate-500 font-medium truncate max-w-md mt-0.5">
@@ -698,18 +726,20 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
           {/* Left Column: Photo List & Layout Controls (7 cols) */}
           <div className="lg:col-span-7 space-y-4">
-            {/* 1. Multi Photo Upload Box */}
+            {/* 1. Photo Upload Box */}
             <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/80 space-y-3">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-black text-slate-800 flex items-center gap-1.5">
                   <Upload className="w-4 h-4 text-purple-600" />
-                  <span>사진 추가 ({images.length}/8장)</span>
+                  <span>
+                    사진 등록 ({images.length === 1 ? '단일 1장 편집' : `${images.length}/8장`})
+                  </span>
                 </label>
                 {images.length > 0 && (
                   <button
                     type="button"
                     onClick={handleClearAll}
-                    className="text-[11px] font-bold text-rose-600 hover:text-rose-700 transition"
+                    className="text-[11px] font-bold text-rose-600 hover:text-rose-700 transition cursor-pointer"
                   >
                     전체 비우기
                   </button>
@@ -734,10 +764,10 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
                 </div>
                 <div>
                   <p className="text-xs font-black text-slate-800">
-                    여러 장의 사진을 한 번에 선택하거나 드래그하세요
+                    사진을 선택하거나 이곳에 드래그하세요 (1장 단일도 가능!)
                   </p>
                   <p className="text-[11px] text-slate-400 font-medium">
-                    JPG, PNG, WebP 지원 • 최대 8장까지 자동 분할 합성
+                    1장 단일 사진 크기·위치 조절부터 최대 8장 분할 콜라주까지 모두 지원
                   </p>
                 </div>
               </div>
@@ -745,7 +775,9 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
               {/* Uploaded Images Thumbnails Strip */}
               {images.length > 0 && (
                 <div className="space-y-1.5 pt-1">
-                  <div className="text-[11px] font-bold text-slate-500">순서 및 선택:</div>
+                  <div className="text-[11px] font-bold text-slate-500">
+                    {images.length === 1 ? '등록된 사진 (클릭하여 편집):' : '순서 및 선택 (클릭하여 편집):'}
+                  </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {images.map((item, idx) => {
                       const isSelected = selectedCellIndex === idx;
@@ -781,7 +813,7 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
                                 e.stopPropagation();
                                 handleRemoveImage(item.id);
                               }}
-                              className="p-1 rounded-md bg-rose-600/90 text-white hover:bg-rose-700 transition"
+                              className="p-1 rounded-md bg-rose-600/90 text-white hover:bg-rose-700 transition cursor-pointer"
                               title="삭제"
                             >
                               <Trash2 className="w-3 h-3" />
@@ -795,32 +827,34 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
                               </span>
                             ) : <span />}
 
-                            <div className="flex items-center space-x-1">
-                              <button
-                                type="button"
-                                disabled={idx === 0}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleMoveImage(idx, 'up');
-                                }}
-                                className="p-1 rounded bg-black/70 text-white hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
-                                title="앞으로 이동"
-                              >
-                                <ArrowUp className="w-3 h-3" />
-                              </button>
-                              <button
-                                type="button"
-                                disabled={idx === images.length - 1}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleMoveImage(idx, 'down');
-                                }}
-                                className="p-1 rounded bg-black/70 text-white hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
-                                title="뒤로 이동"
-                              >
-                                <ArrowDown className="w-3 h-3" />
-                              </button>
-                            </div>
+                            {images.length > 1 && (
+                              <div className="flex items-center space-x-1">
+                                <button
+                                  type="button"
+                                  disabled={idx === 0}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleMoveImage(idx, 'up');
+                                  }}
+                                  className="p-1 rounded bg-black/70 text-white hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-[10px] cursor-pointer"
+                                  title="앞으로 이동"
+                                >
+                                  <ArrowUp className="w-3 h-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={idx === images.length - 1}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleMoveImage(idx, 'down');
+                                  }}
+                                  className="p-1 rounded bg-black/70 text-white hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-[10px] cursor-pointer"
+                                  title="뒤로 이동"
+                                >
+                                  <ArrowDown className="w-3 h-3" />
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
@@ -846,7 +880,7 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
                       key={preset.id}
                       type="button"
                       onClick={() => setLayout(preset.id)}
-                      className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between space-y-1 ${
+                      className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between space-y-1 cursor-pointer ${
                         isSelected
                           ? 'bg-purple-50/90 border-purple-500 shadow-xs ring-1 ring-purple-300'
                           : 'bg-white hover:bg-slate-50 border-slate-200'
@@ -887,7 +921,7 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
                         key={ratio}
                         type="button"
                         onClick={() => setAspectRatio(ratio)}
-                        className={`py-1 text-center rounded-lg text-[10px] font-extrabold transition ${
+                        className={`py-1 text-center rounded-lg text-[10px] font-extrabold transition cursor-pointer ${
                           aspectRatio === ratio
                             ? 'bg-indigo-600 text-white shadow-2xs'
                             : 'text-slate-600 hover:bg-slate-100'
@@ -902,7 +936,7 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
                 {/* Gap Slider */}
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <label className="text-[11px] font-bold text-slate-600">사진 간격 (여백)</label>
+                    <label className="text-[11px] font-bold text-slate-600">외곽/사진 여백</label>
                     <span className="text-[10px] font-bold text-indigo-600">{gap}px</span>
                   </div>
                   <input
@@ -935,29 +969,31 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
               </div>
 
               {/* Background Color Picker */}
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1.5">구분선 배경색</label>
-                <div className="flex items-center space-x-2">
-                  {BORDER_COLORS.map((c) => (
-                    <button
-                      key={c.value}
-                      type="button"
-                      onClick={() => setBorderColor(c.value)}
-                      className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold transition ${
-                        borderColor === c.value
-                          ? 'border-indigo-600 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-400'
-                          : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
-                      }`}
-                    >
-                      <span
-                        className="w-3 h-3 rounded-full border border-slate-300"
-                        style={{ backgroundColor: c.value === 'transparent' ? '#cbd5e1' : c.value }}
-                      />
-                      <span className="text-[11px]">{c.label}</span>
-                    </button>
-                  ))}
+              {gap > 0 && (
+                <div>
+                  <label className="text-[11px] font-bold text-slate-600 block mb-1.5">여백/배경 색상</label>
+                  <div className="flex items-center space-x-2">
+                    {BORDER_COLORS.map((c) => (
+                      <button
+                        key={c.value}
+                        type="button"
+                        onClick={() => setBorderColor(c.value)}
+                        className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold transition cursor-pointer ${
+                          borderColor === c.value
+                            ? 'border-indigo-600 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-400'
+                            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        <span
+                          className="w-3 h-3 rounded-full border border-slate-300"
+                          style={{ backgroundColor: c.value === 'transparent' ? '#cbd5e1' : c.value }}
+                        />
+                        <span className="text-[11px]">{c.label}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Text Banner Overlay (Optional) */}
               <div className="pt-2 border-t border-slate-200/80">
@@ -971,7 +1007,7 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
                         key={pos}
                         type="button"
                         onClick={() => setBadgePosition(pos)}
-                        className={`px-2 py-0.5 rounded text-[9px] font-bold ${
+                        className={`px-2 py-0.5 rounded text-[9px] font-bold cursor-pointer ${
                           badgePosition === pos ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'
                         }`}
                       >
@@ -992,7 +1028,7 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setBadgeText('')}
-                      className="text-xs text-slate-400 hover:text-slate-600 font-bold px-1"
+                      className="text-xs text-slate-400 hover:text-slate-600 font-bold px-1 cursor-pointer"
                     >
                       지우기
                     </button>
@@ -1008,15 +1044,17 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
             <div className="w-full flex items-center justify-between text-xs text-slate-400">
               <span className="font-extrabold text-white flex items-center gap-1.5">
                 <ImageIcon className="w-4 h-4 text-purple-400" />
-                <span>합성 결과 미리보기 ({aspectRatio})</span>
+                <span>
+                  {images.length <= 1 ? '단일 사진 미리보기' : '합성 결과 미리보기'} ({aspectRatio})
+                </span>
               </span>
               <span className="text-[11px] text-purple-300 font-mono">
                 {canvasDimensions.width} x {canvasDimensions.height}px
               </span>
             </div>
 
-            {/* Cell Selection Tabs */}
-            {images.length > 0 && (
+            {/* Cell Selection Tabs (when multiple photos) */}
+            {images.length > 1 && (
               <div className="w-full flex items-center space-x-1.5 overflow-x-auto pb-1 scrollbar-none">
                 <span className="text-[11px] font-bold text-slate-400 shrink-0">편집 대상:</span>
                 {images.map((item, idx) => {
@@ -1043,13 +1081,15 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
               </div>
             )}
 
-            {/* Interactive Transform Control Panel for Selected Cell */}
+            {/* Interactive Transform Control Panel for Selected Image */}
             {currentSelectedImage && (
               <div className="w-full bg-slate-900 rounded-xl p-3 border border-slate-800 space-y-2.5 shadow-sm">
                 <div className="flex items-center justify-between text-slate-300">
                   <span className="font-extrabold text-white flex items-center gap-1.5 text-[11px]">
                     <Move className="w-3.5 h-3.5 text-purple-400" />
-                    <span>사진 {selectedCellIndex + 1} 크기 및 위치 조정</span>
+                    <span>
+                      {images.length <= 1 ? '사진 크기 및 위치 조정' : `사진 ${selectedCellIndex + 1} 크기 및 위치 조정`}
+                    </span>
                   </span>
                   <button
                     type="button"
@@ -1099,7 +1139,7 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
                 <div className="flex items-center justify-between pt-1 border-t border-slate-800/80">
                   <span className="text-[10px] text-slate-400 flex items-center gap-1 font-medium">
                     <Hand className="w-3 h-3 text-purple-400" />
-                    <span>사진 클릭 & 드래그로 즉시 이동</span>
+                    <span>마우스 드래그로 즉시 이동</span>
                   </span>
 
                   <div className="flex items-center space-x-1">
@@ -1185,7 +1225,7 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
                   onClick={handleDownload}
                   disabled={images.length === 0}
                   className="flex-1 flex items-center justify-center space-x-1.5 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-200 font-bold text-xs transition border border-slate-700 cursor-pointer"
-                  title="합성된 이미지 파일 다운로드"
+                  title="편집된 이미지 파일 다운로드"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>이미지 다운로드</span>
@@ -1198,7 +1238,11 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
                   className="flex-[2] flex items-center justify-center space-x-1.5 py-2.5 px-4 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-indigo-700 hover:from-purple-500 hover:to-indigo-600 text-white font-black text-xs shadow-md transition disabled:opacity-50 cursor-pointer"
                 >
                   <Check className="w-4 h-4 stroke-[3]" />
-                  <span>씬 {sceneNumber}에 합성 사진 적용하기</span>
+                  <span>
+                    {images.length <= 1
+                      ? `씬 ${sceneNumber}에 사진 적용하기`
+                      : `씬 ${sceneNumber}에 합성 사진 적용하기`}
+                  </span>
                 </button>
               </div>
 

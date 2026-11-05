@@ -182,8 +182,10 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
       const updated = [...editableScenes];
       updated[index] = { ...updated[index], uploadedImageUrl: dataUrl };
       setEditableScenes(updated);
+      handleOpenCollageModal(index);
     };
     reader.readAsDataURL(file);
+    if (e.target) e.target.value = '';
   };
 
   const handleRemoveSceneImage = (index: number) => {
@@ -799,7 +801,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                         {/* Image Preview & Upload Button */}
                         <div className="sm:col-span-5 flex items-center space-x-3">
                           {scene.uploadedImageUrl ? (
-                            <div className="relative group w-16 h-20 rounded-xl overflow-hidden border border-slate-300 shadow-2xs flex-shrink-0">
+                            <div onClick={() => handleOpenCollageModal(idx)} className="relative group w-16 h-20 rounded-xl overflow-hidden border border-slate-300 hover:border-purple-400 shadow-2xs flex-shrink-0 cursor-pointer" title="클릭하여 위치/크기 조절 및 사진 편집">
                               <img
                                 src={scene.uploadedImageUrl}
                                 alt={`Scene ${scene.sceneNumber}`}
@@ -822,9 +824,9 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                               </button>
                             </div>
                           ) : (
-                            <div className="w-16 h-20 rounded-xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center text-slate-400 flex-shrink-0 bg-white">
+                            <div onClick={() => handleOpenCollageModal(idx)} className="w-16 h-20 rounded-xl border-2 border-dashed border-slate-300 hover:border-purple-400 flex flex-col items-center justify-center text-slate-400 hover:text-purple-600 flex-shrink-0 bg-white cursor-pointer transition" title="사진 업로드 & 위치/크기 편집 스튜디오 열기">
                               <ImageIcon className="w-5 h-5 mb-0.5" />
-                              <span className="text-[9px] font-bold">사진 없음</span>
+                              <span className="text-[9px] font-bold">사진 추가</span>
                             </div>
                           )}
 
@@ -846,17 +848,17 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                                 title="단일 사진 파일 업로드"
                               >
                                 <Upload className="w-3 h-3" />
-                                <span>{scene.uploadedImageUrl ? '단일 교체' : '단일 사진'}</span>
+                                <span>{scene.uploadedImageUrl ? '파일 교체' : '사진 업로드'}</span>
                               </button>
 
                               <button
                                 type="button"
                                 onClick={() => handleOpenCollageModal(idx)}
                                 className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-purple-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 text-purple-700 font-bold text-[11px] border border-purple-300 shadow-2xs transition cursor-pointer"
-                                title="여러 장의 사진을 1장의 쇼츠 이미지로 콜라주/분할 편집"
+                                title="1장 위치/크기(줌) 조절 및 여러 장 콜라주 합성 스튜디오"
                               >
                                 <LayoutGrid className="w-3 h-3 text-purple-600" />
-                                <span>여러 장 합치기</span>
+                                <span>{scene.uploadedImageUrl ? '위치/크기 조절 & 합치기' : '사진 편집 / 합치기'}</span>
                               </button>
 
                               <a
