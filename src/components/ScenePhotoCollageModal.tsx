@@ -21,6 +21,11 @@ import {
   Move,
   Hand,
   Maximize2,
+  Sun,
+  Contrast,
+  Palette,
+  Wand2,
+  Sliders,
 } from 'lucide-react';
 
 export type CollageLayout =
@@ -35,10 +40,63 @@ export type CollageLayout =
 
 export type CollageAspectRatio = '9:16' | '1:1' | '4:5';
 
+export type ColorFilterPreset = 'none' | 'vivid' | 'warm' | 'cool' | 'cinematic' | 'vintage' | 'bw';
+
 export interface ImageTransform {
-  scale: number;    // 0.4 ~ 4.0
-  offsetX: number;  // px in canvas coordinates
-  offsetY: number;  // px in canvas coordinates
+  scale: number;        // 0.4 ~ 4.0
+  offsetX: number;      // px in canvas coordinates
+  offsetY: number;      // px in canvas coordinates
+  brightness?: number;  // 50 ~ 150 (default 100%)
+  contrast?: number;    // 50 ~ 150 (default 100%)
+  saturate?: number;    // 0 ~ 200 (default 100%)
+  filterPreset?: ColorFilterPreset;
+}
+
+export const COLOR_PRESETS: { id: ColorFilterPreset; label: string; desc: string; emoji: string }[] = [
+  { id: 'none', label: '원본', desc: '효과 없음', emoji: '✨' },
+  { id: 'vivid', label: '선명하게', desc: '생동감 극대화', emoji: '⚡' },
+  { id: 'warm', label: '따뜻한 톤', desc: '감성 골든아워', emoji: '🌅' },
+  { id: 'cool', label: '차가운 톤', desc: '세련된 블루 무드', emoji: '❄️' },
+  { id: 'cinematic', label: '시네마틱', desc: '영화같은 깊이감', emoji: '🎬' },
+  { id: 'vintage', label: '빈티지', desc: '레트로 필름 감성', emoji: '🎞️' },
+  { id: 'bw', label: '흑백', desc: '클래식 모노크롬', emoji: '⬛' },
+];
+
+export function getCanvasFilterString(t?: ImageTransform): string {
+  if (!t) return 'none';
+  const b = Number.isFinite(t.brightness) ? t.brightness! : 100;
+  const c = Number.isFinite(t.contrast) ? t.contrast! : 100;
+  const s = Number.isFinite(t.saturate) ? t.saturate! : 100;
+  const preset = t.filterPreset || 'none';
+
+  const parts: string[] = [];
+
+  switch (preset) {
+    case 'vivid':
+      parts.push('contrast(115%)', 'saturate(130%)');
+      break;
+    case 'warm':
+      parts.push('sepia(25%)', 'saturate(115%)');
+      break;
+    case 'cool':
+      parts.push('hue-rotate(15deg)', 'saturate(95%)');
+      break;
+    case 'cinematic':
+      parts.push('contrast(125%)', 'saturate(85%)', 'sepia(10%)');
+      break;
+    case 'vintage':
+      parts.push('sepia(45%)', 'contrast(90%)', 'brightness(105%)');
+      break;
+    case 'bw':
+      parts.push('grayscale(100%)', 'contrast(110%)');
+      break;
+  }
+
+  if (b !== 100) parts.push(`brightness(${b}%)`);
+  if (c !== 100) parts.push(`contrast(${c}%)`);
+  if (s !== 100) parts.push(`saturate(${s}%)`);
+
+  return parts.length > 0 ? parts.join(' ') : 'none';
 }
 
 interface ImageItem {
@@ -96,10 +154,11 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
   const [badgePosition, setBadgePosition] = useState<'top' | 'center' | 'bottom'>('center');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
-  // Per-image interactive transform state: scale & offset
+  // Per-image interactive transform state: scale, offset, brightness, contrast, saturation, preset
   const [transforms, setTransforms] = useState<{ [id: string]: ImageTransform }>({});
   const [selectedCellIndex, setSelectedCellIndex] = useState<number>(0);
   const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [editorTab, setEditorTab] = useState<'transform' | 'color'>('transform');
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -333,15 +392,51 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
   // Current selected image & transform
   const currentSelectedImage = images[selectedCellIndex % (images.length || 1)] || null;
   const currentTransform: ImageTransform = useMemo(() => {
-    if (!currentSelectedImage) return { scale: 1.0, offsetX: 0, offsetY: 0 };
-    return transforms[currentSelectedImage.id] || { scale: 1.0, offsetX: 0, offsetY: 0 };
+    const defaultTransform: ImageTransform = {
+      scale: 1.0,
+      offsetX: 0,
+      offsetY: 0,
+      brightness: 100,
+      contrast: 100,
+      saturate: 100,
+      filterPreset: 'none',
+    };
+    if (!currentSelectedImage) return defaultTransform;
+    const existing = transforms[currentSelectedImage.id];
+    if (!existing) return defaultTransform;
+    return {
+      scale: Number.isFinite(existing.scale) ? existing.scale : 1.0,
+      offsetX: Number.isFinite(existing.offsetX) ? existing.offsetX : 0,
+      offsetY: Number.isFinite(existing.offsetY) ? existing.offsetY : 0,
+      brightness: Number.isFinite(existing.brightness) ? existing.brightness! : 100,
+      contrast: Number.isFinite(existing.contrast) ? existing.contrast! : 100,
+      saturate: Number.isFinite(existing.saturate) ? existing.saturate! : 100,
+      filterPreset: existing.filterPreset || 'none',
+    };
   }, [currentSelectedImage, transforms]);
+
+  const isColorAdjusted = useMemo(() => {
+    return (
+      (currentTransform.brightness !== 100) ||
+      (currentTransform.contrast !== 100) ||
+      (currentTransform.saturate !== 100) ||
+      (currentTransform.filterPreset !== 'none')
+    );
+  }, [currentTransform]);
 
   // Transform modifiers for selected image
   const updateCurrentTransform = useCallback((updater: (prev: ImageTransform) => ImageTransform) => {
     if (!currentSelectedImage) return;
     setTransforms((prev) => {
-      const cur = prev[currentSelectedImage.id] || { scale: 1.0, offsetX: 0, offsetY: 0 };
+      const cur = prev[currentSelectedImage.id] || {
+        scale: 1.0,
+        offsetX: 0,
+        offsetY: 0,
+        brightness: 100,
+        contrast: 100,
+        saturate: 100,
+        filterPreset: 'none',
+      };
       const next = updater(cur);
       return {
         ...prev,
@@ -377,9 +472,56 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
 
   const handleResetCurrentTransform = () => {
     if (!currentSelectedImage) return;
+    updateCurrentTransform((cur) => ({
+      ...cur,
+      scale: 1.0,
+      offsetX: 0,
+      offsetY: 0,
+    }));
+  };
+
+  const handleBrightnessChange = (val: number) => {
+    const clamped = Math.max(50, Math.min(150, Math.round(val)));
+    updateCurrentTransform((cur) => ({ ...cur, brightness: clamped }));
+  };
+
+  const handleContrastChange = (val: number) => {
+    const clamped = Math.max(50, Math.min(150, Math.round(val)));
+    updateCurrentTransform((cur) => ({ ...cur, contrast: clamped }));
+  };
+
+  const handleSaturateChange = (val: number) => {
+    const clamped = Math.max(0, Math.min(200, Math.round(val)));
+    updateCurrentTransform((cur) => ({ ...cur, saturate: clamped }));
+  };
+
+  const handleFilterPresetSelect = (preset: ColorFilterPreset) => {
+    updateCurrentTransform((cur) => ({ ...cur, filterPreset: preset }));
+  };
+
+  const handleResetColorTransform = () => {
+    updateCurrentTransform((cur) => ({
+      ...cur,
+      brightness: 100,
+      contrast: 100,
+      saturate: 100,
+      filterPreset: 'none',
+    }));
+  };
+
+  const handleResetAllTransform = () => {
+    if (!currentSelectedImage) return;
     setTransforms((prev) => ({
       ...prev,
-      [currentSelectedImage.id]: { scale: 1.0, offsetX: 0, offsetY: 0 },
+      [currentSelectedImage.id]: {
+        scale: 1.0,
+        offsetX: 0,
+        offsetY: 0,
+        brightness: 100,
+        contrast: 100,
+        saturate: 100,
+        filterPreset: 'none',
+      },
     }));
   };
 
@@ -650,6 +792,12 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
             ctx.translate(cx + safeOffsetX, cy + safeOffsetY);
             ctx.scale(safeScale, safeScale);
 
+            // Apply color filter (brightness, contrast, saturation, and tone preset)
+            const filterStr = getCanvasFilterString(transform);
+            if (filterStr !== 'none' && typeof (ctx as any).filter === 'string') {
+              (ctx as any).filter = filterStr;
+            }
+
             if (Number.isFinite(fitW) && Number.isFinite(fitH) && fitW > 0 && fitH > 0) {
               ctx.drawImage(img, -fitW / 2, -fitH / 2, fitW, fitH);
             }
@@ -664,6 +812,9 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
         } catch (cellErr) {
           console.warn('Canvas cell render warning:', cellErr);
         } finally {
+          try {
+            (ctx as any).filter = 'none';
+          } catch {}
           ctx.restore();
         }
 
@@ -906,6 +1057,12 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
                       const isSelected = selectedCellIndex === idx;
                       const tr = transforms[item.id];
                       const isZoomed = tr && (tr.scale !== 1 || tr.offsetX !== 0 || tr.offsetY !== 0);
+                      const isColorMod = tr && (
+                        (tr.brightness !== undefined && tr.brightness !== 100) ||
+                        (tr.contrast !== undefined && tr.contrast !== 100) ||
+                        (tr.saturate !== undefined && tr.saturate !== 100) ||
+                        (tr.filterPreset && tr.filterPreset !== 'none')
+                      );
 
                       return (
                         <div
@@ -944,11 +1101,18 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
                           </div>
 
                           <div className="relative z-10 flex items-center justify-between">
-                            {isZoomed ? (
-                              <span className="px-1 py-0.5 rounded bg-purple-700/90 text-white text-[9px] font-mono font-bold">
-                                {Math.round(tr.scale * 100)}%
-                              </span>
-                            ) : <span />}
+                            <div className="flex items-center space-x-0.5">
+                              {isZoomed && (
+                                <span className="px-1 py-0.5 rounded bg-purple-700/90 text-white text-[9px] font-mono font-bold">
+                                  {Math.round(tr.scale * 100)}%
+                                </span>
+                              )}
+                              {isColorMod && (
+                                <span className="px-1 py-0.5 rounded bg-amber-600/90 text-white text-[9px] font-bold" title="밝기/색감 보정 적용됨">
+                                  보정
+                                </span>
+                              )}
+                            </div>
 
                             {images.length > 1 && (
                               <div className="flex items-center space-x-1">
@@ -1204,102 +1368,223 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
               </div>
             )}
 
-            {/* Interactive Transform Control Panel for Selected Image */}
+            {/* Interactive Transform & Color Control Panel for Selected Image */}
             {currentSelectedImage && (
               <div className="w-full bg-slate-900 rounded-xl p-3 border border-slate-800 space-y-2.5 shadow-sm">
+                {/* Header: Mode Tabs & Reset */}
                 <div className="flex items-center justify-between text-slate-300">
-                  <span className="font-extrabold text-white flex items-center gap-1.5 text-[11px]">
-                    <Move className="w-3.5 h-3.5 text-purple-400" />
-                    <span>
-                      {images.length <= 1 ? '사진 크기 및 위치 조정' : `사진 ${selectedCellIndex + 1} 크기 및 위치 조정`}
-                    </span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleResetCurrentTransform}
-                    className="text-[10px] text-slate-400 hover:text-white flex items-center gap-1 font-bold transition cursor-pointer"
-                    title="선택된 사진의 위치와 크기를 초기화"
-                  >
-                    <RotateCcw className="w-2.5 h-2.5" />
-                    <span>초기화</span>
-                  </button>
-                </div>
-
-                {/* Zoom Scale Slider & Buttons */}
-                <div className="flex items-center space-x-2">
-                  <span className="text-[10px] text-slate-400 font-bold shrink-0">크기 (확대/축소):</span>
-                  <button
-                    type="button"
-                    onClick={() => handleStepZoom(-0.1)}
-                    className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 transition cursor-pointer"
-                    title="축소"
-                  >
-                    <ZoomOut className="w-3.5 h-3.5" />
-                  </button>
-                  <input
-                    type="range"
-                    min="0.5"
-                    max="3.5"
-                    step="0.05"
-                    value={currentTransform.scale}
-                    onChange={(e) => handleScaleChange(Number(e.target.value))}
-                    className="flex-1 accent-purple-500 cursor-pointer h-1.5"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleStepZoom(0.1)}
-                    className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 transition cursor-pointer"
-                    title="확대"
-                  >
-                    <ZoomIn className="w-3.5 h-3.5" />
-                  </button>
-                  <span className="text-[11px] font-mono font-bold text-purple-300 w-12 text-right">
-                    {Math.round(currentTransform.scale * 100)}%
-                  </span>
-                </div>
-
-                {/* Direction Nudge Buttons & Drag Hint */}
-                <div className="flex items-center justify-between pt-1 border-t border-slate-800/80">
-                  <span className="text-[10px] text-slate-400 flex items-center gap-1 font-medium">
-                    <Hand className="w-3 h-3 text-purple-400" />
-                    <span>마우스 드래그로 즉시 이동</span>
-                  </span>
-
-                  <div className="flex items-center space-x-1">
+                  <div className="flex items-center space-x-1 p-0.5 bg-slate-950/80 rounded-lg border border-slate-800">
                     <button
                       type="button"
-                      onClick={() => handleNudge(-30, 0)}
-                      className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold transition cursor-pointer"
-                      title="왼쪽으로 이동"
+                      onClick={() => setEditorTab('transform')}
+                      className={`flex items-center space-x-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition cursor-pointer ${
+                        editorTab === 'transform'
+                          ? 'bg-purple-600 text-white shadow-xs'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
                     >
-                      ←
+                      <Move className="w-3 h-3" />
+                      <span>위치 / 크기</span>
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleNudge(0, -30)}
-                      className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold transition cursor-pointer"
-                      title="위로 이동"
+                      onClick={() => setEditorTab('color')}
+                      className={`flex items-center space-x-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition cursor-pointer ${
+                        editorTab === 'color'
+                          ? 'bg-gradient-to-r from-amber-500 to-purple-600 text-white shadow-xs'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
                     >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleNudge(0, 30)}
-                      className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold transition cursor-pointer"
-                      title="아래로 이동"
-                    >
-                      ↓
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleNudge(30, 0)}
-                      className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold transition cursor-pointer"
-                      title="오른쪽으로 이동"
-                    >
-                      →
+                      <Palette className="w-3 h-3" />
+                      <span>밝기 / 색감</span>
+                      {isColorAdjusted && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-300 ml-0.5" />
+                      )}
                     </button>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={editorTab === 'transform' ? handleResetCurrentTransform : handleResetColorTransform}
+                    className="text-[10px] text-slate-400 hover:text-white flex items-center gap-1 font-bold transition cursor-pointer px-2 py-1 rounded hover:bg-slate-800"
+                    title={editorTab === 'transform' ? '크기 및 위치 초기화' : '밝기 및 색감 초기화'}
+                  >
+                    <RotateCcw className="w-2.5 h-2.5" />
+                    <span>{editorTab === 'transform' ? '위치 초기화' : '색감 초기화'}</span>
+                  </button>
                 </div>
+
+                {/* TAB 1: Transform (Scale & Pan) */}
+                {editorTab === 'transform' && (
+                  <div className="space-y-2">
+                    {/* Zoom Scale Slider & Buttons */}
+                    <div className="flex items-center space-x-2">
+                      <span className="text-[10px] text-slate-400 font-bold shrink-0">크기 (확대/축소):</span>
+                      <button
+                        type="button"
+                        onClick={() => handleStepZoom(-0.1)}
+                        className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 transition cursor-pointer"
+                        title="축소"
+                      >
+                        <ZoomOut className="w-3.5 h-3.5" />
+                      </button>
+                      <input
+                        type="range"
+                        min="0.5"
+                        max="3.5"
+                        step="0.05"
+                        value={currentTransform.scale}
+                        onChange={(e) => handleScaleChange(Number(e.target.value))}
+                        className="flex-1 accent-purple-500 cursor-pointer h-1.5"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleStepZoom(0.1)}
+                        className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 transition cursor-pointer"
+                        title="확대"
+                      >
+                        <ZoomIn className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="text-[11px] font-mono font-bold text-purple-300 w-12 text-right">
+                        {Math.round(currentTransform.scale * 100)}%
+                      </span>
+                    </div>
+
+                    {/* Direction Nudge Buttons & Drag Hint */}
+                    <div className="flex items-center justify-between pt-1 border-t border-slate-800/80">
+                      <span className="text-[10px] text-slate-400 flex items-center gap-1 font-medium">
+                        <Hand className="w-3 h-3 text-purple-400" />
+                        <span>마우스 드래그로 즉시 이동</span>
+                      </span>
+
+                      <div className="flex items-center space-x-1">
+                        <button
+                          type="button"
+                          onClick={() => handleNudge(-30, 0)}
+                          className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold transition cursor-pointer"
+                          title="왼쪽으로 이동"
+                        >
+                          ←
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleNudge(0, -30)}
+                          className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold transition cursor-pointer"
+                          title="위로 이동"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleNudge(0, 30)}
+                          className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold transition cursor-pointer"
+                          title="아래로 이동"
+                        >
+                          ↓
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleNudge(30, 0)}
+                          className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold transition cursor-pointer"
+                          title="오른쪽으로 이동"
+                        >
+                          →
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 2: Color Tone, Brightness, Contrast & Saturation */}
+                {editorTab === 'color' && (
+                  <div className="space-y-2.5">
+                    {/* Preset Chips */}
+                    <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 scrollbar-none">
+                      {COLOR_PRESETS.map((preset) => {
+                        const isActive = (currentTransform.filterPreset || 'none') === preset.id;
+                        return (
+                          <button
+                            key={preset.id}
+                            type="button"
+                            onClick={() => handleFilterPresetSelect(preset.id)}
+                            className={`px-2 py-1 rounded-lg text-[10px] font-bold transition flex items-center space-x-1 shrink-0 cursor-pointer ${
+                              isActive
+                                ? 'bg-gradient-to-r from-amber-500 to-purple-600 text-white shadow-xs ring-1 ring-amber-300'
+                                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                            }`}
+                            title={preset.desc}
+                          >
+                            <span>{preset.emoji}</span>
+                            <span>{preset.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Brightness, Contrast & Saturation Sliders */}
+                    <div className="space-y-1.5 bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
+                      {/* Brightness */}
+                      <div className="flex items-center space-x-2 text-xs">
+                        <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1 w-14 shrink-0">
+                          <Sun className="w-3 h-3 text-amber-400" />
+                          <span>밝기</span>
+                        </span>
+                        <input
+                          type="range"
+                          min="50"
+                          max="150"
+                          step="2"
+                          value={currentTransform.brightness}
+                          onChange={(e) => handleBrightnessChange(Number(e.target.value))}
+                          className="flex-1 accent-amber-500 cursor-pointer h-1.5"
+                        />
+                        <span className="text-[10px] font-mono font-bold text-amber-300 w-10 text-right">
+                          {currentTransform.brightness}%
+                        </span>
+                      </div>
+
+                      {/* Contrast */}
+                      <div className="flex items-center space-x-2 text-xs">
+                        <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1 w-14 shrink-0">
+                          <Contrast className="w-3 h-3 text-indigo-400" />
+                          <span>대비</span>
+                        </span>
+                        <input
+                          type="range"
+                          min="50"
+                          max="150"
+                          step="2"
+                          value={currentTransform.contrast}
+                          onChange={(e) => handleContrastChange(Number(e.target.value))}
+                          className="flex-1 accent-indigo-500 cursor-pointer h-1.5"
+                        />
+                        <span className="text-[10px] font-mono font-bold text-indigo-300 w-10 text-right">
+                          {currentTransform.contrast}%
+                        </span>
+                      </div>
+
+                      {/* Saturation */}
+                      <div className="flex items-center space-x-2 text-xs">
+                        <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1 w-14 shrink-0">
+                          <Palette className="w-3 h-3 text-rose-400" />
+                          <span>채도</span>
+                        </span>
+                        <input
+                          type="range"
+                          min="0"
+                          max="200"
+                          step="5"
+                          value={currentTransform.saturate}
+                          onChange={(e) => handleSaturateChange(Number(e.target.value))}
+                          className="flex-1 accent-rose-500 cursor-pointer h-1.5"
+                        />
+                        <span className="text-[10px] font-mono font-bold text-rose-300 w-10 text-right">
+                          {currentTransform.saturate}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
