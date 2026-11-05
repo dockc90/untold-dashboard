@@ -25,6 +25,7 @@ import {
   deleteProjectFromSupabase, 
   isSupabaseConfigured 
 } from './lib/supabase';
+import { generateClientFallbackScript } from './utils/fallbackGenerator';
 
 const STORAGE_KEY = 'autoshorts_saved_projects_v2';
 
@@ -233,29 +234,36 @@ export default function App() {
       const nextCount = refreshCounter + 1;
       setRefreshCounter(nextCount);
 
-      const res = await fetch('/api/gemini/generate-shorts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          figureName: selectedFigure.name,
-          title: selectedFigure.title,
-          buzzSummary: selectedFigure.buzzSummary,
-          controversyOrIssue: selectedFigure.controversyOrIssue,
-          suggestedAngle: selectedFigure.suggestedAngle,
-          targetPersona,
-          targetDuration: duration,
-          videoTone,
-          storyAngle,
-          refreshCounter: nextCount,
-        }),
-      });
+      let data: any = null;
+      try {
+        const res = await fetch('/api/gemini/generate-shorts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            figureName: selectedFigure.name,
+            title: selectedFigure.title,
+            buzzSummary: selectedFigure.buzzSummary,
+            controversyOrIssue: selectedFigure.controversyOrIssue,
+            suggestedAngle: selectedFigure.suggestedAngle,
+            targetPersona,
+            targetDuration: duration,
+            videoTone,
+            storyAngle,
+            refreshCounter: nextCount,
+          }),
+        });
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || '쇼츠 대본 생성 중 오류가 발생했습니다.');
+        if (res.ok) {
+          data = await res.json();
+        }
+      } catch (fetchErr) {
+        console.warn('API call to /api/gemini/generate-shorts failed, using fallback:', fetchErr);
       }
 
-      const data = await res.json();
+      // If API was unavailable or returned empty data, use robust client fallback generator
+      if (!data || !data.scenes || data.scenes.length === 0) {
+        data = generateClientFallbackScript(selectedFigure.name, duration, nextCount, storyAngle);
+      }
       const charCount = (data.fullScript || '').replace(/\s+/g, '').length;
       const estimatedSeconds = Math.round(charCount / 6.5);
 
