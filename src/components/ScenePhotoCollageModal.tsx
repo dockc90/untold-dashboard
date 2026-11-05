@@ -339,22 +339,27 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
   }, [currentSelectedImage]);
 
   const handleScaleChange = (newScale: number) => {
-    const clamped = Math.max(0.4, Math.min(4.0, Number(newScale.toFixed(2))));
+    const val = Number.isFinite(newScale) ? newScale : 1.0;
+    const clamped = Math.max(0.4, Math.min(4.0, Number(val.toFixed(2))));
     updateCurrentTransform((cur) => ({ ...cur, scale: clamped }));
   };
 
   const handleStepZoom = (delta: number) => {
-    updateCurrentTransform((cur) => ({
-      ...cur,
-      scale: Math.max(0.4, Math.min(4.0, Number((cur.scale + delta).toFixed(2)))),
-    }));
+    const d = Number.isFinite(delta) ? delta : 0;
+    updateCurrentTransform((cur) => {
+      const curScale = Number.isFinite(cur.scale) ? cur.scale : 1.0;
+      return {
+        ...cur,
+        scale: Math.max(0.4, Math.min(4.0, Number((curScale + d).toFixed(2)))),
+      };
+    });
   };
 
   const handleNudge = (dx: number, dy: number) => {
     updateCurrentTransform((cur) => ({
       ...cur,
-      offsetX: cur.offsetX + dx,
-      offsetY: cur.offsetY + dy,
+      offsetX: (Number.isFinite(cur.offsetX) ? cur.offsetX : 0) + (Number.isFinite(dx) ? dx : 0),
+      offsetY: (Number.isFinite(cur.offsetY) ? cur.offsetY : 0) + (Number.isFinite(dy) ? dy : 0),
     }));
   };
 
@@ -371,11 +376,14 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
+    if (!rect || rect.width <= 0 || rect.height <= 0) return { x: 0, y: 0 };
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
+    const x = (clientX - rect.left) * scaleX;
+    const y = (clientY - rect.top) * scaleY;
     return {
-      x: (clientX - rect.left) * scaleX,
-      y: (clientY - rect.top) * scaleY,
+      x: Number.isFinite(x) ? x : 0,
+      y: Number.isFinite(y) ? y : 0,
     };
   };
 
@@ -389,7 +397,8 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
     );
 
     if (cellIdx !== -1) {
-      const targetImgIdx = cellIdx % images.length;
+      const safeImagesLen = Math.max(1, images.length);
+      const targetImgIdx = cellIdx % safeImagesLen;
       const targetImg = images[targetImgIdx];
       if (targetImg) {
         setSelectedCellIndex(targetImgIdx);
@@ -398,8 +407,8 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
         dragStartRef.current = {
           startX: x,
           startY: y,
-          initialOffsetX: curTransform.offsetX,
-          initialOffsetY: curTransform.offsetY,
+          initialOffsetX: Number.isFinite(curTransform.offsetX) ? curTransform.offsetX : 0,
+          initialOffsetY: Number.isFinite(curTransform.offsetY) ? curTransform.offsetY : 0,
           imgId: targetImg.id,
         };
       }
@@ -413,14 +422,23 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
     const dy = y - dragStartRef.current.startY;
     const imgId = dragStartRef.current.imgId;
 
-    setTransforms((prev) => ({
-      ...prev,
-      [imgId]: {
-        scale: prev[imgId]?.scale ?? 1.0,
-        offsetX: dragStartRef.current!.initialOffsetX + dx,
-        offsetY: dragStartRef.current!.initialOffsetY + dy,
-      },
-    }));
+    if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
+
+    setTransforms((prev) => {
+      const cur = prev[imgId] || { scale: 1.0, offsetX: 0, offsetY: 0 };
+      const curScale = Number.isFinite(cur.scale) ? cur.scale : 1.0;
+      const initX = Number.isFinite(dragStartRef.current?.initialOffsetX) ? dragStartRef.current!.initialOffsetX : 0;
+      const initY = Number.isFinite(dragStartRef.current?.initialOffsetY) ? dragStartRef.current!.initialOffsetY : 0;
+
+      return {
+        ...prev,
+        [imgId]: {
+          scale: curScale,
+          offsetX: initX + dx,
+          offsetY: initY + dy,
+        },
+      };
+    });
   };
 
   const handlePointerUp = () => {
@@ -436,7 +454,8 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
     const cellIdx = activeCells.findIndex(
       (c) => x >= c.x && x <= c.x + c.w && y >= c.y && y <= c.y + c.h
     );
-    const targetIdx = cellIdx !== -1 ? cellIdx % images.length : selectedCellIndex;
+    const safeLen = Math.max(1, images.length);
+    const targetIdx = cellIdx !== -1 ? cellIdx % safeLen : selectedCellIndex % safeLen;
     const targetImg = images[targetIdx];
     if (!targetImg) return;
 
@@ -445,7 +464,8 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
 
     setTransforms((prev) => {
       const cur = prev[targetImg.id] || { scale: 1.0, offsetX: 0, offsetY: 0 };
-      const newScale = Math.max(0.4, Math.min(4.0, Number((cur.scale + delta).toFixed(2))));
+      const curScale = Number.isFinite(cur.scale) ? cur.scale : 1.0;
+      const newScale = Math.max(0.4, Math.min(4.0, Number((curScale + delta).toFixed(2))));
       return {
         ...prev,
         [targetImg.id]: {
@@ -488,7 +508,7 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
     }
 
     const scaleFactor = W / 400; // ~2.7x
-    const scaledRadius = Math.round(borderRadius * scaleFactor);
+    const scaledRadius = Math.max(0, Math.round(borderRadius * scaleFactor));
 
     // Preload HTMLImages
     const loadedImages: HTMLImageElement[] = [];
@@ -496,7 +516,9 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
 
     images.forEach((imgItem, idx) => {
       const img = new Image();
-      img.crossOrigin = 'anonymous';
+      if (!imgItem.dataUrl.startsWith('data:') && !imgItem.dataUrl.startsWith('blob:')) {
+        img.crossOrigin = 'anonymous';
+      }
       img.onload = () => {
         if (!isMounted) return;
         loadedCounter++;
@@ -506,6 +528,23 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
       };
       img.onerror = () => {
         if (!isMounted) return;
+        // If anonymous crossOrigin failed, try fallback without crossOrigin
+        if (img.crossOrigin) {
+          const retryImg = new Image();
+          retryImg.onload = () => {
+            if (!isMounted) return;
+            loadedImages[idx] = retryImg;
+            loadedCounter++;
+            if (loadedCounter === images.length) renderCanvasCells();
+          };
+          retryImg.onerror = () => {
+            if (!isMounted) return;
+            loadedCounter++;
+            if (loadedCounter === images.length) renderCanvasCells();
+          };
+          retryImg.src = imgItem.dataUrl;
+          return;
+        }
         loadedCounter++;
         if (loadedCounter === images.length) {
           renderCanvasCells();
@@ -518,124 +557,179 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
     const renderCanvasCells = () => {
       if (!isMounted) return;
 
-      activeCells.forEach((cell, idx) => {
-        const img = loadedImages[idx % loadedImages.length];
-        const imgItem = images[idx % images.length];
-        const transform = (imgItem && transforms[imgItem.id]) || {
-          scale: 1.0,
-          offsetX: 0,
-          offsetY: 0,
-        };
+      try {
+        // Redraw base background
+        ctx.fillStyle = borderColor === 'transparent' ? '#090d16' : borderColor;
+        ctx.fillRect(0, 0, W, H);
 
-        ctx.save();
+        const safeImagesLen = Math.max(1, images.length);
+        const safeLoadedLen = Math.max(1, loadedImages.length);
 
-        // 1. Rounded corners clipping
-        if (scaledRadius > 0 && typeof ctx.roundRect === 'function') {
-          ctx.beginPath();
-          ctx.roundRect(cell.x, cell.y, cell.w, cell.h, scaledRadius);
-          ctx.clip();
-        } else {
-          ctx.beginPath();
-          ctx.rect(cell.x, cell.y, cell.w, cell.h);
-          ctx.clip();
-        }
+        activeCells.forEach((cell, idx) => {
+          if (!cell || cell.w <= 0 || cell.h <= 0) return;
+          const img = loadedImages[idx % safeLoadedLen];
+          const imgItem = images[idx % safeImagesLen];
+          const transform = (imgItem && transforms[imgItem.id]) || {
+            scale: 1.0,
+            offsetX: 0,
+            offsetY: 0,
+          };
 
-        // 2. Draw Image with Object-Fit Cover + Transform (Scale & Offset)
-        if (img && img.complete && img.naturalWidth > 0) {
-          const imgRatio = img.naturalWidth / img.naturalHeight;
-          const cellRatio = cell.w / cell.h;
-          let fitW = cell.w;
-          let fitH = cell.h;
-
-          if (imgRatio > cellRatio) {
-            fitH = cell.h;
-            fitW = cell.h * imgRatio;
-          } else {
-            fitW = cell.w;
-            fitH = cell.w / imgRatio;
-          }
-
-          const cx = cell.x + cell.w / 2;
-          const cy = cell.y + cell.h / 2;
-
-          // Apply user pan offset and zoom scale
-          ctx.translate(cx + transform.offsetX, cy + transform.offsetY);
-          ctx.scale(transform.scale, transform.scale);
-          ctx.drawImage(img, -fitW / 2, -fitH / 2, fitW, fitH);
-        } else {
-          // Placeholder for empty cell
-          ctx.fillStyle = '#1e293b';
-          ctx.fillRect(cell.x, cell.y, cell.w, cell.h);
-          ctx.fillStyle = '#94a3b8';
-          ctx.font = 'bold 30px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText(`사진 ${idx + 1} 대기중`, cell.x + cell.w / 2, cell.y + cell.h / 2);
-        }
-
-        ctx.restore();
-
-        // 3. Selection border indicator for active cell (shown when multi-image or when dragging)
-        if (idx === selectedCellIndex && images.length > 0 && (images.length > 1 || layout !== 'single')) {
           ctx.save();
-          ctx.strokeStyle = '#a855f7'; // purple-500
-          ctx.lineWidth = Math.max(5, Math.round(W / 180));
-          ctx.setLineDash([16, 10]);
-          if (scaledRadius > 0 && typeof ctx.roundRect === 'function') {
-            ctx.beginPath();
-            ctx.roundRect(cell.x + 3, cell.y + 3, cell.w - 6, cell.h - 6, scaledRadius);
-            ctx.stroke();
-          } else {
-            ctx.strokeRect(cell.x + 3, cell.y + 3, cell.w - 6, cell.h - 6);
+          try {
+            // 1. Rounded corners clipping
+            const cellW = Math.max(1, cell.w);
+            const cellH = Math.max(1, cell.h);
+            if (scaledRadius > 0 && typeof (ctx as any).roundRect === 'function') {
+              const maxR = Math.min(cellW, cellH) / 2;
+              const safeR = Math.max(0, Math.min(scaledRadius, maxR));
+              ctx.beginPath();
+              try {
+                (ctx as any).roundRect(cell.x, cell.y, cellW, cellH, safeR);
+              } catch {
+                ctx.rect(cell.x, cell.y, cellW, cellH);
+              }
+              ctx.clip();
+            } else {
+              ctx.beginPath();
+              ctx.rect(cell.x, cell.y, cellW, cellH);
+              ctx.clip();
+            }
+
+            // 2. Draw Image with Object-Fit Cover + Transform (Scale & Offset)
+            if (img && img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
+              const imgRatio = img.naturalWidth / img.naturalHeight;
+              const cellRatio = cellW / cellH;
+              let fitW = cellW;
+              let fitH = cellH;
+
+              if (imgRatio > cellRatio) {
+                fitH = cellH;
+                fitW = cellH * imgRatio;
+              } else {
+                fitW = cellW;
+                fitH = cellW / (imgRatio || 1);
+              }
+
+              const cx = cell.x + cellW / 2;
+              const cy = cell.y + cellH / 2;
+
+              const safeScale = Number.isFinite(transform.scale) && transform.scale > 0 ? transform.scale : 1.0;
+              const safeOffsetX = Number.isFinite(transform.offsetX) ? transform.offsetX : 0;
+              const safeOffsetY = Number.isFinite(transform.offsetY) ? transform.offsetY : 0;
+
+              ctx.translate(cx + safeOffsetX, cy + safeOffsetY);
+              ctx.scale(safeScale, safeScale);
+
+              if (Number.isFinite(fitW) && Number.isFinite(fitH) && fitW > 0 && fitH > 0) {
+                ctx.drawImage(img, -fitW / 2, -fitH / 2, fitW, fitH);
+              }
+            } else {
+              // Placeholder for empty cell
+              ctx.fillStyle = '#1e293b';
+              ctx.fillRect(cell.x, cell.y, cellW, cellH);
+              ctx.fillStyle = '#94a3b8';
+              ctx.font = 'bold 30px sans-serif';
+              ctx.textAlign = 'center';
+              ctx.fillText(`사진 ${idx + 1} 대기중`, cell.x + cellW / 2, cell.y + cellH / 2);
+            }
+          } catch (cellErr) {
+            console.warn('Canvas cell render warning:', cellErr);
+          } finally {
+            ctx.restore();
           }
-          ctx.restore();
+
+          // 3. Selection border indicator for active cell (shown when multi-image or when dragging)
+          if (idx === selectedCellIndex && images.length > 0 && (images.length > 1 || layout !== 'single')) {
+            ctx.save();
+            try {
+              ctx.strokeStyle = '#a855f7'; // purple-500
+              ctx.lineWidth = Math.max(5, Math.round(W / 180));
+              ctx.setLineDash([16, 10]);
+              const strokeW = Math.max(1, cell.w - 6);
+              const strokeH = Math.max(1, cell.h - 6);
+              if (scaledRadius > 0 && typeof (ctx as any).roundRect === 'function') {
+                const maxR = Math.min(strokeW, strokeH) / 2;
+                const safeR = Math.max(0, Math.min(scaledRadius, maxR));
+                ctx.beginPath();
+                try {
+                  (ctx as any).roundRect(cell.x + 3, cell.y + 3, strokeW, strokeH, safeR);
+                  ctx.stroke();
+                } catch {
+                  ctx.strokeRect(cell.x + 3, cell.y + 3, strokeW, strokeH);
+                }
+              } else {
+                ctx.strokeRect(cell.x + 3, cell.y + 3, strokeW, strokeH);
+              }
+            } catch (borderErr) {
+              console.warn('Canvas border render warning:', borderErr);
+            } finally {
+              ctx.restore();
+            }
+          }
+        });
+
+        // 4. Render optional text badge / overlay banner
+        if (badgeText.trim()) {
+          ctx.save();
+          try {
+            const text = badgeText.trim();
+            ctx.font = '900 44px sans-serif';
+            const metrics = ctx.measureText(text);
+            const textW = metrics.width;
+            const boxW = Math.min(W - 40, textW + 80);
+            const boxH = 80;
+            const boxX = (W - boxW) / 2;
+            let boxY = H / 2 - boxH / 2;
+
+            if (badgePosition === 'top') boxY = 60;
+            else if (badgePosition === 'bottom') boxY = H - 140;
+
+            // Banner Pill Shadow & Box
+            ctx.shadowColor = 'rgba(0,0,0,0.6)';
+            ctx.shadowBlur = 24;
+            ctx.shadowOffsetY = 6;
+
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.90)';
+            if (typeof (ctx as any).roundRect === 'function') {
+              ctx.beginPath();
+              try {
+                (ctx as any).roundRect(boxX, boxY, boxW, boxH, 40);
+                ctx.fill();
+              } catch {
+                ctx.fillRect(boxX, boxY, boxW, boxH);
+              }
+            } else {
+              ctx.fillRect(boxX, boxY, boxW, boxH);
+            }
+
+            // Inner glowing border
+            ctx.strokeStyle = '#eab308';
+            ctx.lineWidth = 4;
+            if (typeof (ctx as any).roundRect === 'function') {
+              ctx.beginPath();
+              try {
+                (ctx as any).roundRect(boxX, boxY, boxW, boxH, 40);
+                ctx.stroke();
+              } catch {
+                ctx.strokeRect(boxX, boxY, boxW, boxH);
+              }
+            }
+
+            // Text
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, W / 2, boxY + boxH / 2);
+          } catch (badgeErr) {
+            console.warn('Canvas badge render warning:', badgeErr);
+          } finally {
+            ctx.restore();
+          }
         }
-      });
-
-      // 4. Render optional text badge / overlay banner
-      if (badgeText.trim()) {
-        ctx.save();
-        const text = badgeText.trim();
-        ctx.font = '900 44px sans-serif';
-        const metrics = ctx.measureText(text);
-        const textW = metrics.width;
-        const boxW = textW + 80;
-        const boxH = 80;
-        const boxX = (W - boxW) / 2;
-        let boxY = H / 2 - boxH / 2;
-
-        if (badgePosition === 'top') boxY = 60;
-        else if (badgePosition === 'bottom') boxY = H - 140;
-
-        // Banner Pill Shadow & Box
-        ctx.shadowColor = 'rgba(0,0,0,0.6)';
-        ctx.shadowBlur = 24;
-        ctx.shadowOffsetY = 6;
-
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.90)';
-        if (typeof ctx.roundRect === 'function') {
-          ctx.beginPath();
-          ctx.roundRect(boxX, boxY, boxW, boxH, 40);
-          ctx.fill();
-        } else {
-          ctx.fillRect(boxX, boxY, boxW, boxH);
-        }
-
-        // Inner glowing border
-        ctx.strokeStyle = '#eab308';
-        ctx.lineWidth = 4;
-        if (typeof ctx.roundRect === 'function') {
-          ctx.beginPath();
-          ctx.roundRect(boxX, boxY, boxW, boxH, 40);
-          ctx.stroke();
-        }
-
-        // Text
-        ctx.shadowBlur = 0;
-        ctx.fillStyle = '#ffffff';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(text, W / 2, boxY + boxH / 2);
-        ctx.restore();
+      } catch (err) {
+        console.error('Fatal canvas rendering error:', err);
       }
     };
 
@@ -669,6 +763,10 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
       onClose();
     } catch (err) {
       console.error('Failed to export canvas collage:', err);
+      if (images.length > 0 && images[0]?.dataUrl) {
+        onApplyImage(images[0].dataUrl);
+        onClose();
+      }
     } finally {
       setIsProcessing(false);
     }

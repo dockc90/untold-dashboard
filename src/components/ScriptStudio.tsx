@@ -32,6 +32,7 @@ import { TrendingFigure, ShortsProject, TargetPersona, VideoMoodTone, SceneItem,
 import { VOICE_OPTIONS } from '../data/voices';
 import { playDistinctVoicePreview, stopAllVoicePreviews } from '../utils/voicePlayer';
 import { ScenePhotoCollageModal } from './ScenePhotoCollageModal';
+import { ErrorBoundary } from './ErrorBoundary';
 
 interface ScriptStudioProps {
   selectedFigure: TrendingFigure | null;
@@ -808,16 +809,23 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                                 className="w-full h-full object-cover"
                               />
                               <button
-                                onClick={() => handleRemoveSceneImage(idx)}
-                                className="absolute top-1 right-1 p-1 rounded-md bg-black/60 text-white hover:bg-rose-600 transition z-10"
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveSceneImage(idx);
+                                }}
+                                className="absolute top-1 right-1 p-1 rounded-md bg-black/60 text-white hover:bg-rose-600 transition z-10 cursor-pointer"
                                 title="사진 삭제"
                               >
                                 <Trash2 className="w-3 h-3" />
                               </button>
                               <button
                                 type="button"
-                                onClick={() => handleOpenCollageModal(idx)}
-                                className="absolute bottom-1 right-1 p-1 rounded-md bg-purple-600/90 text-white hover:bg-purple-700 transition z-10 shadow-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenCollageModal(idx);
+                                }}
+                                className="absolute bottom-1 right-1 p-1 rounded-md bg-purple-600/90 text-white hover:bg-purple-700 transition z-10 shadow-xs cursor-pointer"
                                 title="여러 장의 사진을 합쳐서 콜라주 편집"
                               >
                                 <LayoutGrid className="w-3 h-3" />
@@ -1267,15 +1275,20 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
 
       {/* Multi-Photo Collage / Merger Modal */}
       {collageModalSceneIdx !== null && editableScenes[collageModalSceneIdx] && (
-        <ScenePhotoCollageModal
-          isOpen={true}
-          onClose={() => setCollageModalSceneIdx(null)}
-          sceneNumber={editableScenes[collageModalSceneIdx].sceneNumber}
-          timeRange={editableScenes[collageModalSceneIdx].timeRange}
-          narrationSnippet={editableScenes[collageModalSceneIdx].narration.slice(0, 50)}
-          existingImageUrl={editableScenes[collageModalSceneIdx].uploadedImageUrl}
-          onApplyImage={handleApplyCollageImage}
-        />
+        <ErrorBoundary
+          fallbackTitle="사진 편집 스튜디오 일시적 오류 복구"
+          onReset={() => setCollageModalSceneIdx(null)}
+        >
+          <ScenePhotoCollageModal
+            isOpen={true}
+            onClose={() => setCollageModalSceneIdx(null)}
+            sceneNumber={editableScenes[collageModalSceneIdx].sceneNumber}
+            timeRange={editableScenes[collageModalSceneIdx].timeRange}
+            narrationSnippet={(editableScenes[collageModalSceneIdx]?.narration || '').slice(0, 50)}
+            existingImageUrl={editableScenes[collageModalSceneIdx].uploadedImageUrl}
+            onApplyImage={handleApplyCollageImage}
+          />
+        </ErrorBoundary>
       )}
     </div>
   );

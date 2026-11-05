@@ -12,6 +12,7 @@ import { DailyRoutineChecklist } from './components/DailyRoutineChecklist';
 import { SavedProjectsView } from './components/SavedProjectsView';
 import { ArchitectureView } from './components/ArchitectureView';
 import { VideoRendererModal } from './components/VideoRendererModal';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { ViralStudio } from './components/ViralStudio';
 import { CarouselStudio } from './components/CarouselStudio';
 import { INITIAL_TRENDING_FIGURES } from './data/initialTrends';
@@ -805,11 +806,13 @@ export default function App() {
 
       {/* In-Browser Video Renderer Modal (1080p / 720p Shorts Generator) */}
       {renderingProject && (
-        <VideoRendererModal
-          isOpen={isVideoRendererOpen}
-          onClose={() => setIsVideoRendererOpen(false)}
-          project={renderingProject}
-        />
+        <ErrorBoundary fallbackTitle="비디오 렌더러 복구" onReset={() => setIsVideoRendererOpen(false)}>
+          <VideoRendererModal
+            isOpen={isVideoRendererOpen}
+            onClose={() => setIsVideoRendererOpen(false)}
+            project={renderingProject}
+          />
+        </ErrorBoundary>
       )}
     </div>
   );
