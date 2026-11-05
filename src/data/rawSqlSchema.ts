@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS public.trending_figures (
 -- 5. SHORTS PROJECTS TABLE (생성된 쇼츠 프로젝트 및 대본 본문)
 CREATE TABLE IF NOT EXISTS public.shorts_projects (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     figure_id UUID REFERENCES public.trending_figures(id) ON DELETE SET NULL,
     figure_name TEXT NOT NULL,
     category content_category NOT NULL,
@@ -122,4 +122,22 @@ CREATE POLICY "Users can view own profile" ON public.profiles FOR SELECT USING (
 CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
 CREATE POLICY "Anyone can view trending figures" ON public.trending_figures FOR SELECT TO authenticated, anon USING (true);
 CREATE POLICY "Users can manage own shorts projects" ON public.shorts_projects FOR ALL USING (auth.uid() = user_id);
+
+-- 10. UNTOLD FAST JSONB PROJECTS TABLE (쇼츠 대본 자동 동기화용)
+CREATE TABLE IF NOT EXISTS public.untold_projects (
+    id TEXT PRIMARY KEY,
+    user_id UUID,
+    figure_name TEXT NOT NULL,
+    category TEXT,
+    target_persona TEXT,
+    data JSONB NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW()) NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW()) NOT NULL
+);
+
+ALTER TABLE public.untold_projects ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Anyone can select untold projects" ON public.untold_projects FOR SELECT TO anon, authenticated USING (true);
+CREATE POLICY "Anyone can insert untold projects" ON public.untold_projects FOR INSERT TO anon, authenticated WITH CHECK (true);
+CREATE POLICY "Anyone can update untold projects" ON public.untold_projects FOR UPDATE TO anon, authenticated USING (true);
+CREATE POLICY "Anyone can delete untold projects" ON public.untold_projects FOR DELETE TO anon, authenticated USING (true);
 `;

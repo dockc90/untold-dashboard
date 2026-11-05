@@ -19,6 +19,12 @@ import { SAMPLE_PROJECT } from './data/sampleProject';
 import { RAW_SUPABASE_SCHEMA } from './data/rawSqlSchema';
 import { TrendingFigure, ShortsProject, CategoryType, TimeFilter, TargetPersona, VideoMoodTone, SourceChannel } from './types';
 import { AlertCircle, X, Database, ArrowLeft, Flame, Sparkles } from 'lucide-react';
+import { 
+  fetchProjectsFromSupabase, 
+  saveProjectToSupabase, 
+  deleteProjectFromSupabase, 
+  isSupabaseConfigured 
+} from './lib/supabase';
 
 const STORAGE_KEY = 'autoshorts_saved_projects_v2';
 
@@ -38,38 +44,65 @@ export default function App() {
   const [renderingProject, setRenderingProject] = useState<ShortsProject | null>(SAMPLE_PROJECT);
   const [viralTopic, setViralTopic] = useState<string>('손흥민');
 
-  // Load saved projects on mount
+  // Load saved projects on mount: LocalStorage cache + Supabase Cloud Database sync
   useEffect(() => {
+    // 1. Immediate local cache retrieval
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
           setSavedProjects(parsed);
-          return;
+        } else {
+          setSavedProjects([SAMPLE_PROJECT]);
         }
+      } else {
+        setSavedProjects([SAMPLE_PROJECT]);
       }
-      setSavedProjects([SAMPLE_PROJECT]);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify([SAMPLE_PROJECT]));
     } catch (e) {
-      console.warn('Failed to load saved projects:', e);
+      console.warn('Local storage load warning:', e);
       setSavedProjects([SAMPLE_PROJECT]);
     }
+
+    // 2. Background async sync with Supabase
+    fetchProjectsFromSupabase().then((cloudProjects) => {
+      if (cloudProjects && cloudProjects.length > 0) {
+        setSavedProjects((prev) => {
+          const map = new Map<string, ShortsProject>();
+          cloudProjects.forEach((p) => map.set(p.id, p));
+          prev.forEach((p) => {
+            if (!map.has(p.id)) map.set(p.id, p);
+          });
+          const merged = Array.from(map.values());
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+          return merged;
+        });
+      }
+    }).catch((err) => {
+      console.warn('Supabase initial fetch failed, using local cache:', err);
+    });
   }, []);
 
-  // Save project helper
-  const handleSaveProject = (project: ShortsProject) => {
+  // Save project helper (Syncs to both LocalStorage and Supabase Database)
+  const handleSaveProject = async (project: ShortsProject) => {
     try {
       const existingIdx = savedProjects.findIndex((p) => p.id === project.id);
       let updated: ShortsProject[];
       if (existingIdx >= 0) {
         updated = [...savedProjects];
-        updated[existingIdx] = project;
+        updated[existingIdx] = { ...project, isSaved: true };
       } else {
-        updated = [project, ...savedProjects];
+        updated = [{ ...project, isSaved: true }, ...savedProjects];
       }
       setSavedProjects(updated);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+
+      // Asynchronously sync to Supabase Cloud Database
+      const savedToDb = await saveProjectToSupabase(project);
+      if (savedToDb) {
+        setSuccessToast(`☁️ Supabase 데이터베이스에 안전하게 자동 저장되었습니다!`);
+        setTimeout(() => setSuccessToast(null), 3500);
+      }
     } catch (e) {
       console.error('Save failed:', e);
     }
@@ -79,6 +112,7 @@ export default function App() {
     const updated = savedProjects.filter((p) => p.id !== id);
     setSavedProjects(updated);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    deleteProjectFromSupabase(id).catch(console.warn);
   };
 
   const handleOpenProject = (project: ShortsProject) => {
@@ -265,13 +299,16 @@ export default function App() {
       setCurrentProject(newProject);
       setRenderingProject(newProject);
 
+      // Auto-save newly generated Untold Shorts project to Supabase Cloud & LocalStorage
+      handleSaveProject(newProject);
+
       const angleLabel = 
         storyAngle === 'adversity' ? '역경 극복 감동 실화' :
         storyAngle === 'twist' ? '충격 반전 비하인드' :
         storyAngle === 'success' ? '성공 공식 & 명언' :
         storyAngle === 'legend' ? '전설의 결정적 명장면' : '새로운 스토리 앵글';
 
-      setSuccessToast(`✨ [${angleLabel}] 새로운 대본으로 성공적으로 새로고침되었습니다!`);
+      setSuccessToast(`✨ [${angleLabel}] 쇼츠 대본 생성 및 Supabase DB 자동 저장 완료!`);
       setTimeout(() => setSuccessToast(null), 3500);
     } catch (err: any) {
       console.error('Error generating script:', err);

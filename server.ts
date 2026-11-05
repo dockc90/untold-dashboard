@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI, Type } from '@google/genai';
+import { createClient } from '@supabase/supabase-js';
 
 dotenv.config();
 
@@ -13,6 +14,26 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
+
+// Initialize Supabase Admin client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+const supabase = (supabaseUrl && supabaseKey && !supabaseUrl.includes('placeholder')) 
+  ? createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } }) 
+  : null;
+
+function toValidUUID(id: string): string {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (uuidRegex.test(id)) return id;
+
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash << 5) - hash + id.charCodeAt(i);
+    hash |= 0;
+  }
+  const hex = Math.abs(hash).toString(16).padStart(8, '0');
+  return `a1b2c3d4-e5f6-4a7b-8c9d-${hex.padEnd(12, '0').slice(0, 12)}`;
+}
 
 // Initialize GoogleGenAI server-side with telemetry header
 const ai = new GoogleGenAI({
@@ -1067,6 +1088,230 @@ app.get('/api/tts', async (req, res) => {
   } catch (err: any) {
     console.error('Error in /api/tts:', err.message);
     return res.status(500).json({ error: err.message || 'TTS generation failed' });
+  }
+});
+
+// ==========================================
+// Supabase Database Integration Endpoints
+// ==========================================
+app.get('/api/projects', async (_req, res) => {
+  if (!supabase) {
+    return res.json({ projects: [], source: 'supabase_not_configured' });
+  }
+
+  try {
+    // 1. Try JSONB table
+    try {
+      const { data: untoldData, error: untoldErr } = await supabase
+        .from('untold_projects')
+        .select('data')
+        .order('created_at', { ascending: false });
+
+      if (!untoldErr && untoldData && untoldData.length > 0) {
+        const formatted = untoldData.map((row: any) => row.data).filter(Boolean);
+        return res.json({ projects: formatted, source: 'untold_projects' });
+      }
+    } catch (e) {}
+
+    // 2. Try relational tables
+    const { data: rows, error } = await supabase
+      .from('shorts_projects')
+      .select(`
+        *,
+        project_hooks (*),
+        project_scenes (*),
+        project_metadata (*)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      return res.json({ projects: [], error: error.message });
+    }
+
+    const projects = (rows || []).map((row: any) => {
+      const meta = Array.isArray(row.project_metadata) ? row.project_metadata[0] : row.project_metadata;
+      const hooks = (row.project_hooks || []).map((h: any) => ({
+        type: h.hook_type || 'question',
+        label: h.label || '후킹',
+        text: h.hook_text || '',
+      }));
+
+      const scenes = (row.project_scenes || [])
+        .sort((a: any, b: any) => a.scene_number - b.scene_number)
+        .map((s: any) => ({
+          sceneNumber: s.scene_number,
+          timeRange: s.time_range,
+          narration: s.narration,
+          visualGuide: s.visual_guide,
+          imageSearchKeyword: s.image_search_keyword,
+          visualEffect: s.visual_effect,
+          bgmSuggestion: s.bgm_suggestion,
+        }));
+
+      return {
+        id: row.id,
+        figureName: row.figure_name,
+        category: row.category || 'entertainment',
+        targetPersona: row.target_persona || '4060_emotional',
+        targetDuration: row.target_duration || 60,
+        selectedHookIndex: row.selected_hook_index || 0,
+        hooks,
+        titles: meta?.titles || [row.figure_name + ' 쇼츠'],
+        hashtags: meta?.hashtags || ['#shorts', `#${row.figure_name}`],
+        description: meta?.description || '',
+        pinnedComment: meta?.pinned_comment || '',
+        fullScript: row.full_script,
+        scenes,
+        copyrightDefenseNote: row.copyright_defense_note || '2차 저작물 보증',
+        charCount: row.char_count || row.full_script?.length || 0,
+        estimatedSeconds: row.estimated_seconds || row.target_duration || 60,
+        createdAt: row.created_at,
+        isSaved: true,
+      };
+    });
+
+    return res.json({ projects, source: 'shorts_projects' });
+  } catch (err: any) {
+    console.error('Error fetching projects:', err.message);
+    return res.status(500).json({ error: err.message, projects: [] });
+  }
+});
+
+app.post('/api/projects', async (req, res) => {
+  if (!supabase) {
+    return res.status(400).json({ error: 'Supabase credentials not configured' });
+  }
+
+  try {
+    const project = req.body;
+    if (!project || !project.figureName) {
+      return res.status(400).json({ error: 'Invalid project payload' });
+    }
+
+    const projectId = project.id || `proj-${Date.now()}`;
+    const uuidId = toValidUUID(projectId);
+
+    // 1. Try untold_projects table first
+    try {
+      const { error: untoldErr } = await supabase
+        .from('untold_projects')
+        .upsert(
+          {
+            id: projectId,
+            figure_name: project.figureName,
+            category: project.category || 'entertainment',
+            full_script: project.fullScript || '',
+            data: { ...project, id: projectId, isSaved: true },
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'id' }
+        );
+
+      if (!untoldErr) {
+        return res.json({ success: true, savedId: projectId, source: 'untold_projects' });
+      }
+    } catch (e) {}
+
+    // 2. Fallback to relational shorts_projects
+    let userId: string | null = null;
+    const { data: profiles } = await supabase.from('profiles').select('id').limit(1);
+    if (profiles && profiles.length > 0) {
+      userId = profiles[0].id;
+    }
+
+    const { error: projectErr } = await supabase
+      .from('shorts_projects')
+      .upsert(
+        {
+          id: uuidId,
+          user_id: userId,
+          figure_name: project.figureName,
+          category: project.category || 'entertainment',
+          target_persona: project.targetPersona || '4060_emotional',
+          target_duration: project.targetDuration || 60,
+          selected_hook_index: project.selectedHookIndex || 0,
+          full_script: project.fullScript || '',
+          char_count: project.charCount || project.fullScript?.length || 0,
+          estimated_seconds: project.estimatedSeconds || project.targetDuration || 60,
+          copyright_defense_note: project.copyrightDefenseNote || '2차 저작물 보증',
+          status: 'script_ready',
+          is_bookmarked: true,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'id' }
+      );
+
+    if (projectErr) {
+      return res.status(500).json({ success: false, error: projectErr.message });
+    }
+
+    if (project.titles || project.hashtags || project.description || project.pinnedComment) {
+      await supabase.from('project_metadata').upsert(
+        {
+          project_id: uuidId,
+          titles: project.titles || [],
+          hashtags: project.hashtags || [],
+          description: project.description || '',
+          pinned_comment: project.pinnedComment || '',
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'project_id' }
+      );
+    }
+
+    if (Array.isArray(project.scenes) && project.scenes.length > 0) {
+      await supabase.from('project_scenes').delete().eq('project_id', uuidId);
+      const scenesToInsert = project.scenes.map((s: any) => ({
+        project_id: uuidId,
+        scene_number: s.sceneNumber,
+        time_range: s.timeRange,
+        narration: s.narration,
+        visual_guide: s.visualGuide,
+        image_search_keyword: s.imageSearchKeyword,
+        visual_effect: s.visualEffect || '줌인',
+        bgm_suggestion: s.bgmSuggestion || '',
+      }));
+      await supabase.from('project_scenes').insert(scenesToInsert);
+    }
+
+    if (Array.isArray(project.hooks) && project.hooks.length > 0) {
+      await supabase.from('project_hooks').delete().eq('project_id', uuidId);
+      const hooksToInsert = project.hooks.map((h: any, idx: number) => ({
+        project_id: uuidId,
+        hook_type: h.type || 'question',
+        label: h.label || '후킹',
+        hook_text: h.text || '',
+        is_selected: idx === (project.selectedHookIndex || 0),
+      }));
+      await supabase.from('project_hooks').insert(hooksToInsert);
+    }
+
+    return res.json({ success: true, savedId: projectId });
+  } catch (err: any) {
+    console.error('Error saving project to Supabase:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/projects', async (req, res) => {
+  if (!supabase) {
+    return res.status(400).json({ error: 'Supabase credentials not configured' });
+  }
+
+  try {
+    const id = req.query.id as string;
+    if (!id) {
+      return res.status(400).json({ error: 'Missing id query parameter' });
+    }
+
+    const uuidId = toValidUUID(id);
+    await supabase.from('untold_projects').delete().eq('id', id);
+    await supabase.from('shorts_projects').delete().eq('id', uuidId);
+
+    return res.json({ success: true, deletedId: id });
+  } catch (err: any) {
+    console.error('Error deleting project from Supabase:', err.message);
+    return res.status(500).json({ error: err.message });
   }
 });
 

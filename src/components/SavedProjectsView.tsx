@@ -1,6 +1,7 @@
 import React from 'react';
-import { FolderHeart, Trash2, ArrowUpRight, Copy, Check, Clock, Film } from 'lucide-react';
+import { FolderHeart, Trash2, ArrowUpRight, Copy, Check, Clock, Film, Cloud, Database } from 'lucide-react';
 import { ShortsProject } from '../types';
+import { isSupabaseConfigured } from '../lib/supabase';
 
 interface SavedProjectsViewProps {
   projects: ShortsProject[];
@@ -35,9 +36,22 @@ export const SavedProjectsView: React.FC<SavedProjectsViewProps> = ({
             </p>
           </div>
         </div>
-        <span className="text-xs font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-          총 {projects.length}개 보관됨
-        </span>
+        <div className="flex items-center space-x-2">
+          {isSupabaseConfigured() ? (
+            <span className="hidden sm:inline-flex items-center space-x-1.5 text-xs font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
+              <Cloud className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Supabase Cloud 실시간 연동</span>
+            </span>
+          ) : (
+            <span className="hidden sm:inline-flex items-center space-x-1.5 text-xs font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+              <Database className="w-3.5 h-3.5 text-slate-500" />
+              <span>로컬 스토리지 보관</span>
+            </span>
+          )}
+          <span className="text-xs font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+            총 {projects.length}개 보관됨
+          </span>
+        </div>
       </div>
 
       {projects.length === 0 ? (
