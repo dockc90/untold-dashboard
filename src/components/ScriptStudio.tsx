@@ -17,6 +17,7 @@ import {
   MessageSquareQuote,
   Film,
   Upload,
+  LayoutGrid,
   Image as ImageIcon,
   Sliders,
   Trash2,
@@ -30,6 +31,7 @@ import {
 import { TrendingFigure, ShortsProject, TargetPersona, VideoMoodTone, SceneItem, MotionEffectType, VoiceOption } from '../types';
 import { VOICE_OPTIONS } from '../data/voices';
 import { playDistinctVoicePreview, stopAllVoicePreviews } from '../utils/voicePlayer';
+import { ScenePhotoCollageModal } from './ScenePhotoCollageModal';
 
 interface ScriptStudioProps {
   selectedFigure: TrendingFigure | null;
@@ -77,6 +79,24 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
   const [activeTab, setActiveTab] = useState<'scenes' | 'script' | 'metadata' | 'copyright'>('scenes');
   const [selectedHookIndex, setSelectedHookIndex] = useState(0);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  // Collage / Multi-photo merge modal state
+  const [collageModalSceneIdx, setCollageModalSceneIdx] = useState<number | null>(null);
+
+  const handleOpenCollageModal = (sceneIdx: number) => {
+    setCollageModalSceneIdx(sceneIdx);
+  };
+
+  const handleApplyCollageImage = (mergedDataUrl: string) => {
+    if (collageModalSceneIdx === null) return;
+    const updated = [...editableScenes];
+    updated[collageModalSceneIdx] = {
+      ...updated[collageModalSceneIdx],
+      uploadedImageUrl: mergedDataUrl,
+    };
+    setEditableScenes(updated);
+    setCollageModalSceneIdx(null);
+  };
 
   // Local editable project state
   const [editableScript, setEditableScript] = useState('');
@@ -787,10 +807,18 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                               />
                               <button
                                 onClick={() => handleRemoveSceneImage(idx)}
-                                className="absolute top-1 right-1 p-1 rounded-md bg-black/60 text-white hover:bg-rose-600 transition"
+                                className="absolute top-1 right-1 p-1 rounded-md bg-black/60 text-white hover:bg-rose-600 transition z-10"
                                 title="사진 삭제"
                               >
                                 <Trash2 className="w-3 h-3" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenCollageModal(idx)}
+                                className="absolute bottom-1 right-1 p-1 rounded-md bg-purple-600/90 text-white hover:bg-purple-700 transition z-10 shadow-xs"
+                                title="여러 장의 사진을 합쳐서 콜라주 편집"
+                              >
+                                <LayoutGrid className="w-3 h-3" />
                               </button>
                             </div>
                           ) : (
@@ -810,14 +838,25 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                               onChange={(e) => handleImageFileUpload(idx, e)}
                               className="hidden"
                             />
-                            <div className="flex items-center space-x-1.5">
+                            <div className="flex flex-wrap items-center gap-1.5">
                               <button
                                 type="button"
                                 onClick={() => fileInputRefs.current[idx]?.click()}
-                                className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-[11px] border border-indigo-200 transition"
+                                className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-[11px] border border-indigo-200 transition cursor-pointer"
+                                title="단일 사진 파일 업로드"
                               >
                                 <Upload className="w-3 h-3" />
-                                <span>{scene.uploadedImageUrl ? '사진 교체' : '사진 업로드'}</span>
+                                <span>{scene.uploadedImageUrl ? '단일 교체' : '단일 사진'}</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleOpenCollageModal(idx)}
+                                className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-purple-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 text-purple-700 font-bold text-[11px] border border-purple-300 shadow-2xs transition cursor-pointer"
+                                title="여러 장의 사진을 1장의 쇼츠 이미지로 콜라주/분할 편집"
+                              >
+                                <LayoutGrid className="w-3 h-3 text-purple-600" />
+                                <span>여러 장 합치기</span>
                               </button>
 
                               <a
@@ -1222,6 +1261,19 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
             </button>
           </div>
         </div>
+      )}
+
+      {/* Multi-Photo Collage / Merger Modal */}
+      {collageModalSceneIdx !== null && editableScenes[collageModalSceneIdx] && (
+        <ScenePhotoCollageModal
+          isOpen={true}
+          onClose={() => setCollageModalSceneIdx(null)}
+          sceneNumber={editableScenes[collageModalSceneIdx].sceneNumber}
+          timeRange={editableScenes[collageModalSceneIdx].timeRange}
+          narrationSnippet={editableScenes[collageModalSceneIdx].narration.slice(0, 50)}
+          existingImageUrl={editableScenes[collageModalSceneIdx].uploadedImageUrl}
+          onApplyImage={handleApplyCollageImage}
+        />
       )}
     </div>
   );
