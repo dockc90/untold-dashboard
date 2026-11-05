@@ -22,7 +22,15 @@ import {
   Square,
   Maximize2,
   Image as ImageIcon,
-  ArrowLeft
+  ArrowLeft,
+  Plus,
+  Trash2,
+  Copy,
+  Upload,
+  Tag,
+  Move,
+  Check,
+  Eye
 } from 'lucide-react';
 import { 
   ShortsProject, 
@@ -35,7 +43,9 @@ import {
   SubtitleFontSize,
   PhotoAspectRatio,
   BackdropStyle,
-  VideoMoodTone
+  VideoMoodTone,
+  CustomTextOverlay,
+  ChannelLogoOverlay
 } from '../types';
 import { VOICE_OPTIONS } from '../data/voices';
 import { playDistinctVoicePreview, stopAllVoicePreviews } from '../utils/voicePlayer';
@@ -47,6 +57,7 @@ interface VideoRendererModalProps {
   isPageMode?: boolean;
   onBackToEditor?: () => void;
   onBackToTrends?: () => void;
+  onUpdateProject?: (updated: ShortsProject) => void;
 }
 
 const SPEED_PRESETS = [0.8, 1.0, 1.1, 1.2, 1.3, 1.5];
@@ -93,6 +104,8 @@ const PHOTO_ASPECT_RATIOS: { id: PhotoAspectRatio; label: string; sub: string; d
 ];
 
 const BACKDROP_STYLES: { id: BackdropStyle; label: string; desc: string; badge: string }[] = [
+  { id: 'card_white', label: '화이트 카드뉴스 프레임', desc: '상단/하단 흰색 여백으로 상단 헤드라인과 자막이 가장 돋보이는 릴스 떡상 스타일', badge: '샘플 추천' },
+  { id: 'card_black', label: '블랙 시네마틱 프레임', desc: '상단/하단 딥 블랙 여백으로 영화적 비율감과 깔끔한 가독성 제공', badge: '깔끔한 대비' },
   { id: 'blur', label: '앰비언트 블러', desc: '원본 사진을 배경에 은은하게 블러 처리하여 고급스러운 분위기 연출', badge: '가장 자연스러움' },
   { id: 'dark', label: '다크 스튜디오 매트', desc: '딥 다크 블랙 배경으로 사진 카드와 자막에만 시선 100% 집중', badge: '몰입감 극대화' },
   { id: 'gradient', label: '시네마틱 그라디언트', desc: '딥 인디고 & 바이올렛 그라데이션으로 트렌디한 영상미 부여', badge: '감성적 분위기' },
@@ -226,13 +239,73 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   isPageMode = false,
   onBackToEditor,
   onBackToTrends,
+  onUpdateProject,
 }) => {
   // Video Resolution
   const [resolution, setResolution] = useState<'1080p' | '720p'>('1080p');
 
   // Photo Aspect Ratio & Backdrop Framing (1:1 정사각형, 9:16 전체, 4:5, 16:9, fit)
   const [photoAspectRatio, setPhotoAspectRatio] = useState<PhotoAspectRatio>(project.photoAspectRatio || '1:1');
-  const [backdropStyle, setBackdropStyle] = useState<BackdropStyle>(project.backdropStyle || 'blur');
+  const [backdropStyle, setBackdropStyle] = useState<BackdropStyle>(project.backdropStyle || 'card_white');
+
+  // CapCut-Style Custom Text Overlays (멀티 자막 & 텍스트 레이어)
+  const [customTextOverlays, setCustomTextOverlays] = useState<CustomTextOverlay[]>(() => {
+    if (project.customTextOverlays && project.customTextOverlays.length > 0) {
+      return project.customTextOverlays;
+    }
+    // Default top headline overlay matching the sample layout
+    const initialHeadline = project.titles && project.titles.length > 0
+      ? project.titles[0].replace(/#\S+/g, '').trim()
+      : `${project.figureName} 실화 비하인드`;
+    return [
+      {
+        id: `ov-head-${Date.now()}`,
+        text: initialHeadline,
+        startScene: 1,
+        endScene: project.scenes.length || 12,
+        positionYPercent: 14,
+        positionX: 'center',
+        fontSizeScale: 1.25,
+        fontFamily: 'Black Han Sans',
+        textColor: '#000000',
+        backgroundColor: 'transparent',
+        isBold: true,
+      }
+    ];
+  });
+
+  // Channel Logo & Watermark Overlay (샘플 릴스 스타일)
+  const [channelLogo, setChannelLogo] = useState<ChannelLogoOverlay>(() => {
+    if (project.channelLogoOverlay) {
+      return project.channelLogoOverlay;
+    }
+    return {
+      enabled: true,
+      imageUrl: project.scenes[0]?.uploadedImageUrl || undefined,
+      channelName: 'Untold',
+      position: 'top-left',
+      startScene: 1,
+      endScene: project.scenes.length || 12,
+      size: 'medium',
+      shape: 'circle',
+      showChannelName: true,
+    };
+  });
+
+  const logoImageRef = useRef<HTMLImageElement | null>(null);
+
+  useEffect(() => {
+    if (channelLogo.imageUrl) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        logoImageRef.current = img;
+      };
+      img.src = channelLogo.imageUrl;
+    } else {
+      logoImageRef.current = null;
+    }
+  }, [channelLogo.imageUrl]);
 
   // Subtitle Customizations
   const [subtitleFont, setSubtitleFont] = useState<SubtitleFontFamily>('GmarketSans');
@@ -244,9 +317,27 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   const [selectedVoiceId, setSelectedVoiceId] = useState<string>(project.selectedVoiceId || 'voice-1');
   const [voiceSpeedMultiplier, setVoiceSpeedMultiplier] = useState<number>(project.voiceSpeedMultiplier || 1.1);
   const [voiceCategoryFilter, setVoiceCategoryFilter] = useState<string>('all');
-  
+
   // Video Mood Tone State
   const [videoTone, setVideoTone] = useState<VideoMoodTone>(project.videoTone || 'Cinematic');
+
+  const isFirstMountRef = useRef(true);
+  useEffect(() => {
+    if (isFirstMountRef.current) {
+      isFirstMountRef.current = false;
+      return;
+    }
+    if (onUpdateProject) {
+      onUpdateProject({
+        ...project,
+        customTextOverlays,
+        channelLogoOverlay: channelLogo,
+        backdropStyle,
+        photoAspectRatio,
+        videoTone,
+      });
+    }
+  }, [customTextOverlays, channelLogo, backdropStyle, photoAspectRatio, videoTone]);
 
   // States
   const [isPlayingVoiceSample, setIsPlayingVoiceSample] = useState(false);
@@ -260,8 +351,8 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   const [previewViewMode, setPreviewViewMode] = useState<'live' | 'video'>('live');
   const [previewSceneIndex, setPreviewSceneIndex] = useState(0);
 
-  // Active custom tab on left ('tone' | 'ratio' | 'subtitle' | 'voice' | 'output')
-  const [activeSettingsSection, setActiveSettingsSection] = useState<'tone' | 'ratio' | 'subtitle' | 'voice' | 'output'>('tone');
+  // Active custom tab on left ('tone' | 'ratio' | 'overlay' | 'subtitle' | 'voice' | 'output')
+  const [activeSettingsSection, setActiveSettingsSection] = useState<'tone' | 'ratio' | 'overlay' | 'subtitle' | 'voice' | 'output'>('tone');
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -348,6 +439,109 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     setSubtitleSizeScale(1.18);
     setVoiceSpeedMultiplier(1.1);
     setResolution('1080p');
+  };
+
+  // Quick preset to apply the exact CapCut viral white card format from user samples
+  const handleApplySampleReelsPreset = () => {
+    setBackdropStyle('card_white');
+    setPhotoAspectRatio('1:1');
+    setSubtitleFont('Do Hyeon');
+    setSubtitleStyle('yellow_box');
+    setSubtitleYPercent(82);
+    setSubtitleSizeScale(1.15);
+    setResolution('1080p');
+    setChannelLogo((prev) => ({
+      ...prev,
+      enabled: true,
+      position: 'top-left',
+      startScene: 1,
+      endScene: scenes.length || 12,
+      shape: 'circle',
+      showChannelName: true,
+    }));
+    setCustomTextOverlays((prev) => {
+      if (prev.length > 0) {
+        return prev.map((t, idx) => idx === 0 ? {
+          ...t,
+          positionYPercent: 14,
+          fontFamily: 'Do Hyeon',
+          textColor: '#000000',
+          backgroundColor: 'transparent',
+          startScene: 1,
+          endScene: scenes.length || 12,
+        } : t);
+      }
+      return [
+        {
+          id: 'headline-1',
+          text: project.titles?.[0] || project.figureName || '화제의 인물 이야기',
+          startScene: 1,
+          endScene: scenes.length || 12,
+          positionYPercent: 14,
+          positionX: 'center',
+          fontSizeScale: 1.25,
+          fontFamily: 'Do Hyeon',
+          textColor: '#000000',
+          backgroundColor: 'transparent',
+          isBold: true,
+        }
+      ];
+    });
+    setPreviewViewMode('live');
+  };
+
+  const handleAddCustomTextOverlay = () => {
+    const newId = `overlay-${Date.now()}`;
+    const newOverlay: CustomTextOverlay = {
+      id: newId,
+      text: '새 자막 내용 입력',
+      startScene: 1,
+      endScene: scenes.length || 12,
+      positionYPercent: 50,
+      positionX: 'center',
+      fontSizeScale: 1.0,
+      fontFamily: 'Do Hyeon',
+      textColor: '#ffffff',
+      backgroundColor: 'rgba(0, 0, 0, 0.75)',
+      isBold: true,
+    };
+    setCustomTextOverlays((prev) => [...prev, newOverlay]);
+  };
+
+  const handleUpdateCustomTextOverlay = (id: string, updates: Partial<CustomTextOverlay>) => {
+    setCustomTextOverlays((prev) => prev.map((item) => (item.id === id ? { ...item, ...updates } : item)));
+  };
+
+  const handleDeleteCustomTextOverlay = (id: string) => {
+    setCustomTextOverlays((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const handleDuplicateCustomTextOverlay = (id: string) => {
+    const target = customTextOverlays.find((item) => item.id === id);
+    if (!target) return;
+    const duplicated: CustomTextOverlay = {
+      ...target,
+      id: `overlay-${Date.now()}`,
+      positionYPercent: Math.min(95, target.positionYPercent + 8),
+    };
+    setCustomTextOverlays((prev) => [...prev, duplicated]);
+  };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (loadEvt) => {
+        if (typeof loadEvt.target?.result === 'string') {
+          setChannelLogo((prev) => ({
+            ...prev,
+            enabled: true,
+            imageUrl: loadEvt.target?.result as string,
+          }));
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   // Helper to pre-load image
@@ -469,7 +663,13 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     }
 
     // 2. Non-9:16 aspect ratios: Draw Backdrop (Instant 0.02ms draw, zero CPU stall!)
-    if (backdropStyle === 'blur') {
+    if (backdropStyle === 'card_white') {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, w, h);
+    } else if (backdropStyle === 'card_black') {
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, w, h);
+    } else if (backdropStyle === 'blur') {
       if (precomputedBackdrop) {
         ctx.drawImage(precomputedBackdrop, 0, 0, w, h);
       } else {
@@ -495,9 +695,16 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     let cardY = h * 0.15; // Placed at top-mid so subtitle below has clear space
 
     if (photoAspectRatio === '1:1') {
-      cardW = w * 0.90;
-      cardH = cardW; // 1:1 Square
-      cardY = h * 0.15;
+      if (backdropStyle === 'card_white' || backdropStyle === 'card_black') {
+        // Edge-to-edge horizontal banner matching Reels sample screenshots
+        cardW = w;
+        cardH = w;
+        cardY = h * 0.22;
+      } else {
+        cardW = w * 0.90;
+        cardH = cardW; // 1:1 Square
+        cardY = h * 0.15;
+      }
     } else if (photoAspectRatio === '4:5') {
       cardW = w * 0.88;
       cardH = cardW * 1.25; // 4:5 Portrait Card
@@ -522,27 +729,31 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     }
 
     const cardX = (w - cardW) / 2;
-    const cornerRadius = resolution === '1080p' ? 32 : 22;
+    const cornerRadius = (backdropStyle === 'card_white' || backdropStyle === 'card_black') && photoAspectRatio === '1:1'
+      ? 0
+      : (resolution === '1080p' ? 32 : 22);
 
     // 4. Card Drop Shadow
-    ctx.save();
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
-    ctx.shadowBlur = resolution === '1080p' ? 40 : 25;
-    ctx.shadowOffsetY = resolution === '1080p' ? 18 : 10;
-    ctx.fillStyle = '#020617';
-    ctx.beginPath();
-    if (ctx.roundRect) {
-      ctx.roundRect(cardX, cardY, cardW, cardH, cornerRadius);
-    } else {
-      ctx.rect(cardX, cardY, cardW, cardH);
+    if (backdropStyle !== 'card_white') {
+      ctx.save();
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
+      ctx.shadowBlur = resolution === '1080p' ? 40 : 25;
+      ctx.shadowOffsetY = resolution === '1080p' ? 18 : 10;
+      ctx.fillStyle = '#020617';
+      ctx.beginPath();
+      if (ctx.roundRect && cornerRadius > 0) {
+        ctx.roundRect(cardX, cardY, cardW, cardH, cornerRadius);
+      } else {
+        ctx.rect(cardX, cardY, cardW, cardH);
+      }
+      ctx.fill();
+      ctx.restore();
     }
-    ctx.fill();
-    ctx.restore();
 
     // 5. Clip Image to Rounded Card
     ctx.save();
     ctx.beginPath();
-    if (ctx.roundRect) {
+    if (ctx.roundRect && cornerRadius > 0) {
       ctx.roundRect(cardX, cardY, cardW, cardH, cornerRadius);
     } else {
       ctx.rect(cardX, cardY, cardW, cardH);
@@ -735,6 +946,205 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     ctx.restore();
   };
 
+  // Helper: Draw Channel Logo & Watermark (Sample Reels style)
+  const renderChannelLogo = (
+    ctx: CanvasRenderingContext2D,
+    w: number,
+    h: number,
+    sceneIndex: number,
+    logoImg: HTMLImageElement | null
+  ) => {
+    if (!channelLogo.enabled) return;
+    const currentSceneNum = sceneIndex + 1;
+    if (currentSceneNum < channelLogo.startScene || currentSceneNum > channelLogo.endScene) {
+      return;
+    }
+
+    ctx.save();
+    const baseLogoDim = resolution === '1080p' ? 56 : 38;
+    const logoScale = channelLogo.size === 'small' ? 0.75 : channelLogo.size === 'large' ? 1.35 : 1.0;
+    const logoSize = Math.round(baseLogoDim * logoScale);
+    const marginX = w * 0.055;
+    const marginY = h * 0.038;
+
+    let x = marginX;
+    let y = marginY;
+
+    if (channelLogo.position === 'top-center') {
+      x = w / 2 - (logoSize + (channelLogo.showChannelName ? 80 : 0)) / 2;
+    } else if (channelLogo.position === 'top-right') {
+      x = w - marginX - logoSize - (channelLogo.showChannelName ? 100 : 0);
+    } else if (channelLogo.position === 'bottom-left') {
+      y = h - marginY - logoSize;
+    } else if (channelLogo.position === 'bottom-right') {
+      x = w - marginX - logoSize;
+      y = h - marginY - logoSize;
+    }
+
+    // Draw Logo Image or Avatar
+    if (logoImg) {
+      ctx.save();
+      if (channelLogo.shape === 'circle') {
+        ctx.beginPath();
+        ctx.arc(x + logoSize / 2, y + logoSize / 2, logoSize / 2, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(logoImg, x, y, logoSize, logoSize);
+        ctx.restore();
+
+        // Subtle circular border
+        ctx.beginPath();
+        ctx.arc(x + logoSize / 2, y + logoSize / 2, logoSize / 2, 0, Math.PI * 2);
+        ctx.strokeStyle = backdropStyle === 'card_white' ? 'rgba(0, 0, 0, 0.15)' : 'rgba(255, 255, 255, 0.45)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      } else if (channelLogo.shape === 'rounded') {
+        const r = Math.round(logoSize * 0.22);
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(x, y, logoSize, logoSize, r);
+        } else {
+          ctx.rect(x, y, logoSize, logoSize);
+        }
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(logoImg, x, y, logoSize, logoSize);
+        ctx.restore();
+      } else {
+        ctx.drawImage(logoImg, x, y, logoSize, logoSize);
+        ctx.restore();
+      }
+    } else {
+      // Default modern badge
+      ctx.beginPath();
+      ctx.arc(x + logoSize / 2, y + logoSize / 2, logoSize / 2, 0, Math.PI * 2);
+      ctx.fillStyle = '#6366f1';
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `900 ${Math.round(logoSize * 0.46)}px "GmarketSans", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText((channelLogo.channelName || 'U').charAt(0).toUpperCase(), x + logoSize / 2, y + logoSize / 2);
+    }
+
+    // Draw Channel Name
+    if (channelLogo.showChannelName && channelLogo.channelName) {
+      const fontSize = Math.round(logoSize * 0.42);
+      ctx.font = `bold ${fontSize}px "GmarketSans", "Pretendard", sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      const textX = x + logoSize + Math.round(logoSize * 0.25);
+      const textY = y + logoSize / 2;
+
+      if (backdropStyle === 'card_white') {
+        ctx.fillStyle = '#0f172a';
+        ctx.fillText(channelLogo.channelName, textX, textY);
+      } else {
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+        ctx.shadowBlur = 6;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(channelLogo.channelName, textX, textY);
+      }
+    }
+
+    ctx.restore();
+  };
+
+  // Helper: Draw CapCut-style Custom Text Overlays (여러 개 추가 및 원하는 지점까지 연장)
+  const renderCustomTextOverlays = (
+    ctx: CanvasRenderingContext2D,
+    w: number,
+    h: number,
+    sceneIndex: number
+  ) => {
+    const currentSceneNum = sceneIndex + 1;
+    const activeOverlays = customTextOverlays.filter(
+      (ov) => currentSceneNum >= ov.startScene && currentSceneNum <= ov.endScene
+    );
+
+    for (const ov of activeOverlays) {
+      if (!ov.text || !ov.text.trim()) continue;
+
+      ctx.save();
+      const baseFontSize = resolution === '1080p' ? 50 : 34;
+      const fontSize = Math.round(baseFontSize * (ov.fontSizeScale || 1.0));
+      const fontWeight = ov.isBold ? '900' : 'bold';
+      ctx.font = `${fontWeight} ${fontSize}px "${ov.fontFamily || 'Black Han Sans'}", "GmarketSans", "Pretendard", sans-serif`;
+      ctx.textAlign = ov.positionX || 'center';
+      ctx.textBaseline = 'middle';
+
+      // Lines parsing (support \n and auto-wrap)
+      const rawLines = ov.text.split('\n');
+      const lines: string[] = [];
+      const maxLineWidth = w * 0.88;
+
+      for (const rawLine of rawLines) {
+        const words = rawLine.split(' ');
+        let curLine = '';
+        for (const word of words) {
+          const testLine = curLine ? `${curLine} ${word}` : word;
+          if (ctx.measureText(testLine).width > maxLineWidth && curLine) {
+            lines.push(curLine);
+            curLine = word;
+          } else {
+            curLine = testLine;
+          }
+        }
+        if (curLine) lines.push(curLine);
+      }
+
+      const lineHeight = fontSize * 1.34;
+      const totalHeight = lines.length * lineHeight;
+      const targetY = h * (ov.positionYPercent / 100);
+      const startY = targetY - totalHeight / 2 + lineHeight / 2;
+
+      const posX = ov.positionX === 'left' ? w * 0.08 : ov.positionX === 'right' ? w * 0.92 : w / 2;
+
+      // Draw background box if present
+      if (ov.backgroundColor && ov.backgroundColor !== 'transparent') {
+        lines.forEach((line, idx) => {
+          const lineY = startY + idx * lineHeight;
+          const lineMetrics = ctx.measureText(line);
+          const lineW = lineMetrics.width;
+          const padX = fontSize * 0.45;
+          const padY = fontSize * 0.22;
+
+          let boxX = posX - lineW / 2 - padX;
+          if (ov.positionX === 'left') boxX = posX - padX;
+          if (ov.positionX === 'right') boxX = posX - lineW - padX;
+
+          ctx.fillStyle = ov.backgroundColor;
+          ctx.beginPath();
+          if (ctx.roundRect) {
+            ctx.roundRect(boxX, lineY - lineHeight / 2 - padY / 2, lineW + padX * 2, lineHeight + padY, 10);
+          } else {
+            ctx.rect(boxX, lineY - lineHeight / 2 - padY / 2, lineW + padX * 2, lineHeight + padY);
+          }
+          ctx.fill();
+        });
+      }
+
+      // Draw text
+      lines.forEach((line, idx) => {
+        const lineY = startY + idx * lineHeight;
+
+        if (!ov.backgroundColor || ov.backgroundColor === 'transparent') {
+          if (ov.textColor.toLowerCase() === '#ffffff') {
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.95)';
+            ctx.lineWidth = Math.max(3, fontSize * 0.16);
+            ctx.lineJoin = 'round';
+            ctx.strokeText(line, posX, lineY);
+          }
+        }
+
+        ctx.fillStyle = ov.textColor || '#000000';
+        ctx.fillText(line, posX, lineY);
+      });
+
+      ctx.restore();
+    }
+  };
+
   // Real-time Live Preview Effect: renders active preview scene directly on canvas
   useEffect(() => {
     if (!isOpen || isRendering || previewViewMode === 'video') return;
@@ -760,22 +1170,30 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         // Draw photo with selected aspect ratio and backdrop
         drawSceneImage(ctx, img, width, height, 0, 'static');
 
-        // Vignette based on subtitle position
-        if (subtitleYPercent > 60) {
-          const bottomGrad = ctx.createLinearGradient(0, height * 0.62, 0, height);
-          bottomGrad.addColorStop(0, 'rgba(0,0,0,0)');
-          bottomGrad.addColorStop(0.5, 'rgba(0,0,0,0.65)');
-          bottomGrad.addColorStop(1, 'rgba(0,0,0,0.85)');
-          ctx.fillStyle = bottomGrad;
-          ctx.fillRect(0, height * 0.62, width, height * 0.38);
-        } else if (subtitleYPercent < 35) {
-          const topGrad = ctx.createLinearGradient(0, 0, 0, height * 0.38);
-          topGrad.addColorStop(0, 'rgba(0,0,0,0.85)');
-          topGrad.addColorStop(0.5, 'rgba(0,0,0,0.65)');
-          topGrad.addColorStop(1, 'rgba(0,0,0,0)');
-          ctx.fillStyle = topGrad;
-          ctx.fillRect(0, 0, width, height * 0.38);
+        // Vignette based on subtitle position (skip if card_white or card_black)
+        if (backdropStyle !== 'card_white' && backdropStyle !== 'card_black') {
+          if (subtitleYPercent > 60) {
+            const bottomGrad = ctx.createLinearGradient(0, height * 0.62, 0, height);
+            bottomGrad.addColorStop(0, 'rgba(0,0,0,0)');
+            bottomGrad.addColorStop(0.5, 'rgba(0,0,0,0.65)');
+            bottomGrad.addColorStop(1, 'rgba(0,0,0,0.85)');
+            ctx.fillStyle = bottomGrad;
+            ctx.fillRect(0, height * 0.62, width, height * 0.38);
+          } else if (subtitleYPercent < 35) {
+            const topGrad = ctx.createLinearGradient(0, 0, 0, height * 0.38);
+            topGrad.addColorStop(0, 'rgba(0,0,0,0.85)');
+            topGrad.addColorStop(0.5, 'rgba(0,0,0,0.65)');
+            topGrad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = topGrad;
+            ctx.fillRect(0, 0, width, height * 0.38);
+          }
         }
+
+        // Draw Channel Logo & Watermark
+        renderChannelLogo(ctx, width, height, previewSceneIndex, logoImageRef.current);
+
+        // Draw CapCut-style Custom Text Overlays (상단 헤드라인 및 커스텀 자막들)
+        renderCustomTextOverlays(ctx, width, height, previewSceneIndex);
 
         // Draw Subtitles: if text is long, preview the first punchy chunk
         const previewChunks = getSubtitleChunks(previewText);
@@ -804,7 +1222,9 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     scenes,
     project.figureName,
     width,
-    height
+    height,
+    customTextOverlays,
+    channelLogo,
   ]);
 
   if (!isOpen) return null;
@@ -935,6 +1355,13 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     // 3. Preload images and precompute ambient backdrops for all scenes (0ms render during recording)
     const loadedImages: HTMLImageElement[] = [];
     const precomputedBackdrops: (HTMLCanvasElement | null)[] = [];
+    let loadedLogoImg: HTMLImageElement | null = logoImageRef.current;
+    if (channelLogo.enabled && channelLogo.imageUrl && !loadedLogoImg) {
+      try {
+        loadedLogoImg = await loadImage(channelLogo.imageUrl);
+      } catch (e) {}
+    }
+
     for (let i = 0; i < scenes.length; i++) {
       setStatusMessage(`사진 에셋 및 렌더링 최적화 중... (${i + 1}/${scenes.length})`);
       const imgUrl = scenes[i].uploadedImageUrl || `https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=800&q=80`;
@@ -1101,24 +1528,32 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       // Draw scene photo with user-selected aspect ratio, precomputed backdrop (0ms CPU cost), and motion
       drawSceneImage(ctx, img, width, height, progressInScene, motion, precomputedBackdrops[activeIdx]);
 
-      // Adaptive vignette based on subtitle position
-      if (subtitleYPercent > 60) {
-        // Bottom vignette
-        const bottomGrad = ctx.createLinearGradient(0, height * 0.62, 0, height);
-        bottomGrad.addColorStop(0, 'rgba(0,0,0,0)');
-        bottomGrad.addColorStop(0.5, 'rgba(0,0,0,0.65)');
-        bottomGrad.addColorStop(1, 'rgba(0,0,0,0.85)');
-        ctx.fillStyle = bottomGrad;
-        ctx.fillRect(0, height * 0.62, width, height * 0.38);
-      } else if (subtitleYPercent < 35) {
-        // Top vignette only when subtitles are positioned at top
-        const topGrad = ctx.createLinearGradient(0, 0, 0, height * 0.38);
-        topGrad.addColorStop(0, 'rgba(0,0,0,0.85)');
-        topGrad.addColorStop(0.5, 'rgba(0,0,0,0.65)');
-        topGrad.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = topGrad;
-        ctx.fillRect(0, 0, width, height * 0.38);
+      // Adaptive vignette based on subtitle position (skip if card_white or card_black)
+      if (backdropStyle !== 'card_white' && backdropStyle !== 'card_black') {
+        if (subtitleYPercent > 60) {
+          // Bottom vignette
+          const bottomGrad = ctx.createLinearGradient(0, height * 0.62, 0, height);
+          bottomGrad.addColorStop(0, 'rgba(0,0,0,0)');
+          bottomGrad.addColorStop(0.5, 'rgba(0,0,0,0.65)');
+          bottomGrad.addColorStop(1, 'rgba(0,0,0,0.85)');
+          ctx.fillStyle = bottomGrad;
+          ctx.fillRect(0, height * 0.62, width, height * 0.38);
+        } else if (subtitleYPercent < 35) {
+          // Top vignette only when subtitles are positioned at top
+          const topGrad = ctx.createLinearGradient(0, 0, 0, height * 0.38);
+          topGrad.addColorStop(0, 'rgba(0,0,0,0.85)');
+          topGrad.addColorStop(0.5, 'rgba(0,0,0,0.65)');
+          topGrad.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = topGrad;
+          ctx.fillRect(0, 0, width, height * 0.38);
+        }
       }
+
+      // Draw Channel Logo & Watermark
+      renderChannelLogo(ctx, width, height, activeIdx, loadedLogoImg);
+
+      // Draw CapCut-style Custom Text Overlays (상단 헤드라인 및 커스텀 자막들)
+      renderCustomTextOverlays(ctx, width, height, activeIdx);
 
       // Subtitle Chunking: keep the scene photo intact while subtitles advance if long
       const chunks = getSubtitleChunks(scene.narration);
@@ -1191,8 +1626,8 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
   const modalBodyContent = (
     <div className="overflow-y-auto flex-1 p-5 sm:p-7 space-y-5">
-          {/* Settings Navigation Tabs (5 Sections) */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200 text-xs font-bold">
+          {/* Settings Navigation Tabs (6 Sections with CapCut Overlays) */}
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200 text-xs font-bold">
             <button
               onClick={() => setActiveSettingsSection('tone')}
               className={`py-2 px-2 rounded-xl transition flex items-center justify-center space-x-1.5 cursor-pointer ${
@@ -1202,7 +1637,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
               }`}
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              <span className="truncate">영상 톤 ({videoTone})</span>
+              <span className="truncate">영상 톤</span>
             </button>
 
             <button
@@ -1214,7 +1649,19 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
               }`}
             >
               <Square className="w-3.5 h-3.5 text-indigo-600" />
-              <span className="truncate">사진 비율 ({photoAspectRatio})</span>
+              <span className="truncate">프레임 비율</span>
+            </button>
+
+            <button
+              onClick={() => setActiveSettingsSection('overlay')}
+              className={`py-2 px-2 rounded-xl transition flex items-center justify-center space-x-1.5 cursor-pointer relative ${
+                activeSettingsSection === 'overlay'
+                  ? 'bg-white text-indigo-700 shadow-2xs font-black ring-1 ring-slate-200'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5 text-rose-500" />
+              <span className="truncate">자막·로고 ({customTextOverlays.length})</span>
             </button>
 
             <button
@@ -1226,7 +1673,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
               }`}
             >
               <Type className="w-3.5 h-3.5 text-indigo-600" />
-              <span className="truncate">자막 설정</span>
+              <span className="truncate">나레이션 자막</span>
             </button>
 
             <button
@@ -1238,7 +1685,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
               }`}
             >
               <Mic className="w-3.5 h-3.5 text-indigo-600" />
-              <span className="truncate">성우·배속 ({voiceSpeedMultiplier}x)</span>
+              <span className="truncate">성우 ({voiceSpeedMultiplier}x)</span>
             </button>
 
             <button
@@ -1250,7 +1697,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
               }`}
             >
               <Monitor className="w-3.5 h-3.5 text-indigo-600" />
-              <span className="truncate">해상도 ({resolution})</span>
+              <span className="truncate">해상도</span>
             </button>
           </div>
 
@@ -1535,6 +1982,457 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                     <p className="leading-relaxed font-medium text-[11px] text-slate-600">
                       1분미만, 머니그라피 등 국내 최고 인기 쇼츠 채널은 상단에 <strong>1:1 정사각형 카드</strong>로 인물/자료를 안정감 있게 배치하고, 하단에 <strong>자막이 사진을 가리지 않도록</strong> 여백을 둡니다. 가로 사진도 얼굴이 잘리지 않고 온전히 담겨 시청자 집중도와 리텐션이 크게 증가합니다.
                     </p>
+                  </div>
+                </div>
+              )}
+
+              {/* SECTION: CapCut-style Overlay & Logo Manager */}
+              {activeSettingsSection === 'overlay' && (
+                <div className="space-y-4">
+                  {/* 1. Quick One-Click Sample Preset */}
+                  <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white shadow-md space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-yellow-200 fill-yellow-300" />
+                        <h4 className="font-black text-sm">샘플 릴스 바이럴 스타일 1초 적용</h4>
+                      </div>
+                      <span className="text-[10px] bg-white/20 backdrop-blur-xs px-2 py-0.5 rounded-full font-bold">
+                        1:1 화이트 카드뉴스
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-white/90 leading-relaxed font-medium">
+                      참고 사진과 동일하게 <strong>상단 화이트 여백 + 채널 로고 + 상단 헤드라인 타이틀 + 1:1 사진 + 하단 자막</strong>으로 원클릭 세팅됩니다.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleApplySampleReelsPreset}
+                      className="w-full mt-1 py-2.5 px-4 bg-white hover:bg-amber-50 text-slate-900 rounded-xl font-black text-xs transition shadow-sm flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                    >
+                      <Sparkles className="w-4 h-4 text-amber-500 fill-amber-500" />
+                      <span>⚡ 샘플 릴스 스타일 바로 적용하기</span>
+                    </button>
+                  </div>
+
+                  {/* 2. Channel Logo & Branding Section */}
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                        <ImageIcon className="w-4 h-4 text-indigo-600" />
+                        <span>상단 채널 로고 & 브랜딩</span>
+                      </label>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={channelLogo.enabled}
+                          onChange={(e) => setChannelLogo((prev) => ({ ...prev, enabled: e.target.checked }))}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-slate-300 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                        <span className="ml-2 text-xs font-bold text-slate-700">
+                          {channelLogo.enabled ? '표시 중' : '숨김'}
+                        </span>
+                      </label>
+                    </div>
+
+                    {channelLogo.enabled && (
+                      <div className="space-y-3 pt-2 border-t border-slate-200">
+                        {/* Logo Upload & Channel Name */}
+                        <div className="flex items-center gap-3">
+                          <div className="relative group shrink-0">
+                            <div className={`w-14 h-14 bg-slate-200 border-2 border-indigo-200 overflow-hidden flex items-center justify-center shadow-xs ${channelLogo.shape === 'circle' ? 'rounded-full' : 'rounded-xl'}`}>
+                              {channelLogo.imageUrl ? (
+                                <img src={channelLogo.imageUrl} alt="Channel Logo" className="w-full h-full object-cover" />
+                              ) : (
+                                <ImageIcon className="w-6 h-6 text-slate-400" />
+                              )}
+                            </div>
+                            <label className="absolute inset-0 bg-black/50 text-white rounded-full flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer text-[9px] font-bold">
+                              <Upload className="w-3.5 h-3.5 mb-0.5" />
+                              변경
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleLogoUpload}
+                                className="hidden"
+                              />
+                            </label>
+                          </div>
+
+                          <div className="flex-1 space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-bold text-slate-600">채널명 텍스트</span>
+                              <label className="flex items-center gap-1 text-[10px] text-slate-500 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={channelLogo.showChannelName}
+                                  onChange={(e) => setChannelLogo((prev) => ({ ...prev, showChannelName: e.target.checked }))}
+                                  className="rounded text-indigo-600 focus:ring-0"
+                                />
+                                <span>이름 함께 표시</span>
+                              </label>
+                            </div>
+                            <input
+                              type="text"
+                              value={channelLogo.channelName}
+                              onChange={(e) => setChannelLogo((prev) => ({ ...prev, channelName: e.target.value }))}
+                              placeholder="예: 노빠꾸소개맨, 언톨드"
+                              className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Shape & Size & Position */}
+                        <div className="grid grid-cols-3 gap-2 text-xs">
+                          <div>
+                            <span className="text-[10px] font-bold text-slate-500 mb-1 block">로고 형태</span>
+                            <div className="flex rounded-lg bg-white border border-slate-200 p-0.5">
+                              <button
+                                type="button"
+                                onClick={() => setChannelLogo((prev) => ({ ...prev, shape: 'circle' }))}
+                                className={`flex-1 py-1 text-[11px] font-bold rounded-md transition ${channelLogo.shape === 'circle' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                              >
+                                원형
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setChannelLogo((prev) => ({ ...prev, shape: 'rounded' }))}
+                                className={`flex-1 py-1 text-[11px] font-bold rounded-md transition ${channelLogo.shape === 'rounded' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                              >
+                                둥근 사각
+                              </button>
+                            </div>
+                          </div>
+
+                          <div>
+                            <span className="text-[10px] font-bold text-slate-500 mb-1 block">크기</span>
+                            <div className="flex rounded-lg bg-white border border-slate-200 p-0.5">
+                              {(['small', 'medium', 'large'] as const).map((sz) => (
+                                <button
+                                  key={sz}
+                                  type="button"
+                                  onClick={() => setChannelLogo((prev) => ({ ...prev, size: sz }))}
+                                  className={`flex-1 py-1 text-[10px] font-bold rounded-md transition ${channelLogo.size === sz ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                                >
+                                  {sz === 'small' ? '소' : sz === 'medium' ? '중' : '대'}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <span className="text-[10px] font-bold text-slate-500 mb-1 block">위치</span>
+                            <select
+                              value={channelLogo.position}
+                              onChange={(e) => setChannelLogo((prev) => ({ ...prev, position: e.target.value as any }))}
+                              className="w-full py-1.5 px-2 bg-white border border-slate-200 rounded-lg text-[11px] font-bold text-slate-700"
+                            >
+                              <option value="top-left">상단 좌측 (추천)</option>
+                              <option value="top-center">상단 중앙</option>
+                              <option value="top-right">상단 우측</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Scene Extension Range (구간 연장) */}
+                        <div className="p-2.5 rounded-xl bg-white border border-slate-200 space-y-1.5">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-bold text-slate-700 flex items-center gap-1">
+                              <Move className="w-3.5 h-3.5 text-indigo-600" />
+                              로고 노출 구간 연장
+                            </span>
+                            <span className="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded-full">
+                              씬 {channelLogo.startScene} ~ 씬 {channelLogo.endScene} ({channelLogo.endScene === scenes.length ? '영상 끝까지' : `${channelLogo.endScene - channelLogo.startScene + 1}개 씬`})
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <span className="text-[10px] text-slate-500 block mb-0.5">시작 지점</span>
+                              <select
+                                value={channelLogo.startScene}
+                                onChange={(e) => setChannelLogo((prev) => ({ ...prev, startScene: Number(e.target.value) }))}
+                                className="w-full py-1 px-2 text-xs bg-slate-50 border border-slate-200 rounded-lg font-bold text-slate-700"
+                              >
+                                {scenes.map((_, idx) => (
+                                  <option key={idx + 1} value={idx + 1}>
+                                    씬 {idx + 1}부터
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-slate-500 block mb-0.5">종료 지점</span>
+                              <select
+                                value={channelLogo.endScene}
+                                onChange={(e) => setChannelLogo((prev) => ({ ...prev, endScene: Number(e.target.value) }))}
+                                className="w-full py-1 px-2 text-xs bg-slate-50 border border-slate-200 rounded-lg font-bold text-slate-700"
+                              >
+                                {scenes.map((_, idx) => (
+                                  <option key={idx + 1} value={idx + 1}>
+                                    씬 {idx + 1}까지 {idx + 1 === scenes.length ? '(끝까지)' : ''}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 3. Multi-Text Subtitle Overlays (CapCut Style "+ 자막 추가") */}
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                          <Layers className="w-4 h-4 text-indigo-600" />
+                          <span>캡컷 스타일 자유 자막 레이어 ({customTextOverlays.length}개)</span>
+                        </label>
+                        <p className="text-[10px] text-slate-500 mt-0.5">
+                          상단 타이틀 헤드라인이나 강조 문구를 무제한 추가하고 구간을 연장하세요.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleAddCustomTextOverlay}
+                        className="flex items-center gap-1 py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs shadow-xs transition cursor-pointer active:scale-95"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>자막 추가</span>
+                      </button>
+                    </div>
+
+                    {customTextOverlays.length === 0 ? (
+                      <div className="p-6 text-center rounded-xl bg-white border border-dashed border-slate-300 space-y-2">
+                        <Type className="w-8 h-8 text-slate-300 mx-auto" />
+                        <p className="text-xs text-slate-600 font-bold">추가된 커스텀 자막 레이어가 없습니다.</p>
+                        <p className="text-[11px] text-slate-400">
+                          상단에 큰 타이틀 제목이나 원하는 위치에 자유롭게 텍스트를 배치해보세요.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={handleAddCustomTextOverlay}
+                          className="mt-2 py-1.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition inline-flex items-center gap-1 cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>첫 자막 추가하기</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {customTextOverlays.map((overlay, index) => (
+                          <div
+                            key={overlay.id}
+                            className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-2.5 transition hover:border-indigo-300"
+                          >
+                            {/* Layer Header */}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1.5">
+                                <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-black flex items-center justify-center">
+                                  {index + 1}
+                                </span>
+                                <span className="text-xs font-black text-slate-800">
+                                  {overlay.positionYPercent <= 20 ? '상단 헤드라인 자막' : overlay.positionYPercent >= 70 ? '하단 자막' : '중앙 자막'}
+                                </span>
+                                <span className="text-[10px] text-slate-500 font-medium bg-slate-100 px-1.5 py-0.5 rounded">
+                                  Y: {overlay.positionYPercent}%
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleDuplicateCustomTextOverlay(overlay.id)}
+                                  title="자막 복제"
+                                  className="p-1 text-slate-400 hover:text-indigo-600 rounded-md hover:bg-slate-100 transition cursor-pointer"
+                                >
+                                  <Copy className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteCustomTextOverlay(overlay.id)}
+                                  title="자막 삭제"
+                                  className="p-1 text-slate-400 hover:text-rose-600 rounded-md hover:bg-rose-50 transition cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Text Input */}
+                            <textarea
+                              value={overlay.text}
+                              onChange={(e) => handleUpdateCustomTextOverlay(overlay.id, { text: e.target.value })}
+                              rows={2}
+                              placeholder="자막 문구를 입력하세요 (줄바꿈 가능)"
+                              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden resize-none leading-relaxed"
+                            />
+
+                            {/* Timeline Scene Range Extension (구간 연장) */}
+                            <div className="p-2 rounded-lg bg-slate-50 border border-slate-200/80 space-y-1">
+                              <div className="flex items-center justify-between text-[11px]">
+                                <span className="font-bold text-slate-700 flex items-center gap-1">
+                                  <Move className="w-3 h-3 text-indigo-600" />
+                                  표시 구간 연장
+                                </span>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUpdateCustomTextOverlay(overlay.id, { startScene: 1, endScene: scenes.length })}
+                                    className="text-[9px] px-1.5 py-0.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded font-bold transition cursor-pointer"
+                                  >
+                                    영상 끝까지 연장
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUpdateCustomTextOverlay(overlay.id, { startScene: previewSceneIndex + 1, endScene: previewSceneIndex + 1 })}
+                                    className="text-[9px] px-1.5 py-0.5 bg-slate-200 text-slate-700 hover:bg-slate-300 rounded font-bold transition cursor-pointer"
+                                  >
+                                    현재 씬만
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                <select
+                                  value={overlay.startScene}
+                                  onChange={(e) => handleUpdateCustomTextOverlay(overlay.id, { startScene: Number(e.target.value) })}
+                                  className="w-full py-1 px-1.5 text-[11px] bg-white border border-slate-200 rounded font-bold text-slate-700"
+                                >
+                                  {scenes.map((_, sIdx) => (
+                                    <option key={sIdx + 1} value={sIdx + 1}>
+                                      씬 {sIdx + 1}부터
+                                    </option>
+                                  ))}
+                                </select>
+                                <select
+                                  value={overlay.endScene}
+                                  onChange={(e) => handleUpdateCustomTextOverlay(overlay.id, { endScene: Number(e.target.value) })}
+                                  className="w-full py-1 px-1.5 text-[11px] bg-white border border-slate-200 rounded font-bold text-slate-700"
+                                >
+                                  {scenes.map((_, sIdx) => (
+                                    <option key={sIdx + 1} value={sIdx + 1}>
+                                      씬 {sIdx + 1}까지 {sIdx + 1 === scenes.length ? '(끝까지)' : ''}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+
+                            {/* Position Controls (Presets + Slider) */}
+                            <div className="space-y-1.5">
+                              <div className="flex items-center justify-between text-[11px]">
+                                <span className="font-bold text-slate-600">위치 설정 (Y축)</span>
+                                <span className="text-[10px] text-slate-400 font-bold">{overlay.positionYPercent}%</span>
+                              </div>
+                              <div className="grid grid-cols-4 gap-1">
+                                {[
+                                  { label: '상단 릴스 (14%)', y: 14 },
+                                  { label: '상단 (20%)', y: 20 },
+                                  { label: '중앙 (50%)', y: 50 },
+                                  { label: '하단 (82%)', y: 82 },
+                                ].map((pos) => (
+                                  <button
+                                    key={pos.label}
+                                    type="button"
+                                    onClick={() => handleUpdateCustomTextOverlay(overlay.id, { positionYPercent: pos.y })}
+                                    className={`py-1 text-[10px] font-bold rounded border transition cursor-pointer ${
+                                      Math.abs(overlay.positionYPercent - pos.y) <= 3
+                                        ? 'bg-indigo-600 text-white border-indigo-600'
+                                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                                    }`}
+                                  >
+                                    {pos.label}
+                                  </button>
+                                ))}
+                              </div>
+                              <input
+                                type="range"
+                                min={5}
+                                max={95}
+                                value={overlay.positionYPercent}
+                                onChange={(e) => handleUpdateCustomTextOverlay(overlay.id, { positionYPercent: Number(e.target.value) })}
+                                className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                              />
+                            </div>
+
+                            {/* Font, Size, Color & Box Styling */}
+                            <div className="grid grid-cols-3 gap-2 pt-1 text-xs">
+                              <div>
+                                <span className="text-[10px] text-slate-500 font-bold block mb-0.5">폰트</span>
+                                <select
+                                  value={overlay.fontFamily || 'Do Hyeon'}
+                                  onChange={(e) => handleUpdateCustomTextOverlay(overlay.id, { fontFamily: e.target.value as SubtitleFontFamily })}
+                                  className="w-full py-1 px-1.5 text-[10px] bg-slate-50 border border-slate-200 rounded font-bold text-slate-700"
+                                >
+                                  {COMMERCIAL_FONTS.map((font) => (
+                                    <option key={font.id} value={font.id}>
+                                      {font.name.split(' ')[0]}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              <div>
+                                <span className="text-[10px] text-slate-500 font-bold block mb-0.5">글자 크기 ({overlay.fontSizeScale.toFixed(2)}x)</span>
+                                <input
+                                  type="range"
+                                  min={0.7}
+                                  max={1.8}
+                                  step={0.05}
+                                  value={overlay.fontSizeScale}
+                                  onChange={(e) => handleUpdateCustomTextOverlay(overlay.id, { fontSizeScale: Number(e.target.value) })}
+                                  className="w-full h-1.5 mt-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                                />
+                              </div>
+
+                              <div>
+                                <span className="text-[10px] text-slate-500 font-bold block mb-0.5">배경 스타일</span>
+                                <select
+                                  value={overlay.backgroundColor || 'transparent'}
+                                  onChange={(e) => handleUpdateCustomTextOverlay(overlay.id, { backgroundColor: e.target.value })}
+                                  className="w-full py-1 px-1.5 text-[10px] bg-slate-50 border border-slate-200 rounded font-bold text-slate-700"
+                                >
+                                  <option value="transparent">배경 없음</option>
+                                  <option value="rgba(250, 204, 21, 0.95)">노란 박스 (강조)</option>
+                                  <option value="rgba(0, 0, 0, 0.75)">검정 반투명 박스</option>
+                                  <option value="rgba(255, 255, 255, 0.9)">흰색 반투명 박스</option>
+                                </select>
+                              </div>
+                            </div>
+
+                            {/* Color Quick Palette */}
+                            <div className="flex items-center justify-between pt-1">
+                              <span className="text-[10px] font-bold text-slate-500">글자 색상</span>
+                              <div className="flex items-center gap-1.5">
+                                {[
+                                  { color: '#000000', label: '검정' },
+                                  { color: '#ffffff', label: '흰색' },
+                                  { color: '#facc15', label: '노랑' },
+                                  { color: '#ef4444', label: '빨강' },
+                                  { color: '#3b82f6', label: '파랑' },
+                                ].map((c) => (
+                                  <button
+                                    key={c.color}
+                                    type="button"
+                                    onClick={() => handleUpdateCustomTextOverlay(overlay.id, { textColor: c.color })}
+                                    title={c.label}
+                                    className={`w-5 h-5 rounded-full border-2 transition cursor-pointer ${
+                                      overlay.textColor === c.color ? 'border-indigo-600 scale-110 shadow-xs' : 'border-slate-300'
+                                    }`}
+                                    style={{ backgroundColor: c.color }}
+                                  />
+                                ))}
+                                <input
+                                  type="color"
+                                  value={overlay.textColor || '#000000'}
+                                  onChange={(e) => handleUpdateCustomTextOverlay(overlay.id, { textColor: e.target.value })}
+                                  className="w-6 h-6 p-0 border-0 rounded cursor-pointer"
+                                  title="직접 색상 선택"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

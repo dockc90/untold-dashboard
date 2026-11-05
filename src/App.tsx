@@ -677,6 +677,10 @@ export default function App() {
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
                   project={renderingProject || currentProject || SAMPLE_PROJECT}
+                  onUpdateProject={(updated) => {
+                    setCurrentProject(updated);
+                    setRenderingProject(updated);
+                  }}
                 />
               </div>
             )}
@@ -811,6 +815,10 @@ export default function App() {
             isOpen={isVideoRendererOpen}
             onClose={() => setIsVideoRendererOpen(false)}
             project={renderingProject}
+            onUpdateProject={(updated) => {
+              setCurrentProject(updated);
+              setRenderingProject(updated);
+            }}
           />
         </ErrorBoundary>
       )}

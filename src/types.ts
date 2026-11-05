@@ -121,7 +121,36 @@ export type PhotoAspectRatio =
   | '16:9'       // 16:9 가로 와이드 (방송/영상 캡처)
   | 'fit';       // 원본 비율 유지 (블러 배경 위 핏)
 
-export type BackdropStyle = 'blur' | 'dark' | 'gradient';
+export type BackdropStyle = 'blur' | 'dark' | 'gradient' | 'card_white' | 'card_black';
+
+// 사용자 추가 커스텀 자막/텍스트 오버레이 (캡컷 스타일 멀티 자막)
+export interface CustomTextOverlay {
+  id: string;
+  text: string; // 자막 내용 (여러 줄 지원)
+  startScene: number; // 시작 씬 번호 (1부터)
+  endScene: number; // 종료 씬 번호 (원하는 지점까지 연장)
+  positionYPercent: number; // Y 위치 (예: 상단 14%, 중상단 26%, 중앙 50%, 하단 80%)
+  positionX: 'center' | 'left' | 'right';
+  fontSizeScale: number; // 0.8 ~ 1.8
+  fontFamily: SubtitleFontFamily;
+  textColor: string; // e.g. '#000000', '#ffffff', '#facc15'
+  backgroundColor: string; // e.g. 'transparent', '#facc15', '#ffffff', 'rgba(0,0,0,0.85)'
+  isBold: boolean;
+  boxPadding?: number;
+}
+
+// 채널 로고 / 워터마크 오버레이 (샘플 스타일)
+export interface ChannelLogoOverlay {
+  enabled: boolean;
+  imageUrl?: string; // 업로드된 로고 이미지 URL/Base64
+  channelName?: string; // 채널명 (예: "노빠꾸소개맨")
+  position: 'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-right';
+  startScene: number; // 시작 씬
+  endScene: number; // 종료 씬 (원하는 지점까지 연장)
+  size: 'small' | 'medium' | 'large';
+  shape: 'circle' | 'rounded' | 'original';
+  showChannelName: boolean;
+}
 
 export interface SceneItem {
   sceneNumber: number;
@@ -159,6 +188,8 @@ export interface ShortsProject {
   photoAspectRatio?: PhotoAspectRatio; // 동영상 제작 시 사진 프레이밍 비율
   backdropStyle?: BackdropStyle; // 사진 뒤 배경 스타일
   videoTone?: VideoMoodTone; // 영상 전체 분위기 톤 (Cinematic, Documentary, Fast-paced, Minimal)
+  customTextOverlays?: CustomTextOverlay[]; // 캡컷 스타일 커스텀 자막 레이어 목록
+  channelLogoOverlay?: ChannelLogoOverlay; // 채널 로고 & 워터마크 오버레이
   // 2026 알고리즘 치트키 필드
   firstTwoLinesSeo?: string;
   timestamps?: { time: string; label: string }[];
