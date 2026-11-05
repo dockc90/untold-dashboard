@@ -26,6 +26,8 @@ import {
   Palette,
   Wand2,
   Sliders,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 export type CollageLayout =
@@ -210,6 +212,42 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
       }
     };
   }, []);
+
+  // Horizontal drag-to-scroll & wheel state for Color Presets on PC
+  const presetsScrollRef = useRef<HTMLDivElement | null>(null);
+  const [isPresetDragging, setIsPresetDragging] = useState(false);
+  const presetDragStartX = useRef(0);
+  const presetScrollLeftStart = useRef(0);
+  const hasMovedPresetDrag = useRef(false);
+
+  const handlePresetMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!presetsScrollRef.current) return;
+    setIsPresetDragging(true);
+    presetDragStartX.current = e.pageX - presetsScrollRef.current.offsetLeft;
+    presetScrollLeftStart.current = presetsScrollRef.current.scrollLeft;
+    hasMovedPresetDrag.current = false;
+  };
+
+  const handlePresetMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isPresetDragging || !presetsScrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - presetsScrollRef.current.offsetLeft;
+    const walk = (x - presetDragStartX.current) * 1.5;
+    if (Math.abs(walk) > 4) {
+      hasMovedPresetDrag.current = true;
+    }
+    presetsScrollRef.current.scrollLeft = presetScrollLeftStart.current - walk;
+  };
+
+  const handlePresetMouseUp = () => {
+    setIsPresetDragging(false);
+  };
+
+  const scrollPresets = (direction: 'left' | 'right') => {
+    if (!presetsScrollRef.current) return;
+    const offset = direction === 'left' ? -150 : 150;
+    presetsScrollRef.current.scrollBy({ left: offset, behavior: 'smooth' });
+  };
 
   // Handle multi-image file select
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1342,7 +1380,12 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
 
             {/* Cell Selection Tabs (when multiple photos) */}
             {images.length > 1 && (
-              <div className="w-full flex items-center space-x-1.5 overflow-x-auto pb-1 scrollbar-none">
+              <div
+                onWheel={(e) => {
+                  if (e.deltaY !== 0) e.currentTarget.scrollLeft += e.deltaY;
+                }}
+                className="w-full flex items-center space-x-1.5 overflow-x-auto pb-1 scrollbar-none"
+              >
                 <span className="text-[11px] font-bold text-slate-400 shrink-0">편집 대상:</span>
                 {images.map((item, idx) => {
                   const isSelected = selectedCellIndex === idx;
@@ -1498,27 +1541,67 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
                 {/* TAB 2: Color Tone, Brightness, Contrast & Saturation */}
                 {editorTab === 'color' && (
                   <div className="space-y-2.5">
-                    {/* Preset Chips */}
-                    <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 scrollbar-none">
-                      {COLOR_PRESETS.map((preset) => {
-                        const isActive = (currentTransform.filterPreset || 'none') === preset.id;
-                        return (
-                          <button
-                            key={preset.id}
-                            type="button"
-                            onClick={() => handleFilterPresetSelect(preset.id)}
-                            className={`px-2 py-1 rounded-lg text-[10px] font-bold transition flex items-center space-x-1 shrink-0 cursor-pointer ${
-                              isActive
-                                ? 'bg-gradient-to-r from-amber-500 to-purple-600 text-white shadow-xs ring-1 ring-amber-300'
-                                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                            }`}
-                            title={preset.desc}
-                          >
-                            <span>{preset.emoji}</span>
-                            <span>{preset.label}</span>
-                          </button>
-                        );
-                      })}
+                    {/* Preset Chips (Supports PC Drag-Scroll, Mouse Wheel & Click Arrows) */}
+                    <div className="relative flex items-center">
+                      <button
+                        type="button"
+                        onClick={() => scrollPresets('left')}
+                        className="p-1 rounded-md bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white transition shadow-xs shrink-0 cursor-pointer mr-1 z-10"
+                        title="이전 프리셋 보기"
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                      </button>
+
+                      <div
+                        ref={presetsScrollRef}
+                        onWheel={(e) => {
+                          if (e.deltaY !== 0) {
+                            e.currentTarget.scrollLeft += e.deltaY;
+                          }
+                        }}
+                        onMouseDown={handlePresetMouseDown}
+                        onMouseMove={handlePresetMouseMove}
+                        onMouseUp={handlePresetMouseUp}
+                        onMouseLeave={handlePresetMouseUp}
+                        className={`flex-1 flex items-center space-x-1.5 overflow-x-auto pb-1 scrollbar-none select-none ${
+                          isPresetDragging ? 'cursor-grabbing' : 'cursor-grab'
+                        }`}
+                      >
+                        {COLOR_PRESETS.map((preset) => {
+                          const isActive = (currentTransform.filterPreset || 'none') === preset.id;
+                          return (
+                            <button
+                              key={preset.id}
+                              type="button"
+                              onClick={(e) => {
+                                if (hasMovedPresetDrag.current) {
+                                  e.preventDefault();
+                                  return;
+                                }
+                                handleFilterPresetSelect(preset.id);
+                              }}
+                              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition flex items-center space-x-1 shrink-0 cursor-pointer ${
+                                isActive
+                                  ? 'bg-gradient-to-r from-amber-500 to-purple-600 text-white shadow-xs ring-1 ring-amber-300'
+                                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                              }`}
+                              title={preset.desc}
+                            >
+                              <span>{preset.emoji}</span>
+                              <span>{preset.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => scrollPresets('right')}
+                        className="p-1 rounded-md bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white transition shadow-xs shrink-0 cursor-pointer ml-1 z-10"
+                        title="다음 프리셋 보기"
+                      >
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
                     </div>
 
                     {/* Brightness, Contrast & Saturation Sliders */}
