@@ -1,0 +1,6 @@
+{
+  "name": "AutoShorts (우체국) - 화제의 인물 쇼츠 제작 스튜디오",
+  "description": "실시간 화제의 인물 트렌드 레이더, 3초 후킹 대본 자동 생성, 씬별 미디어 에셋 가이드 및 원클릭 쇼츠 제작 플랫폼",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
