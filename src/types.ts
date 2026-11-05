@@ -28,6 +28,10 @@ export interface VoiceOption {
   pitch: number;
   rate: number;
   sampleNarration: string;
+  provider?: 'fish_audio';
+  model?: string;
+  referenceId?: string;
+  tagline?: string;
 }
 
 export type TargetPersona = 

@@ -917,7 +917,8 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       setStatusMessage(`내레이션 음성 합성 중... (${i + 1}/${scenes.length})`);
       setRenderProgress(Math.round(((i + 1) / (scenes.length * 2)) * 30));
       try {
-        const res = await fetch(`/api/tts?text=${encodeURIComponent(scenes[i].narration)}`);
+        const refParam = selectedVoice.referenceId ? `&reference_id=${encodeURIComponent(selectedVoice.referenceId)}` : "";
+        const res = await fetch(`/api/tts?text=${encodeURIComponent(scenes[i].narration)}&voice_id=${encodeURIComponent(selectedVoice.id)}${refParam}`);
         if (res.ok) {
           const ab = await res.arrayBuffer();
           const decoded = await audioCtx.decodeAudioData(ab);
@@ -1719,7 +1720,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-black text-slate-800 flex items-center gap-1.5">
                       <Mic className="w-4 h-4 text-indigo-600" />
-                      <span>내레이션 성우 선택 (인스타 릴스 인기 15인 성우 • 찜 기능)</span>
+                      <div className="flex items-center gap-2"><span>내레이션 성우 선택 (Fish Audio S2.1-Pro 15인 성우)</span><span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 text-[10px] font-black border border-blue-200">Fish Audio</span></div>
                     </label>
 
                     <div className="flex items-center space-x-1.5">

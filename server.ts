@@ -1066,16 +1066,61 @@ app.post('/api/gemini/generate-viral-assets', async (req, res) => {
   }
 });
 
-// Endpoint: Korean TTS audio streamer for video rendering & voice preview
+// Endpoint: Fish Audio S2.1-Pro Korean TTS streamer for video rendering & voice preview
 app.get('/api/tts', async (req, res) => {
   try {
     const rawText = (req.query.text as string) || '';
-    const cleanText = rawText.trim().slice(0, 180);
+    const cleanText = rawText.trim().slice(0, 500);
+    const referenceId = (req.query.reference_id as string) || (req.query.voice_id as string) || '';
+
     if (!cleanText) {
       return res.status(400).json({ error: 'Text is required' });
     }
 
-    const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=ko&client=tw-ob&q=${encodeURIComponent(cleanText)}`;
+    // 1. Fish Audio S2.1-Pro REST API integration
+    const fishApiKey = process.env.FISH_AUDIO_API_KEY || (req.headers['x-fish-audio-key'] as string);
+    if (fishApiKey) {
+      try {
+        const payload: Record<string, any> = {
+          text: cleanText,
+          format: 'mp3',
+          mp3_bitrate: 128,
+          normalize_loudness: true,
+        };
+        if (referenceId) {
+          payload.reference_id = referenceId;
+        }
+
+        const fishRes = await fetch('https://api.fish.audio/v1/tts', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${fishApiKey}`,
+            'Content-Type': 'application/json',
+            'model': 's2.1-pro',
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (fishRes.ok) {
+          const arrayBuffer = await fishRes.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          res.set({
+            'Content-Type': 'audio/mpeg',
+            'Content-Length': buffer.length.toString(),
+            'Cache-Control': 'public, max-age=86400',
+            'X-TTS-Engine': 'Fish-Audio-S2.1-Pro',
+          });
+          return res.end(buffer);
+        } else {
+          console.warn('Fish Audio API returned status:', fishRes.status);
+        }
+      } catch (fishErr: any) {
+        console.warn('Fish Audio API failed, using fallback:', fishErr.message);
+      }
+    }
+
+    // 2. High-performance fallback
+    const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=ko&client=tw-ob&q=${encodeURIComponent(cleanText.slice(0, 180))}`;
     const response = await fetch(ttsUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -1094,6 +1139,7 @@ app.get('/api/tts', async (req, res) => {
       'Content-Type': 'audio/mpeg',
       'Content-Length': buffer.length.toString(),
       'Cache-Control': 'public, max-age=86400',
+      'X-TTS-Engine': 'System-Fallback',
     });
 
     return res.end(buffer);

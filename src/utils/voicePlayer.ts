@@ -74,10 +74,12 @@ export const playDistinctVoicePreview = async (
       }
 
       const text = voice.sampleNarration.trim();
-      let audioBuffer = audioBufferCache.get(text);
+      const cacheKey = `${voice.id}_${text}`;
+      let audioBuffer = audioBufferCache.get(cacheKey);
 
       if (!audioBuffer) {
-        const res = await fetch(`/api/tts?text=${encodeURIComponent(text)}`);
+        const refParam = voice.referenceId ? `&reference_id=${encodeURIComponent(voice.referenceId)}` : "";
+        const res = await fetch(`/api/tts?text=${encodeURIComponent(text)}&voice_id=${encodeURIComponent(voice.id)}${refParam}`);
         if (!res.ok || isCancelled) {
           throw new Error('TTS fetch failed');
         }
@@ -85,7 +87,7 @@ export const playDistinctVoicePreview = async (
         if (isCancelled) return stopFn;
 
         audioBuffer = await activeAudioContext.decodeAudioData(arrayBuf);
-        audioBufferCache.set(text, audioBuffer);
+        audioBufferCache.set(cacheKey, audioBuffer);
       }
 
       if (isCancelled || !activeAudioContext) {
