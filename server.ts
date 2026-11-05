@@ -68,6 +68,12 @@ app.post('/api/gemini/analyze-figure', async (req, res) => {
 
     const prompt = `당신은 대한민국 최고 유튜브 쇼츠 기획자이자 트렌드 분석가입니다.
 인물: "${figureName}" (카테고리: ${category})
+
+[★ 최우선 절대 원칙: 100% 사실(Fact) 기반 & 허위사실·날조 원천 차단]
+1. 반드시 대상 인물에 대해 공식 언론 보도, 방송 인터뷰, 공식 프로필 및 다큐멘터리 등에서 공인된 '실제 사실(Fact)'만을 바탕으로 분석하세요.
+2. 가짜 일화, 확인되지 않은 루머, 가공의 사건이나 거짓 에피소드를 지어내는 행위(Hallucination/날조)는 법적 리스크(명예훼손/허위사실 유포)가 발생하므로 절대 엄격히 금지됩니다.
+3. 실제 겪은 고난과 전환점을 사실에 입각하여 정확하게 기술하세요.
+
 이 인물이 현재 왜 화제이거나, 유튜브 쇼츠로 제작했을 때 대중이 열광할 만한 핵심 비하인드 스토리, 역경 극복, 반전 서사를 분석해주세요.
 반드시 아래 JSON 스키마 형식으로 응답하세요.`;
 
@@ -78,6 +84,7 @@ app.post('/api/gemini/analyze-figure', async (req, res) => {
           contents: prompt,
           config: {
             responseMimeType: 'application/json',
+            temperature: 0.35,
             responseSchema: {
               type: Type.OBJECT,
               properties: {
@@ -365,6 +372,11 @@ app.post('/api/gemini/generate-shorts', async (req, res) => {
 - 타겟 페르소나 및 어투: ${targetToneText}
 - 영상 전체 연출 톤(분위기): ${videoToneText}
 
+[★ 최우선 절대 원칙: 100% 사실(Fact) 기반 & 허위사실·날조 절대 금지]
+1. 반드시 대상 인물에 대해 공식 언론 보도, 공중파/케이블 방송 인터뷰, 공식 자서전, 본인 유튜브 등에서 공인된 '실제 일화(Fact)'만을 바탕으로 대본을 작성해야 합니다.
+2. 가짜 일화, 조작된 대화, 확인되지 않은 악성 루머, 존재하지 않는 사건이나 날조된 에피소드(Hallucination)는 명예훼손 및 허위사실 유포 리스크가 발생하므로 절대 엄격히 금지됩니다.
+3. 연도, 과거 직업, 실제 겪은 고난의 사건, 수상 및 업적 등은 철저히 실제 사실에 입각해야 하며, 극적인 몰입감은 사실을 바탕으로 한 감정선의 흐름과 나레이션 호흡으로만 전달하세요. 허위사실을 임의로 지어내는 것은 절대 불가합니다.
+
 [필수 제작 원칙]
 1. 3초 후킹(Hook) 3가지 다변화:
    - 옵션 A: 질문형 (시청자에게 직접 질문하여 궁금증 폭발)
@@ -395,7 +407,7 @@ app.post('/api/gemini/generate-shorts', async (req, res) => {
           contents: prompt,
           config: {
             responseMimeType: 'application/json',
-            temperature: 0.95,
+            temperature: 0.35,
             responseSchema: {
               type: Type.OBJECT,
               properties: {

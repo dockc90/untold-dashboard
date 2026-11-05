@@ -1119,6 +1119,16 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
             {/* VIEW 4: COPYRIGHT DEFENSE PATCH */}
             {activeTab === 'copyright' && (
               <div className="space-y-4">
+                <div className="p-4 rounded-2xl bg-blue-50 border border-blue-200 space-y-2">
+                  <div className="flex items-center space-x-2 text-blue-900 font-extrabold text-sm">
+                    <ShieldCheck className="w-5 h-5 text-blue-600" />
+                    <span>100% 실화 및 사실(Fact) 기반 검증 보증</span>
+                  </div>
+                  <p className="text-xs text-blue-950 leading-relaxed font-medium">
+                    본 시스템의 AI 엔진은 공식 언론 보도, 방송 인터뷰, 공인된 프로필 등 검증된 <strong>실제 사실(Fact)</strong>만을 바탕으로 대본을 구성합니다. 허위사실 날조나 왜곡으로 인한 법적 리스크(명예훼손 및 허위사실 유포)를 원천 차단하기 위해 엄격한 팩트 준수 규칙 및 저온도(Low-temperature) 생성 가이드라인이 강제되어 있습니다.
+                  </p>
+                </div>
+
                 <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-2">
                   <div className="flex items-center space-x-2 text-emerald-800 font-bold text-sm">
                     <ShieldCheck className="w-5 h-5 text-emerald-600" />
