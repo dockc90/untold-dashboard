@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   X,
   Upload,
@@ -16,6 +16,10 @@ import {
   Sparkles,
   Download,
   Plus,
+  ZoomIn,
+  ZoomOut,
+  Move,
+  Hand,
 } from 'lucide-react';
 
 export type CollageLayout =
@@ -28,6 +32,12 @@ export type CollageLayout =
   | 'grid-6';        // 2x3 6분할 격자
 
 export type CollageAspectRatio = '9:16' | '1:1' | '4:5';
+
+export interface ImageTransform {
+  scale: number;    // 0.5 ~ 4.0
+  offsetX: number;  // px in canvas coordinates
+  offsetY: number;  // px in canvas coordinates
+}
 
 interface ImageItem {
   id: string;
@@ -83,8 +93,22 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
   const [badgePosition, setBadgePosition] = useState<'top' | 'center' | 'bottom'>('center');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
+  // Per-image interactive transform state: scale & offset
+  const [transforms, setTransforms] = useState<{ [id: string]: ImageTransform }>({});
+  const [selectedCellIndex, setSelectedCellIndex] = useState<number>(0);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Drag tracking ref
+  const dragStartRef = useRef<{
+    startX: number;
+    startY: number;
+    initialOffsetX: number;
+    initialOffsetY: number;
+    imgId: string;
+  } | null>(null);
 
   // Initialize images on modal open
   useEffect(() => {
@@ -100,6 +124,15 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
       }
     }
   }, [isOpen, existingImageUrl, sceneNumber]);
+
+  // Keep selectedCellIndex within range
+  useEffect(() => {
+    if (images.length === 0) {
+      setSelectedCellIndex(0);
+    } else if (selectedCellIndex >= images.length) {
+      setSelectedCellIndex(images.length - 1);
+    }
+  }, [images.length, selectedCellIndex]);
 
   // Handle multi-image file select
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -139,6 +172,11 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
 
   const handleRemoveImage = (id: string) => {
     setImages((prev) => prev.filter((img) => img.id !== id));
+    setTransforms((prev) => {
+      const copy = { ...prev };
+      delete copy[id];
+      return copy;
+    });
   };
 
   const handleMoveImage = (index: number, direction: 'up' | 'down') => {
@@ -151,11 +189,14 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
       copy[targetIndex] = temp;
       return copy;
     });
+    setSelectedCellIndex(direction === 'up' ? index - 1 : index + 1);
   };
 
   const handleClearAll = () => {
     setImages([]);
+    setTransforms({});
     setBadgeText('');
+    setSelectedCellIndex(0);
   };
 
   // Canvas dimension based on aspect ratio
@@ -166,7 +207,7 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
   }, [aspectRatio]);
 
   // Compute cell bounding boxes for each layout
-  const computeCells = (
+  const computeCells = useCallback((
     w: number,
     h: number,
     currentLayout: CollageLayout,
@@ -239,9 +280,155 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
       }
     }
     return cells;
+  }, []);
+
+  // Current active cells in canvas coordinates
+  const activeCells = useMemo(() => {
+    const { width: W, height: H } = canvasDimensions;
+    const scaleFactor = W / 400;
+    const scaledGap = Math.round(gap * scaleFactor);
+    return computeCells(W, H, layout, scaledGap);
+  }, [canvasDimensions, gap, layout, computeCells]);
+
+  // Current selected image & transform
+  const currentSelectedImage = images[selectedCellIndex % (images.length || 1)] || null;
+  const currentTransform: ImageTransform = useMemo(() => {
+    if (!currentSelectedImage) return { scale: 1.0, offsetX: 0, offsetY: 0 };
+    return transforms[currentSelectedImage.id] || { scale: 1.0, offsetX: 0, offsetY: 0 };
+  }, [currentSelectedImage, transforms]);
+
+  // Transform modifiers for selected image
+  const updateCurrentTransform = useCallback((updater: (prev: ImageTransform) => ImageTransform) => {
+    if (!currentSelectedImage) return;
+    setTransforms((prev) => {
+      const cur = prev[currentSelectedImage.id] || { scale: 1.0, offsetX: 0, offsetY: 0 };
+      const next = updater(cur);
+      return {
+        ...prev,
+        [currentSelectedImage.id]: next,
+      };
+    });
+  }, [currentSelectedImage]);
+
+  const handleScaleChange = (newScale: number) => {
+    const clamped = Math.max(0.4, Math.min(4.0, Number(newScale.toFixed(2))));
+    updateCurrentTransform((cur) => ({ ...cur, scale: clamped }));
   };
 
-  // Draw on Canvas
+  const handleStepZoom = (delta: number) => {
+    updateCurrentTransform((cur) => ({
+      ...cur,
+      scale: Math.max(0.4, Math.min(4.0, Number((cur.scale + delta).toFixed(2)))),
+    }));
+  };
+
+  const handleNudge = (dx: number, dy: number) => {
+    updateCurrentTransform((cur) => ({
+      ...cur,
+      offsetX: cur.offsetX + dx,
+      offsetY: cur.offsetY + dy,
+    }));
+  };
+
+  const handleResetCurrentTransform = () => {
+    if (!currentSelectedImage) return;
+    setTransforms((prev) => ({
+      ...prev,
+      [currentSelectedImage.id]: { scale: 1.0, offsetX: 0, offsetY: 0 },
+    }));
+  };
+
+  // Map pointer client coordinates to high-res canvas coordinates
+  const getCanvasCoords = (clientX: number, clientY: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY,
+    };
+  };
+
+  // Pointer & Touch Handlers for Dragging/Moving photos directly on canvas
+  const handlePointerDown = (clientX: number, clientY: number) => {
+    if (images.length === 0) return;
+    const { x, y } = getCanvasCoords(clientX, clientY);
+
+    const cellIdx = activeCells.findIndex(
+      (c) => x >= c.x && x <= c.x + c.w && y >= c.y && y <= c.y + c.h
+    );
+
+    if (cellIdx !== -1) {
+      const targetImgIdx = cellIdx % images.length;
+      const targetImg = images[targetImgIdx];
+      if (targetImg) {
+        setSelectedCellIndex(targetImgIdx);
+        setIsDragging(true);
+        const curTransform = transforms[targetImg.id] || { scale: 1.0, offsetX: 0, offsetY: 0 };
+        dragStartRef.current = {
+          startX: x,
+          startY: y,
+          initialOffsetX: curTransform.offsetX,
+          initialOffsetY: curTransform.offsetY,
+          imgId: targetImg.id,
+        };
+      }
+    }
+  };
+
+  const handlePointerMove = (clientX: number, clientY: number) => {
+    if (!isDragging || !dragStartRef.current) return;
+    const { x, y } = getCanvasCoords(clientX, clientY);
+    const dx = x - dragStartRef.current.startX;
+    const dy = y - dragStartRef.current.startY;
+    const imgId = dragStartRef.current.imgId;
+
+    setTransforms((prev) => ({
+      ...prev,
+      [imgId]: {
+        scale: prev[imgId]?.scale ?? 1.0,
+        offsetX: dragStartRef.current!.initialOffsetX + dx,
+        offsetY: dragStartRef.current!.initialOffsetY + dy,
+      },
+    }));
+  };
+
+  const handlePointerUp = () => {
+    setIsDragging(false);
+    dragStartRef.current = null;
+  };
+
+  // Mouse wheel zoom on canvas
+  const handleCanvasWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    if (images.length === 0) return;
+    const { x, y } = getCanvasCoords(e.clientX, e.clientY);
+    const cellIdx = activeCells.findIndex(
+      (c) => x >= c.x && x <= c.x + c.w && y >= c.y && y <= c.y + c.h
+    );
+    const targetIdx = cellIdx !== -1 ? cellIdx % images.length : selectedCellIndex;
+    const targetImg = images[targetIdx];
+    if (!targetImg) return;
+
+    setSelectedCellIndex(targetIdx);
+    const delta = e.deltaY < 0 ? 0.08 : -0.08;
+
+    setTransforms((prev) => {
+      const cur = prev[targetImg.id] || { scale: 1.0, offsetX: 0, offsetY: 0 };
+      const newScale = Math.max(0.4, Math.min(4.0, Number((cur.scale + delta).toFixed(2))));
+      return {
+        ...prev,
+        [targetImg.id]: {
+          ...cur,
+          scale: newScale,
+        },
+      };
+    });
+  };
+
+  // Draw on Canvas with Transforms, Object-fit Cover & Drag Highlight
   useEffect(() => {
     if (!isOpen) return;
 
@@ -272,12 +459,8 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
       return;
     }
 
-    // Scale gap and radius to high-res canvas (1080px width)
     const scaleFactor = W / 400; // ~2.7x
-    const scaledGap = Math.round(gap * scaleFactor);
     const scaledRadius = Math.round(borderRadius * scaleFactor);
-
-    const cells = computeCells(W, H, layout, scaledGap);
 
     // Preload HTMLImages
     const loadedImages: HTMLImageElement[] = [];
@@ -307,13 +490,18 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
     const renderCanvasCells = () => {
       if (!isMounted) return;
 
-      // Render each cell
-      cells.forEach((cell, idx) => {
+      activeCells.forEach((cell, idx) => {
         const img = loadedImages[idx % loadedImages.length];
+        const imgItem = images[idx % images.length];
+        const transform = (imgItem && transforms[imgItem.id]) || {
+          scale: 1.0,
+          offsetX: 0,
+          offsetY: 0,
+        };
 
         ctx.save();
 
-        // Rounded corners clipping
+        // 1. Rounded corners clipping
         if (scaledRadius > 0 && typeof ctx.roundRect === 'function') {
           ctx.beginPath();
           ctx.roundRect(cell.x, cell.y, cell.w, cell.h, scaledRadius);
@@ -324,24 +512,28 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
           ctx.clip();
         }
 
+        // 2. Draw Image with Object-Fit Cover + Transform (Scale & Offset)
         if (img && img.complete && img.naturalWidth > 0) {
-          // Object-fit: cover math
           const imgRatio = img.naturalWidth / img.naturalHeight;
           const cellRatio = cell.w / cell.h;
-          let sx = 0,
-            sy = 0,
-            sw = img.naturalWidth,
-            sh = img.naturalHeight;
+          let fitW = cell.w;
+          let fitH = cell.h;
 
           if (imgRatio > cellRatio) {
-            sw = img.naturalHeight * cellRatio;
-            sx = (img.naturalWidth - sw) / 2;
+            fitH = cell.h;
+            fitW = cell.h * imgRatio;
           } else {
-            sh = img.naturalWidth / cellRatio;
-            sy = (img.naturalHeight - sh) / 2;
+            fitW = cell.w;
+            fitH = cell.w / imgRatio;
           }
 
-          ctx.drawImage(img, sx, sy, sw, sh, cell.x, cell.y, cell.w, cell.h);
+          const cx = cell.x + cell.w / 2;
+          const cy = cell.y + cell.h / 2;
+
+          // Apply user pan offset and zoom scale
+          ctx.translate(cx + transform.offsetX, cy + transform.offsetY);
+          ctx.scale(transform.scale, transform.scale);
+          ctx.drawImage(img, -fitW / 2, -fitH / 2, fitW, fitH);
         } else {
           // Placeholder for empty cell
           ctx.fillStyle = '#1e293b';
@@ -353,9 +545,25 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
         }
 
         ctx.restore();
+
+        // 3. Selection border indicator for active cell
+        if (idx === selectedCellIndex && images.length > 0) {
+          ctx.save();
+          ctx.strokeStyle = '#a855f7'; // purple-500
+          ctx.lineWidth = Math.max(5, Math.round(W / 180));
+          ctx.setLineDash([16, 10]);
+          if (scaledRadius > 0 && typeof ctx.roundRect === 'function') {
+            ctx.beginPath();
+            ctx.roundRect(cell.x + 3, cell.y + 3, cell.w - 6, cell.h - 6, scaledRadius);
+            ctx.stroke();
+          } else {
+            ctx.strokeRect(cell.x + 3, cell.y + 3, cell.w - 6, cell.h - 6);
+          }
+          ctx.restore();
+        }
       });
 
-      // Render optional text badge / overlay banner
+      // 4. Render optional text badge / overlay banner
       if (badgeText.trim()) {
         ctx.save();
         const text = badgeText.trim();
@@ -367,8 +575,8 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
         const boxX = (W - boxW) / 2;
         let boxY = H / 2 - boxH / 2;
 
-        if (badgePosition === 'top') boxY = scaledGap + 40;
-        else if (badgePosition === 'bottom') boxY = H - scaledGap - 120;
+        if (badgePosition === 'top') boxY = 60;
+        else if (badgePosition === 'bottom') boxY = H - 140;
 
         // Banner Pill Shadow & Box
         ctx.shadowColor = 'rgba(0,0,0,0.6)';
@@ -406,7 +614,20 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [isOpen, images, layout, aspectRatio, gap, borderRadius, borderColor, badgeText, badgePosition, canvasDimensions]);
+  }, [
+    isOpen,
+    images,
+    layout,
+    aspectRatio,
+    borderRadius,
+    borderColor,
+    badgeText,
+    badgePosition,
+    canvasDimensions,
+    activeCells,
+    transforms,
+    selectedCellIndex,
+  ]);
 
   // Handle Apply to Scene
   const handleApply = () => {
@@ -441,7 +662,7 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-slate-200 bg-slate-50/80 flex items-center justify-between">
+        <div className="px-5 py-3.5 border-b border-slate-200 bg-slate-50/80 flex items-center justify-between">
           <div className="flex items-center space-x-2.5">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-xs">
               <LayoutGrid className="w-5 h-5" />
@@ -456,7 +677,7 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
                 </span>
                 <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-[10px] font-extrabold flex items-center gap-1">
                   <Sparkles className="w-2.5 h-2.5" />
-                  9:16 쇼츠 1장으로 자동 합성
+                  드래그 이동 & 줌 조절 탑재
                 </span>
               </div>
               <p className="text-xs text-slate-500 font-medium truncate max-w-md mt-0.5">
@@ -476,7 +697,7 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
         {/* Modal Body: 2 Columns */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
           {/* Left Column: Photo List & Layout Controls (7 cols) */}
-          <div className="lg:col-span-7 space-y-5">
+          <div className="lg:col-span-7 space-y-4">
             {/* 1. Multi Photo Upload Box */}
             <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/80 space-y-3">
               <div className="flex items-center justify-between">
@@ -506,9 +727,9 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
 
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-purple-300 hover:border-purple-500 bg-white hover:bg-purple-50/40 rounded-xl p-4 text-center cursor-pointer transition flex flex-col items-center justify-center space-y-1.5"
+                className="border-2 border-dashed border-purple-300 hover:border-purple-500 bg-white hover:bg-purple-50/40 rounded-xl p-3.5 text-center cursor-pointer transition flex flex-col items-center justify-center space-y-1.5"
               >
-                <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center">
                   <Plus className="w-5 h-5" />
                 </div>
                 <div>
@@ -524,53 +745,86 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
               {/* Uploaded Images Thumbnails Strip */}
               {images.length > 0 && (
                 <div className="space-y-1.5 pt-1">
-                  <div className="text-[11px] font-bold text-slate-500">순서 조정 (위/아래 이동 시 배치 변경):</div>
+                  <div className="text-[11px] font-bold text-slate-500">순서 및 선택:</div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {images.map((item, idx) => (
-                      <div
-                        key={item.id}
-                        className="relative group rounded-xl overflow-hidden border border-slate-300 bg-slate-900 aspect-square flex flex-col justify-between p-1.5 shadow-2xs"
-                      >
-                        <img
-                          src={item.dataUrl}
-                          alt={item.name}
-                          className="absolute inset-0 w-full h-full object-cover"
-                        />
-                        <div className="relative z-10 flex items-center justify-between">
-                          <span className="w-5 h-5 rounded-md bg-black/70 text-white text-[10px] font-black flex items-center justify-center">
-                            {idx + 1}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveImage(item.id)}
-                            className="p-1 rounded-md bg-rose-600/90 text-white hover:bg-rose-700 transition"
-                            title="삭제"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
+                    {images.map((item, idx) => {
+                      const isSelected = selectedCellIndex === idx;
+                      const tr = transforms[item.id];
+                      const isZoomed = tr && (tr.scale !== 1 || tr.offsetX !== 0 || tr.offsetY !== 0);
+
+                      return (
+                        <div
+                          key={item.id}
+                          onClick={() => setSelectedCellIndex(idx)}
+                          className={`relative group rounded-xl overflow-hidden border bg-slate-900 aspect-square flex flex-col justify-between p-1.5 shadow-2xs cursor-pointer transition ${
+                            isSelected
+                              ? 'border-purple-500 ring-2 ring-purple-400 ring-offset-1'
+                              : 'border-slate-300 hover:border-purple-300'
+                          }`}
+                        >
+                          <img
+                            src={item.dataUrl}
+                            alt={item.name}
+                            className="absolute inset-0 w-full h-full object-cover"
+                          />
+                          <div className="relative z-10 flex items-center justify-between">
+                            <span
+                              className={`w-5 h-5 rounded-md text-[10px] font-black flex items-center justify-center ${
+                                isSelected ? 'bg-purple-600 text-white' : 'bg-black/70 text-white'
+                              }`}
+                            >
+                              {idx + 1}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveImage(item.id);
+                              }}
+                              className="p-1 rounded-md bg-rose-600/90 text-white hover:bg-rose-700 transition"
+                              title="삭제"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+
+                          <div className="relative z-10 flex items-center justify-between">
+                            {isZoomed ? (
+                              <span className="px-1 py-0.5 rounded bg-purple-700/90 text-white text-[9px] font-mono font-bold">
+                                {Math.round(tr.scale * 100)}%
+                              </span>
+                            ) : <span />}
+
+                            <div className="flex items-center space-x-1">
+                              <button
+                                type="button"
+                                disabled={idx === 0}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleMoveImage(idx, 'up');
+                                }}
+                                className="p-1 rounded bg-black/70 text-white hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
+                                title="앞으로 이동"
+                              >
+                                <ArrowUp className="w-3 h-3" />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={idx === images.length - 1}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleMoveImage(idx, 'down');
+                                }}
+                                className="p-1 rounded bg-black/70 text-white hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
+                                title="뒤로 이동"
+                              >
+                                <ArrowDown className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                        <div className="relative z-10 flex items-center justify-end space-x-1">
-                          <button
-                            type="button"
-                            disabled={idx === 0}
-                            onClick={() => handleMoveImage(idx, 'up')}
-                            className="p-1 rounded bg-black/70 text-white hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
-                            title="앞으로 이동"
-                          >
-                            <ArrowUp className="w-3 h-3" />
-                          </button>
-                          <button
-                            type="button"
-                            disabled={idx === images.length - 1}
-                            onClick={() => handleMoveImage(idx, 'down')}
-                            className="p-1 rounded bg-black/70 text-white hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
-                            title="뒤로 이동"
-                          >
-                            <ArrowDown className="w-3 h-3" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -617,7 +871,7 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
             </div>
 
             {/* 3. Style & Canvas Tuning */}
-            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-3.5">
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-3">
               <div className="text-xs font-black text-slate-800 flex items-center gap-1.5">
                 <Sparkles className="w-4 h-4 text-amber-500" />
                 <span>스타일 및 여백 조절</span>
@@ -748,8 +1002,9 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
             </div>
           </div>
 
-          {/* Right Column: Live 9:16 Shorts Canvas Preview (5 cols) */}
-          <div className="lg:col-span-5 flex flex-col items-center justify-between bg-slate-950 rounded-2xl p-4 border border-slate-800 space-y-4">
+          {/* Right Column: Live Interactive Canvas Preview & Controls (5 cols) */}
+          <div className="lg:col-span-5 flex flex-col justify-between bg-slate-950 rounded-2xl p-4 border border-slate-800 space-y-3">
+            {/* Top Preview Header */}
             <div className="w-full flex items-center justify-between text-xs text-slate-400">
               <span className="font-extrabold text-white flex items-center gap-1.5">
                 <ImageIcon className="w-4 h-4 text-purple-400" />
@@ -760,16 +1015,166 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
               </span>
             </div>
 
-            {/* Canvas Container with 9:16 aspect ratio */}
-            <div className="relative w-full flex items-center justify-center flex-1 min-h-[360px] max-h-[460px]">
+            {/* Cell Selection Tabs */}
+            {images.length > 0 && (
+              <div className="w-full flex items-center space-x-1.5 overflow-x-auto pb-1 scrollbar-none">
+                <span className="text-[11px] font-bold text-slate-400 shrink-0">편집 대상:</span>
+                {images.map((item, idx) => {
+                  const isSelected = selectedCellIndex === idx;
+                  const tr = transforms[item.id] || { scale: 1.0, offsetX: 0, offsetY: 0 };
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setSelectedCellIndex(idx)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center space-x-1 shrink-0 cursor-pointer ${
+                        isSelected
+                          ? 'bg-purple-600 text-white shadow-xs'
+                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                      }`}
+                    >
+                      <span>사진 {idx + 1}</span>
+                      <span className="text-[10px] text-purple-200 font-mono">
+                        {Math.round(tr.scale * 100)}%
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Interactive Transform Control Panel for Selected Cell */}
+            {currentSelectedImage && (
+              <div className="w-full bg-slate-900 rounded-xl p-3 border border-slate-800 space-y-2.5 shadow-sm">
+                <div className="flex items-center justify-between text-slate-300">
+                  <span className="font-extrabold text-white flex items-center gap-1.5 text-[11px]">
+                    <Move className="w-3.5 h-3.5 text-purple-400" />
+                    <span>사진 {selectedCellIndex + 1} 크기 및 위치 조정</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleResetCurrentTransform}
+                    className="text-[10px] text-slate-400 hover:text-white flex items-center gap-1 font-bold transition cursor-pointer"
+                    title="선택된 사진의 위치와 크기를 초기화"
+                  >
+                    <RotateCcw className="w-2.5 h-2.5" />
+                    <span>초기화</span>
+                  </button>
+                </div>
+
+                {/* Zoom Scale Slider & Buttons */}
+                <div className="flex items-center space-x-2">
+                  <span className="text-[10px] text-slate-400 font-bold shrink-0">크기 (확대/축소):</span>
+                  <button
+                    type="button"
+                    onClick={() => handleStepZoom(-0.1)}
+                    className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 transition cursor-pointer"
+                    title="축소"
+                  >
+                    <ZoomOut className="w-3.5 h-3.5" />
+                  </button>
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="3.5"
+                    step="0.05"
+                    value={currentTransform.scale}
+                    onChange={(e) => handleScaleChange(Number(e.target.value))}
+                    className="flex-1 accent-purple-500 cursor-pointer h-1.5"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleStepZoom(0.1)}
+                    className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 transition cursor-pointer"
+                    title="확대"
+                  >
+                    <ZoomIn className="w-3.5 h-3.5" />
+                  </button>
+                  <span className="text-[11px] font-mono font-bold text-purple-300 w-12 text-right">
+                    {Math.round(currentTransform.scale * 100)}%
+                  </span>
+                </div>
+
+                {/* Direction Nudge Buttons & Drag Hint */}
+                <div className="flex items-center justify-between pt-1 border-t border-slate-800/80">
+                  <span className="text-[10px] text-slate-400 flex items-center gap-1 font-medium">
+                    <Hand className="w-3 h-3 text-purple-400" />
+                    <span>사진 클릭 & 드래그로 즉시 이동</span>
+                  </span>
+
+                  <div className="flex items-center space-x-1">
+                    <button
+                      type="button"
+                      onClick={() => handleNudge(-30, 0)}
+                      className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold transition cursor-pointer"
+                      title="왼쪽으로 이동"
+                    >
+                      ←
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleNudge(0, -30)}
+                      className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold transition cursor-pointer"
+                      title="위로 이동"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleNudge(0, 30)}
+                      className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold transition cursor-pointer"
+                      title="아래로 이동"
+                    >
+                      ↓
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleNudge(30, 0)}
+                      className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold transition cursor-pointer"
+                      title="오른쪽으로 이동"
+                    >
+                      →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Interactive Canvas Container with Drag & Wheel support */}
+            <div className="relative w-full flex items-center justify-center flex-1 min-h-[300px] max-h-[420px] select-none">
               <canvas
                 ref={canvasRef}
-                className="max-h-[440px] max-w-full rounded-xl shadow-2xl border border-slate-800 object-contain"
+                onMouseDown={(e) => handlePointerDown(e.clientX, e.clientY)}
+                onMouseMove={(e) => handlePointerMove(e.clientX, e.clientY)}
+                onMouseUp={handlePointerUp}
+                onMouseLeave={handlePointerUp}
+                onTouchStart={(e) => {
+                  if (e.touches.length > 0) {
+                    handlePointerDown(e.touches[0].clientX, e.touches[0].clientY);
+                  }
+                }}
+                onTouchMove={(e) => {
+                  if (e.touches.length > 0) {
+                    handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
+                  }
+                }}
+                onTouchEnd={handlePointerUp}
+                onWheel={handleCanvasWheel}
+                className={`max-h-[400px] max-w-full rounded-xl shadow-2xl border border-slate-800 object-contain ${
+                  isDragging ? 'cursor-grabbing' : 'cursor-grab'
+                }`}
                 style={{
                   aspectRatio:
                     aspectRatio === '9:16' ? '9/16' : aspectRatio === '1:1' ? '1/1' : '4/5',
                 }}
               />
+
+              {images.length > 0 && !isDragging && (
+                <div className="absolute top-2 right-2 pointer-events-none px-2 py-1 rounded-md bg-black/70 text-slate-300 text-[10px] font-medium flex items-center gap-1 backdrop-blur-xs">
+                  <Hand className="w-3 h-3 text-purple-400" />
+                  <span>마우스 드래그로 이동 / 휠로 확대</span>
+                </div>
+              )}
             </div>
 
             {/* Bottom Actions */}
@@ -798,7 +1203,7 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
               </div>
 
               <p className="text-[10px] text-slate-400 text-center font-medium">
-                적용 시 씬 {sceneNumber}의 대표 사진으로 저장되며, 쇼츠 렌더러에 즉시 반영됩니다.
+                조정한 위치와 크기가 그대로 1080x1920 단일 쇼츠 이미지로 렌더링되어 적용됩니다.
               </p>
             </div>
           </div>
