@@ -232,6 +232,121 @@ export const getSubtitleChunks = (narration: string): string[] => {
   return chunks.length > 0 ? chunks : [clean];
 };
 
+// Helper: Shortens and formats long YouTube titles into punchy 2-line viral reels headlines
+export const summarizeToShortHeadline = (title: string, figureName?: string): string => {
+  const fig = (figureName || '').trim();
+  const raw = (title || fig || '화제의 인물 이야기').trim();
+
+  // If already a clean 2-line text under 26 chars, preserve it
+  if (raw.includes('\n') && raw.length <= 26) {
+    return raw;
+  }
+
+  // 1. Clean hashtags, brackets, dots, youtube flags
+  let text = raw
+    .replace(/#\S+/g, '')
+    .replace(/\[[^\]]*\]/g, '')
+    .replace(/\([^)]*\)/g, '')
+    .replace(/\.{2,}/g, ' ')
+    .replace(/#shorts/gi, '')
+    .trim();
+
+  // 2. Remove typical long fluff
+  const fluff = [
+    /단\s*1분\s*만에\s*보는/g,
+    /아무도\s*몰랐던/g,
+    /충격적인/g,
+    /눈물겨운/g,
+    /기적\s*같은/g,
+    /인생\s*역전\s*실화/g,
+    /반전\s*실화/g,
+    /충격\s*실화/g,
+    /비하인드\s*스토리/g,
+    /비하인드/g,
+    /감동\s*실화/g,
+    /동기부여/g,
+    /실화\s*바탕/g,
+    /이야기/g,
+  ];
+  for (const f of fluff) {
+    text = text.replace(f, '').trim();
+  }
+  text = text.replace(/[.,~!?]+$/g, '').trim();
+
+  // Special pattern: "정비병... 미슐랭 3스타"
+  if (text.includes('정비병') && text.includes('미슐랭')) {
+    return `정비병에서 미슐랭 3스타\n${fig || '안성재 셰프'}의 기적`;
+  }
+
+  // Pattern: "A에서 B까지"
+  const fromTo = text.match(/^(.*?에서)\s+(.*?)(?:까지)?\s*(.*)$/);
+  if (fromTo) {
+    const line1 = fromTo[1].replace(/파병\s*/g, '').trim();
+    const line2 = fromTo[2].replace(/까지/g, '').trim();
+    if (line1 && line2 && line1.length <= 15 && line2.length <= 15) {
+      return `${line1}\n${line2}`;
+    }
+  }
+
+  // Pattern: "...한 X" (e.g. "이건희도 못 한 걸 해낸 삼성가 사위")
+  const hanMatch = text.match(/^(.*?(?:해낸|제압한|바꾼|넘은|달린|살린|이룬|터진))\s+(.*)$/);
+  if (hanMatch) {
+    const l1 = hanMatch[1].trim();
+    const l2 = hanMatch[2].trim();
+    if (l1.length <= 16 && l2.length <= 16) {
+      return `${l1}\n${l2}`;
+    }
+  }
+
+  // Balanced 2 lines by words
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length >= 2) {
+    const mid = Math.ceil(words.length / 2);
+    const line1 = words.slice(0, mid).join(' ');
+    const line2 = words.slice(mid).join(' ');
+    if (line1.length <= 14 && line2.length <= 14) {
+      return `${line1}\n${line2}`;
+    }
+  }
+
+  if (fig && !text.includes(fig)) {
+    return `${text.slice(0, 10)}\n${fig}`;
+  }
+
+  return text.slice(0, 18);
+};
+
+// Helper: Generates 3~4 punchy 2-line headline recommendations for the user to choose
+export const getShortHeadlinePresets = (project: ShortsProject): string[] => {
+  const fig = project.figureName || '';
+  const presets: string[] = [];
+
+  // Special figure / topic checks
+  if (fig.includes('안성재') || (project.titles && project.titles.some((t) => t.includes('정비병') || t.includes('미슐랭')))) {
+    presets.push('정비병에서 미슐랭 3스타\n안성재 셰프의 기적');
+    presets.push('전 세계 0.001%\n미슐랭 3스타의 비밀');
+    presets.push('흙수저 정비병이\n3스타 셰프가 된 사연');
+    return presets;
+  }
+
+  if (project.titles && project.titles[0]) {
+    const s1 = summarizeToShortHeadline(project.titles[0], fig);
+    if (s1) presets.push(s1);
+  }
+
+  if (project.titles && project.titles[1]) {
+    const s2 = summarizeToShortHeadline(project.titles[1], fig);
+    if (s2 && !presets.includes(s2)) presets.push(s2);
+  }
+
+  if (fig) {
+    presets.push(`모두가 포기하라 했던\n${fig}의 반전 실화`);
+    presets.push(`단 3초 만에 몰입되는\n${fig}의 숨겨진 이야기`);
+  }
+
+  return Array.from(new Set(presets)).slice(0, 4);
+};
+
 export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   isOpen,
   onClose,
@@ -253,10 +368,11 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     if (project.customTextOverlays && project.customTextOverlays.length > 0) {
       return project.customTextOverlays;
     }
-    // Default top headline overlay matching the sample layout
-    const initialHeadline = project.titles && project.titles.length > 0
-      ? project.titles[0].replace(/#\S+/g, '').trim()
-      : `${project.figureName} 실화 비하인드`;
+    // Default top headline overlay matching the sample layout (auto-summarized 2-line viral format)
+    const initialHeadline = summarizeToShortHeadline(
+      project.titles && project.titles.length > 0 ? project.titles[0] : project.figureName,
+      project.figureName
+    );
     return [
       {
         id: `ov-head-${Date.now()}`,
@@ -460,9 +576,11 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       showChannelName: true,
     }));
     setCustomTextOverlays((prev) => {
+      const shortTitle = summarizeToShortHeadline(project.titles?.[0] || project.figureName, project.figureName);
       if (prev.length > 0) {
         return prev.map((t, idx) => idx === 0 ? {
           ...t,
+          text: shortTitle,
           positionYPercent: 14,
           fontFamily: 'Do Hyeon',
           textColor: '#000000',
@@ -474,7 +592,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       return [
         {
           id: 'headline-1',
-          text: project.titles?.[0] || project.figureName || '화제의 인물 이야기',
+          text: shortTitle,
           startScene: 1,
           endScene: scenes.length || 12,
           positionYPercent: 14,
@@ -2265,6 +2383,43 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                               placeholder="자막 문구를 입력하세요 (줄바꿈 가능)"
                               className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden resize-none leading-relaxed"
                             />
+
+                            {/* Quick 2-Line Short Summarizer & Recommendations */}
+                            <div className="space-y-1.5 pt-0.5">
+                              <div className="flex flex-wrap items-center justify-between gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const short = summarizeToShortHeadline(overlay.text || project.titles?.[0] || project.figureName, project.figureName);
+                                    handleUpdateCustomTextOverlay(overlay.id, { text: short });
+                                  }}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-lg text-[10px] font-black transition cursor-pointer active:scale-95 shadow-2xs"
+                                  title="현재 문구를 릴스용 2줄 짧은 요약으로 자동 압축"
+                                >
+                                  <Sparkles className="w-3 h-3 text-amber-600 fill-amber-500" />
+                                  <span>⚡ 릴스용 2줄 짧은 요약으로 변환</span>
+                                </button>
+                                <span className="text-[10px] text-slate-400 font-bold">
+                                  {overlay.text.replace(/\n/g, ' ').length}자 ({overlay.text.includes('\n') ? '2줄' : '1줄'})
+                                </span>
+                              </div>
+
+                              {/* Smart Recommendation Chips */}
+                              <div className="flex flex-wrap gap-1.5 items-center">
+                                <span className="text-[9px] font-black text-slate-400 shrink-0">추천 2줄 요약:</span>
+                                {getShortHeadlinePresets(project).map((preset, pIdx) => (
+                                  <button
+                                    key={pIdx}
+                                    type="button"
+                                    onClick={() => handleUpdateCustomTextOverlay(overlay.id, { text: preset })}
+                                    className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 border border-slate-200 hover:border-indigo-300 text-[10px] font-bold transition cursor-pointer text-left leading-tight"
+                                    title="클릭 시 이 요약 문구로 즉시 교체"
+                                  >
+                                    {preset.replace('\n', ' / ')}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
 
                             {/* Timeline Scene Range Extension (구간 연장) */}
                             <div className="p-2 rounded-lg bg-slate-50 border border-slate-200/80 space-y-1">
