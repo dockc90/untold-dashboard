@@ -716,6 +716,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   onBackToEditor,
   onBackToTrends,
   onUpdateProject,
+  onSaveProject,
 }) => {
   // Video Resolution
   const [resolution, setResolution] = useState<'1080p' | '720p'>('1080p');
@@ -4274,7 +4275,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                     className="w-full py-3.5 px-4 bg-gradient-to-r from-rose-500 via-indigo-600 to-indigo-700 hover:from-rose-600 hover:to-indigo-800 text-white font-black text-sm rounded-2xl shadow-lg shadow-indigo-500/25 flex items-center justify-center space-x-2 transition cursor-pointer"
                   >
                     <Sparkles className="w-4 h-4" />
-                    <span>{videoBlobUrl ? '다시 음성 포함 영상 변환하기' : '🎬 맞춤 자막 & 음성 포함 쇼츠 변환 시작'}</span>
+                    <span>{videoBlobUrl ? '다시 쇼츠 영상 제작하기' : '🎬 맞춤 자막 & 음성 포함 쇼츠 영상 제작 시작'}</span>
                   </button>
 
                   {!videoBlobUrl && onSaveProject && (

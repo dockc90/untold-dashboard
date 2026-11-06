@@ -1264,7 +1264,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
               className="flex-1 sm:flex-initial flex items-center justify-center space-x-1.5 px-3.5 py-2 bg-gradient-to-r from-rose-500 via-indigo-600 to-indigo-700 hover:from-rose-600 hover:to-indigo-800 text-white font-black text-xs rounded-xl transition shadow-md shadow-indigo-500/20 active:scale-95"
             >
               <Video className="w-4 h-4" />
-              <span>🎬 영상 변환 & 저장</span>
+              <span>🎬 영상 제작</span>
             </button>
 
             {onOpenViralStudio && (

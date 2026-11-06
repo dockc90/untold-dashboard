@@ -70,7 +70,7 @@ const DEFAULT_TASKS: RoutineTask[] = [
     id: 'task-5',
     timeEstimate: '3분',
     phase: '제작·렌더링',
-    title: '5. 1080p 고화질 쇼츠 영상 변환 & 저장 완료',
+    title: '5. 1080p 고화질 쇼츠 영상 제작 & 다운로드 완료',
     description: '상단 텍스트 없이 깔끔한 9:16 세로 화면과 또렷한 자막, 합성 음성이 들어간 최종 영상 파일을 다운로드합니다.',
     proTip: '💡 1080p FHD 화질로 출력해야 유튜브 쇼츠 및 인스타 릴스 추천 피드에서 고화질 가산점을 받습니다.',
     completed: false

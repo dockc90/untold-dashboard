@@ -788,8 +788,8 @@ export default function App() {
                       }}
                       className="text-slate-500 hover:text-indigo-600 transition cursor-pointer"
                     >
-                      <span className="sm:hidden">3. 영상</span>
-                      <span className="hidden sm:inline">3단계: 영상 변환 & 저장</span>
+                      <span className="sm:hidden">3. 영상 제작</span>
+                      <span className="hidden sm:inline">3단계: 쇼츠 영상 제작</span>
                     </button>
                   </div>
                 </div>
