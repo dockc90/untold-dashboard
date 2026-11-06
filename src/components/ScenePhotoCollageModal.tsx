@@ -1005,36 +1005,40 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
-        {/* Header */}
-        <div className="px-5 py-3.5 border-b border-slate-200 bg-slate-50/80 flex items-center justify-between">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-xs">
-              <LayoutGrid className="w-5 h-5" />
+        {/* Header (Fully Responsive on Mobile & Desktop) */}
+        <div className="px-3.5 sm:px-5 py-3 border-b border-slate-200 bg-slate-50/95 flex items-center justify-between gap-2 shrink-0">
+          <div className="flex items-center space-x-2 min-w-0 flex-1">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-xs shrink-0">
+              <LayoutGrid className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <h3 className="text-base font-black text-slate-900">
-                  씬 {sceneNumber} 사진 편집 & 콜라주 스튜디오
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center space-x-1.5 min-w-0">
+                <h3 className="text-sm sm:text-base font-black text-slate-900 truncate">
+                  씬 {sceneNumber} 사진 편집
                 </h3>
-                <span className="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-extrabold">
+                <span className="px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-extrabold shrink-0">
                   {timeRange}
                 </span>
-                <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-[10px] font-extrabold flex items-center gap-1">
+                <span className="hidden md:inline-flex px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-[10px] font-extrabold items-center gap-1 shrink-0">
                   <Sparkles className="w-2.5 h-2.5" />
-                  단일 줌/위치 조절 & 다중 분할
+                  단일 줌/위치 & 다중 분할
                 </span>
               </div>
-              <p className="text-xs text-slate-500 font-medium truncate max-w-md mt-0.5">
+              <p className="text-[11px] sm:text-xs text-slate-500 font-medium truncate max-w-[220px] sm:max-w-md mt-0.5">
                 대사: "{narrationSnippet}"
               </p>
             </div>
           </div>
 
+          {/* Right Top Close Button - Guaranteed Visible on Mobile */}
           <button
+            type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition cursor-pointer"
+            className="flex items-center space-x-1 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-slate-200 hover:bg-rose-100 text-slate-700 hover:text-rose-600 font-black text-xs transition cursor-pointer shrink-0 active:scale-95 shadow-2xs"
+            title="창 닫기"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4 text-slate-600" />
+            <span>닫기</span>
           </button>
         </div>
 

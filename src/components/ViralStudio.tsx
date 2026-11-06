@@ -33,6 +33,7 @@ import {
   AlignCenter,
   Wand2,
   Scissors,
+  X,
   Send,
   MessageSquare,
   Clock,
@@ -327,16 +328,19 @@ export const ViralStudio: React.FC<ViralStudioProps> = ({
       {urlModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <h4 className="font-black text-slate-900 text-base flex items-center gap-2">
                 <LinkIcon className="w-4 h-4 text-indigo-600" />
                 <span>썸네일 이미지 URL 입력</span>
               </h4>
               <button
+                type="button"
                 onClick={() => setUrlModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 font-bold"
+                className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-100 text-slate-600 hover:text-rose-600 font-black text-xs transition cursor-pointer active:scale-95"
+                title="닫기"
               >
-                ✕
+                <X className="w-4 h-4 text-slate-600" />
+                <span>닫기</span>
               </button>
             </div>
             <p className="text-xs text-slate-500">

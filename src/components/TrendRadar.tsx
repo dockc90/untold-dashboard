@@ -16,7 +16,8 @@ import {
   BarChart2,
   Info,
   Film,
-  Layers
+  Layers,
+  X
 } from 'lucide-react';
 import { TrendingFigure, CategoryType, TimeFilter, SourceChannel } from '../types';
 
@@ -463,21 +464,24 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
       {isCustomModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl space-y-4 text-slate-800">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2.5">
-                <div className="p-2.5 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-200">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center space-x-2.5 min-w-0">
+                <div className="p-2.5 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-200 shrink-0">
                   <Sparkles className="w-5 h-5" />
                 </div>
-                <div>
-                  <h3 className="text-base font-extrabold text-slate-900">원하는 인물 직접 AI 분석</h3>
-                  <p className="text-xs text-slate-500">네이버·유튜브·인스타 트렌드를 종합 분석합니다.</p>
+                <div className="min-w-0">
+                  <h3 className="text-base font-extrabold text-slate-900 truncate">원하는 인물 직접 AI 분석</h3>
+                  <p className="text-xs text-slate-500 truncate">네이버·유튜브·인스타 트렌드를 종합 분석합니다.</p>
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setIsCustomModalOpen(false)}
-                className="text-slate-400 hover:text-slate-700 text-lg font-bold p-1 rounded-lg"
+                className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-100 text-slate-600 hover:text-rose-600 font-black text-xs transition cursor-pointer shrink-0 active:scale-95"
+                title="닫기"
               >
-                ✕
+                <X className="w-4 h-4 text-slate-600" />
+                <span>닫기</span>
               </button>
             </div>
 

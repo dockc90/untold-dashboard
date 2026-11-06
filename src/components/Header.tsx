@@ -15,20 +15,27 @@ interface HeaderProps {
   currentTab: AppTab;
   setCurrentTab: (tab: AppTab) => void;
   savedCount: number;
+  onResetToHome?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab, savedCount }) => {
+export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab, savedCount, onResetToHome }) => {
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 text-slate-800 shadow-xs w-full">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         {/* Main Header Row */}
         <div className="h-14 sm:h-16 flex items-center justify-between gap-2">
-          {/* Brand / Logo */}
+          {/* Brand / Logo (Always Navigates to Home 1-Step Trends View) */}
           <button
             type="button"
-            onClick={() => setCurrentTab('studio')}
-            className="flex items-center space-x-2.5 text-left group transition cursor-pointer focus:outline-none shrink-0"
-            title="홈 화면(제작 스튜디오)으로 이동"
+            onClick={() => {
+              if (onResetToHome) {
+                onResetToHome();
+              } else {
+                setCurrentTab('studio');
+              }
+            }}
+            className="flex items-center space-x-2 sm:space-x-2.5 text-left group transition cursor-pointer focus:outline-none shrink-0"
+            title="홈 화면(1단계 트렌드 인물 선택)으로 이동"
           >
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-rose-500 via-amber-500 to-indigo-600 flex items-center justify-center shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform shrink-0">
               <Film className="w-4 h-4 sm:w-5 sm:h-5 text-white" />

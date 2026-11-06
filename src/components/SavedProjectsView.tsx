@@ -15,7 +15,8 @@ import {
   Download,
   Upload,
   Sparkles,
-  Zap
+  Zap,
+  X
 } from 'lucide-react';
 import { ShortsProject } from '../types';
 import { 
@@ -291,15 +292,26 @@ export const SavedProjectsView: React.FC<SavedProjectsViewProps> = ({
 
       {/* Mobile <-> PC Sync Panel */}
       {isSyncPanelOpen && (
-        <div className="p-5 rounded-3xl bg-gradient-to-br from-indigo-50/70 via-white to-purple-50/70 border border-indigo-200 shadow-sm space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Sparkles className="w-4 h-4 text-indigo-600" />
-              <h3 className="text-sm font-black text-slate-900">모바일 ↔ PC 보관함 즉시 연동 도구</h3>
+        <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-indigo-50/70 via-white to-purple-50/70 border border-indigo-200 shadow-sm space-y-4">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center space-x-2 min-w-0">
+              <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
+              <h3 className="text-xs sm:text-sm font-black text-slate-900 truncate">모바일 ↔ PC 보관함 즉시 연동 도구</h3>
             </div>
-            <span className="text-[11px] font-bold text-indigo-600 bg-white px-2.5 py-0.5 rounded-full border border-indigo-200">
-              클라우드 실시간 동기화
-            </span>
+            <div className="flex items-center space-x-2 shrink-0">
+              <span className="hidden md:inline-block text-[11px] font-bold text-indigo-600 bg-white px-2.5 py-0.5 rounded-full border border-indigo-200">
+                클라우드 실시간 동기화
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsSyncPanelOpen(false)}
+                className="flex items-center space-x-1 px-2.5 py-1 rounded-xl bg-slate-200/80 hover:bg-rose-100 text-slate-700 hover:text-rose-600 font-black text-xs transition cursor-pointer active:scale-95 shadow-2xs"
+                title="패널 닫기"
+              >
+                <X className="w-3.5 h-3.5 text-slate-600" />
+                <span>닫기</span>
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">

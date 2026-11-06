@@ -451,6 +451,14 @@ export default function App() {
     }
   };
 
+  // Global Reset to Home View (Step 1 Trending Radar)
+  const handleResetToHome = () => {
+    setCurrentTab('studio');
+    setStudioStep('trends');
+    setIsVideoRendererOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <div className="min-h-screen bg-slate-100/70 text-slate-900 flex flex-col font-sans selection:bg-indigo-600 selection:text-white w-full max-w-full overflow-x-hidden">
       {/* Global Header with Light Theme and HeyPapa Branding */}
@@ -458,6 +466,7 @@ export default function App() {
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
         savedCount={savedProjects.length}
+        onResetToHome={handleResetToHome}
       />
 
       {/* Error notification banner */}

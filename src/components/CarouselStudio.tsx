@@ -23,6 +23,7 @@ import {
   Palette,
   Bookmark,
   Tag,
+  X,
   Share2
 } from 'lucide-react';
 import { CarouselSlide, ViralAssetPackage } from '../types';
@@ -493,16 +494,19 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
       {urlModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <div className="flex items-center space-x-2 text-indigo-700 font-black text-sm">
                 <LinkIcon className="w-4 h-4" />
                 <span>이미지 웹 주소(URL) 입력</span>
               </div>
               <button
+                type="button"
                 onClick={() => setUrlModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 text-xs font-bold"
+                className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-100 text-slate-600 hover:text-rose-600 font-black text-xs transition cursor-pointer active:scale-95"
+                title="닫기"
               >
-                닫기
+                <X className="w-4 h-4 text-slate-600" />
+                <span>닫기</span>
               </button>
             </div>
             <p className="text-xs text-slate-500">

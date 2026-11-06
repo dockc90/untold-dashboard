@@ -2489,17 +2489,17 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         </div>
       </div>
 
-      <div className="flex items-center justify-end space-x-2 shrink-0">
+      <div className="flex items-center justify-end space-x-1.5 sm:space-x-2 shrink-0">
         {onSaveProject && (
           <button
             type="button"
             onClick={handleSaveToVault}
             disabled={isSavingToVault}
-            className="flex items-center space-x-1 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs transition cursor-pointer shadow-xs active:scale-95 disabled:opacity-50"
+            className="flex items-center space-x-1 px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs transition cursor-pointer shadow-xs active:scale-95 disabled:opacity-50"
             title="현재 설정을 보관함에 저장합니다"
           >
             <span>💾</span>
-            <span>{isSavingToVault ? '저장 중...' : '보관함에 보관하기'}</span>
+            <span className="hidden xs:inline">{isSavingToVault ? '저장 중...' : '보관함 저장'}</span>
           </button>
         )}
 
@@ -2507,12 +2507,22 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
           type="button"
           onClick={onBackToEditor || onClose}
           disabled={isRendering}
-          className="flex items-center space-x-1 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-600 border border-slate-200 font-black text-xs transition disabled:opacity-50 cursor-pointer shadow-2xs"
+          className="flex items-center space-x-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs transition disabled:opacity-50 cursor-pointer shadow-2xs shrink-0"
           title="대본 스튜디오로 돌아가기"
         >
-          <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-600" />
-          <span className="hidden xs:inline">대본 스튜디오로 복귀</span>
-          <span className="xs:hidden">대본 복귀</span>
+          <ArrowLeft className="w-3.5 h-3.5 text-indigo-600" />
+          <span className="hidden sm:inline">대본 복귀</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={isRendering}
+          className="flex items-center space-x-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 font-black text-xs transition disabled:opacity-50 cursor-pointer shadow-2xs shrink-0 active:scale-95"
+          title="창 닫기"
+        >
+          <X className="w-3.5 h-3.5 text-rose-600" />
+          <span>닫기</span>
         </button>
       </div>
 
