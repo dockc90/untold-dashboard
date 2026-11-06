@@ -242,6 +242,8 @@ export interface CarouselSlide {
   subDetailColor?: string;
   subDetailFontSize?: 'sm' | 'md' | 'lg' | 'xl';
   subDetailBgStyle?: 'none' | 'capsule' | 'box';
+  textBottomYPercent?: number; // 텍스트 박스 하단 기준 Y 위치 (40%~88%, 기본 82%)
+  textAlign?: 'left' | 'center'; // 텍스트 정렬 (기본 'left')
 }
 
 export interface CarouselData {

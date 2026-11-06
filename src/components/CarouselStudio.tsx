@@ -140,7 +140,7 @@ export function generate3SecondHook(
       `${topic}의 반전 서사,\n어떻게 생각하시나요?`,
       `당신의 가슴을 울린\n단 하나의 선택`,
       `지금 [저장]하고\n필요할 때 꺼내보세요`,
-      `이 놀라운 여정,\n여러분의 생각은?`
+      `이 놀라운 여정,\n여러분의 의견은?`
     ];
     return ctaVariants[variant % ctaVariants.length];
   }
@@ -377,12 +377,13 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
   const [isExportingAll, setIsExportingAll] = useState(false);
   const [exportProgress, setExportProgress] = useState<string | null>(null);
 
-  // Styling
+  // Styling (Default text alignment is strictly 'left')
   const [selectedTheme, setSelectedTheme] = useState(THEMES[0]);
   const [selectedFont, setSelectedFont] = useState(FONT_OPTIONS[0]);
   const [selectedTextColor, setSelectedTextColor] = useState('#ffffff');
   const [fontSizeMode, setSizeMode] = useState<'sm' | 'md' | 'lg'>('md');
-  const [textAlign, setTextAlign] = useState<'center' | 'left'>('center');
+  const [textAlign, setTextAlign] = useState<'center' | 'left'>('left');
+  const [textBottomYPercent, setTextBottomYPercent] = useState<number>(82);
 
   // SubDetail Styling
   const [subDetailFont, setSubDetailFont] = useState(SUB_DETAIL_FONT_OPTIONS[0]);
@@ -469,7 +470,9 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
         imageUrl: scene.uploadedImageUrl, // 현재 씬 사진 100% 그대로 매칭!
         visualGuide: scene.visualGuide || '쇼츠 프로젝트 씬 사진',
         imageSearchKeyword: scene.imageSearchKeyword || `${topic} 씬${idx + 1} 사진`,
-        badgeText: isCover ? '🔥 3초 떡상 훅' : isCta ? '💬 토론 & 저장' : `POINT 0${idx + 1}`
+        badgeText: isCover ? '🔥 3초 떡상 훅' : isCta ? '💬 토론 & 저장' : `POINT 0${idx + 1}`,
+        textAlign: 'left',
+        textBottomYPercent: 82
       };
     });
 
@@ -496,7 +499,9 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
       visualGuide: '스토리 장면에 맞는 현장 사진 또는 자료 사진',
       imageSearchKeyword: `${topic} ${cut.hook.replace(/[^\w\s가-힣]/g, '').slice(0, 15)} 사진`,
       badgeText: cut.badge,
-      imageUrl: slides[idx]?.imageUrl
+      imageUrl: slides[idx]?.imageUrl,
+      textAlign: 'left',
+      textBottomYPercent: 82
     }));
 
     setSlides(newSlides);
@@ -567,7 +572,9 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
       visualGuide: currentSlide.visualGuide,
       imageSearchKeyword: currentSlide.imageSearchKeyword,
       badgeText: `POINT 0${currentSlideIndex + 2}`,
-      imageUrl: currentSlide.imageUrl
+      imageUrl: currentSlide.imageUrl,
+      textAlign: currentSlide.textAlign || textAlign,
+      textBottomYPercent: currentSlide.textBottomYPercent ?? textBottomYPercent
     };
 
     updated.splice(currentSlideIndex + 1, 0, newSlide);
@@ -616,7 +623,9 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
       subDetail: '대본 내용을 여기에 입력하세요.',
       visualGuide: '스토리 장면에 맞는 현장 사진',
       imageSearchKeyword: `${topic} 사진`,
-      badgeText: `POINT 0${slides.length + 1}`
+      badgeText: `POINT 0${slides.length + 1}`,
+      textAlign: textAlign,
+      textBottomYPercent: textBottomYPercent
     };
     setSlides([...slides, newSlide]);
     setCurrentSlideIndex(slides.length);
@@ -688,7 +697,12 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
     setSlides(updated);
   };
 
-  // Specific Slide Canvas Generator
+  // Active settings for current slide
+  const currentSlide = slides[currentSlideIndex];
+  const activeTextAlign = currentSlide?.textAlign || textAlign;
+  const activeBottomYPercent = currentSlide?.textBottomYPercent ?? textBottomYPercent;
+
+  // Specific Slide Canvas Generator (With Bottom-Anchored Layout Math)
   const renderSlideCanvas = async (slideIndex: number): Promise<HTMLCanvasElement | null> => {
     const slide = slides[slideIndex];
     if (!slide) return null;
@@ -707,6 +721,9 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
 
     canvas.width = width;
     canvas.height = height;
+
+    const currentSlideAlign = slide.textAlign || textAlign;
+    const currentBottomYPercent = slide.textBottomYPercent ?? textBottomYPercent;
 
     // Draw background
     if (slide.imageUrl) {
@@ -762,8 +779,8 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
     ctx.font = `bold 24px ${selectedFont.family}`;
     ctx.fillStyle = selectedTheme.badgeBg;
     const badgeWidth = ctx.measureText(badgeText).width + 36;
-    const badgeX = textAlign === 'center' ? (width - badgeWidth) / 2 : 80;
-    const badgeY = height * 0.16;
+    const badgeX = currentSlideAlign === 'center' ? (width - badgeWidth) / 2 : 80;
+    const badgeY = height * 0.15;
 
     ctx.beginPath();
     ctx.roundRect(badgeX, badgeY, badgeWidth, 48, 24);
@@ -773,24 +790,14 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
     ctx.textAlign = 'center';
     ctx.fillText(badgeText, badgeX + badgeWidth / 2, badgeY + 32);
 
-    // Headline (3-Second Hook Large Text)
-    ctx.fillStyle = selectedTextColor;
+    // Prepare Headline Lines & Height
     ctx.font = `900 ${titlePx}px ${selectedFont.family}`;
-    ctx.textAlign = textAlign;
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
-    ctx.shadowBlur = 14;
-
     const maxTextWidth = width - 160;
-    const lines = wrapCanvasText(ctx, slide.mainHook, maxTextWidth);
-    let startY = height * 0.34;
-    const textX = textAlign === 'center' ? width / 2 : 80;
+    const headlineLines = wrapCanvasText(ctx, slide.mainHook, maxTextWidth);
+    const headlineLineHeight = titlePx * 1.35;
+    const headlineTotalHeight = headlineLines.length * headlineLineHeight;
 
-    for (const line of lines) {
-      ctx.fillText(line, textX, startY);
-      startY += titlePx * 1.35;
-    }
-
-    // SubDetail (Full Unsummarized Shorts Narration)
+    // Prepare SubDetail Lines & Height
     const activeSubPx = SUB_DETAIL_SIZE_PRESETS.find(p => p.id === (slide.subDetailFontSize || subDetailFontSize))?.canvasPx || 32;
     const activeSubFont = slide.subDetailFont || subDetailFont.family;
     const activeSubColor = slide.subDetailColor || subDetailColor;
@@ -798,24 +805,55 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
 
     ctx.font = `500 ${activeSubPx}px ${activeSubFont}`;
     const subLines = wrapCanvasText(ctx, slide.subDetail, maxTextWidth);
-    startY += 26;
+    const subLineHeight = activeSubPx * 1.45;
+    const subTextTotalHeight = subLines.length * subLineHeight;
 
+    const boxPaddingX = 24;
+    const boxPaddingY = 16;
+    let subBoxWidth = 0;
+    let subBoxHeight = 0;
     if (activeSubBg !== 'none' && subLines.length > 0) {
-      const boxPaddingX = 24;
-      const boxPaddingY = 16;
       let maxLineWidth = 0;
       for (const line of subLines) {
         maxLineWidth = Math.max(maxLineWidth, ctx.measureText(line).width);
       }
-      const boxWidth = Math.min(width - 120, maxLineWidth + boxPaddingX * 2);
-      const boxHeight = (subLines.length * activeSubPx * 1.42) + boxPaddingY * 2;
-      const boxX = textAlign === 'center' ? (width - boxWidth) / 2 : 70;
-      const boxY = startY - activeSubPx + 6;
+      subBoxWidth = Math.min(width - 120, maxLineWidth + boxPaddingX * 2);
+      subBoxHeight = (subLines.length * activeSubPx * 1.42) + boxPaddingY * 2;
+    }
+
+    const subDetailBlockHeight = (activeSubBg !== 'none' && subLines.length > 0) ? subBoxHeight : subTextTotalHeight;
+    const gapBetweenHeadAndSub = 24;
+    const totalBlockHeight = headlineTotalHeight + gapBetweenHeadAndSub + subDetailBlockHeight;
+
+    // Bottom Anchor: The bottom of the text block sits exactly at targetBottomY
+    const targetBottomY = height * (currentBottomYPercent / 100);
+
+    // Starting Y baseline for headline
+    const headlineTopY = targetBottomY - totalBlockHeight;
+    let currentY = headlineTopY + titlePx * 0.88;
+
+    const textX = currentSlideAlign === 'center' ? width / 2 : 80;
+    ctx.textAlign = currentSlideAlign;
+    ctx.fillStyle = selectedTextColor;
+    ctx.font = `900 ${titlePx}px ${selectedFont.family}`;
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+    ctx.shadowBlur = 14;
+
+    for (const line of headlineLines) {
+      ctx.fillText(line, textX, currentY);
+      currentY += headlineLineHeight;
+    }
+
+    currentY += (gapBetweenHeadAndSub - headlineLineHeight + titlePx * 0.35);
+
+    if (activeSubBg !== 'none' && subLines.length > 0) {
+      const boxX = currentSlideAlign === 'center' ? (width - subBoxWidth) / 2 : 70;
+      const boxY = currentY;
 
       ctx.save();
       ctx.fillStyle = activeSubBg === 'box' ? 'rgba(15, 23, 42, 0.82)' : 'rgba(0, 0, 0, 0.62)';
       ctx.beginPath();
-      ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 16);
+      ctx.roundRect(boxX, boxY, subBoxWidth, subBoxHeight, 16);
       ctx.fill();
       if (activeSubBg === 'box') {
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
@@ -823,14 +861,18 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
         ctx.stroke();
       }
       ctx.restore();
-      startY += boxPaddingY * 0.5;
+
+      currentY += boxPaddingY + activeSubPx * 0.88;
+    } else {
+      currentY += activeSubPx * 0.88;
     }
 
     ctx.fillStyle = activeSubColor;
+    ctx.font = `500 ${activeSubPx}px ${activeSubFont}`;
     ctx.shadowBlur = activeSubBg === 'none' ? 8 : 2;
     for (const sLine of subLines) {
-      ctx.fillText(sLine, textX, startY);
-      startY += activeSubPx * 1.45;
+      ctx.fillText(sLine, textX, currentY);
+      currentY += (activeSubBg !== 'none' ? activeSubPx * 1.42 : subLineHeight);
     }
 
     // Footer page number & Swipe Cue
@@ -896,7 +938,6 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
     }
   };
 
-  const currentSlide = slides[currentSlideIndex];
   const { titleClass } = FONT_SIZE_PRESETS.find(p => p.id === fontSizeMode) || FONT_SIZE_PRESETS[1];
   const mainHookLen = currentSlide?.mainHook ? currentSlide.mainHook.replace(/\s+/g, '').length : 0;
   const subDetailLen = currentSlide?.subDetail ? currentSlide.subDetail.replace(/\s+/g, '').length : 0;
@@ -1080,7 +1121,7 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="font-black text-slate-900 text-base sm:text-lg">캐러셀 실시간 비주얼 뷰어</h3>
-              <p className="text-xs text-slate-500">폰트, 컬러, 글자 크기, 사진, 스와이프 유도 바 실시간 반영</p>
+              <p className="text-xs text-slate-500">좌측 정렬 기본 • 하단 기준 앵커링 텍스트 높이 실시간 반영</p>
             </div>
 
             <div className="flex items-center gap-2">
@@ -1206,7 +1247,7 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
             )}
           </div>
 
-          {/* Visual Canvas Card with Photo Layer & Selected Font/Color */}
+          {/* Visual Canvas Card with Photo Layer & Selected Font/Color & Bottom-Anchored Text Box */}
           <div className="flex justify-center">
             <div 
               className={`w-full max-w-md rounded-3xl p-8 relative flex flex-col justify-between transition-all duration-300 shadow-2xl border-4 overflow-hidden ${
@@ -1219,7 +1260,7 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
                 color: selectedTextColor,
                 borderColor: selectedTheme.accent,
                 fontFamily: selectedFont.family,
-                textAlign: textAlign
+                textAlign: activeTextAlign
               }}
             >
               {/* Dark Overlay when photo is active */}
@@ -1246,7 +1287,7 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
               )}
 
               {/* Top Header Badge */}
-              <div className={`relative z-10 flex ${textAlign === 'center' ? 'justify-center' : 'justify-start'}`}>
+              <div className={`relative z-10 flex ${activeTextAlign === 'center' ? 'justify-center' : 'justify-start'}`}>
                 <span 
                   className="px-3.5 py-1 rounded-full text-xs font-black shadow-md tracking-wide"
                   style={{ 
@@ -1258,8 +1299,14 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
                 </span>
               </div>
 
-              {/* Main Content Area */}
-              <div className="relative z-10 my-auto py-4 space-y-4">
+              {/* Main Content Area - Anchored to Bottom! (텍스트 박스 하단 기준 앵커링) */}
+              <div 
+                className="absolute z-10 left-8 right-8 flex flex-col justify-end space-y-3.5 transition-all duration-200 pointer-events-none"
+                style={{
+                  bottom: `${100 - activeBottomYPercent}%`,
+                  textAlign: activeTextAlign
+                }}
+              >
                 {/* Main Headline (3-Second Hook Large Text) */}
                 <h2 
                   className={`font-black tracking-tight leading-snug drop-shadow-lg whitespace-pre-line ${titleClass}`}
@@ -1271,7 +1318,7 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
                 {/* SubDetail (Full Unsummarized Shorts Narration) */}
                 <div className={`transition-all ${
                   (currentSlide?.subDetailBgStyle || subDetailBgStyle) === 'capsule'
-                    ? 'px-4 py-2.5 rounded-2xl bg-black/60 backdrop-blur-xs max-w-fit mx-auto'
+                    ? `px-4 py-2.5 rounded-2xl bg-black/60 backdrop-blur-xs max-w-fit ${activeTextAlign === 'center' ? 'mx-auto' : 'mr-auto'}`
                     : (currentSlide?.subDetailBgStyle || subDetailBgStyle) === 'box'
                     ? 'p-3.5 rounded-2xl bg-slate-900/80 border border-white/15 backdrop-blur-sm'
                     : ''
@@ -1291,7 +1338,7 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
               </div>
 
               {/* Bottom Footer Page Count & Swipe Cue */}
-              <div className="relative z-10 flex items-center justify-between text-xs pt-4 border-t border-white/10 font-bold text-slate-300">
+              <div className="relative z-10 flex items-center justify-between text-xs pt-4 border-t border-white/10 font-bold text-slate-300 mt-auto">
                 <span>{topic}</span>
                 <span className="px-2 py-0.5 rounded-full bg-black/40 text-[11px]">
                   {(currentSlideIndex + 1)} / {slides.length}
@@ -1509,11 +1556,11 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
             </div>
           </div>
 
-          {/* 2. Main Headline Typography & Color Customizer */}
+          {/* 2. Main Headline Typography, Color, Alignment & Bottom-Anchored Height */}
           <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
             <div className="flex items-center gap-2 text-sm font-black text-slate-900">
               <TypeIcon className="w-4 h-4 text-indigo-600" />
-              <span>2. 메인 헤드라인 스타일 (서체 • 크기 • 정렬 • 컬러)</span>
+              <span>2. 메인 헤드라인 스타일 (서체 • 크기 • 정렬 • 높이)</span>
             </div>
 
             {/* Font Selector */}
@@ -1537,7 +1584,7 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
               </div>
             </div>
 
-            {/* Font Size & Align */}
+            {/* Font Size & Align (Default: Left-Aligned) */}
             <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
               <div>
                 <label className="block text-[11px] font-bold text-slate-500 mb-1.5">헤드라인 크기</label>
@@ -1557,27 +1604,116 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-500 mb-1.5">정렬</label>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1.5">텍스트 정렬 (기본: 좌측)</label>
                 <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl">
                   <button
-                    onClick={() => setTextAlign('center')}
+                    onClick={() => {
+                      setTextAlign('left');
+                      handleUpdateCurrentSlide('textAlign', 'left');
+                    }}
                     className={`flex-1 py-1 flex items-center justify-center rounded-lg text-xs font-bold transition cursor-pointer ${
-                      textAlign === 'center' ? 'bg-white text-indigo-600 shadow-2xs font-black' : 'text-slate-600'
+                      activeTextAlign === 'left' ? 'bg-white text-indigo-600 shadow-2xs font-black' : 'text-slate-600'
+                    }`}
+                  >
+                    <AlignLeft className="w-3.5 h-3.5 mr-1" />
+                    <span>좌측 (기본)</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setTextAlign('center');
+                      handleUpdateCurrentSlide('textAlign', 'center');
+                    }}
+                    className={`flex-1 py-1 flex items-center justify-center rounded-lg text-xs font-bold transition cursor-pointer ${
+                      activeTextAlign === 'center' ? 'bg-white text-indigo-600 shadow-2xs font-black' : 'text-slate-600'
                     }`}
                   >
                     <AlignCenter className="w-3.5 h-3.5 mr-1" />
                     <span>중앙</span>
                   </button>
-                  <button
-                    onClick={() => setTextAlign('left')}
-                    className={`flex-1 py-1 flex items-center justify-center rounded-lg text-xs font-bold transition cursor-pointer ${
-                      textAlign === 'left' ? 'bg-white text-indigo-600 shadow-2xs font-black' : 'text-slate-600'
-                    }`}
-                  >
-                    <AlignLeft className="w-3.5 h-3.5 mr-1" />
-                    <span>좌측</span>
-                  </button>
                 </div>
+              </div>
+            </div>
+
+            {/* Height Position Controller (Anchored to Bottom of Text Block) */}
+            <div className="pt-3 border-t border-slate-100 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Sliders className="w-3.5 h-3.5 text-indigo-600" />
+                  <label className="text-[11px] font-bold text-slate-800">
+                    텍스트 박스 위치 높이 (하단 기준 앵커링)
+                  </label>
+                </div>
+                <span className="text-xs font-extrabold text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-lg border border-indigo-200 shadow-2xs">
+                  하단 {activeBottomYPercent}% 지점
+                </span>
+              </div>
+
+              {/* Height Presets */}
+              <div className="grid grid-cols-4 gap-1.5">
+                {[
+                  { label: '하단 (82% 기본)', value: 82 },
+                  { label: '중하단 (72%)', value: 72 },
+                  { label: '중앙 (60%)', value: 60 },
+                  { label: '상단 (50%)', value: 50 },
+                ].map((pos) => {
+                  const isCurrent = Math.abs(activeBottomYPercent - pos.value) < 2;
+                  return (
+                    <button
+                      key={pos.value}
+                      type="button"
+                      onClick={() => {
+                        setTextBottomYPercent(pos.value);
+                        handleUpdateCurrentSlide('textBottomYPercent', pos.value);
+                      }}
+                      className={`py-1.5 px-1 rounded-xl text-[11px] font-bold transition cursor-pointer text-center ${
+                        isCurrent
+                          ? 'bg-indigo-600 text-white shadow-xs font-black'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                      }`}
+                    >
+                      {pos.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Slider for continuous adjustment */}
+              <div className="flex items-center space-x-3 pt-1">
+                <span className="text-[10px] font-bold text-slate-400">상단 (45%)</span>
+                <input
+                  type="range"
+                  min={45}
+                  max={88}
+                  step={1}
+                  value={activeBottomYPercent}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setTextBottomYPercent(val);
+                    handleUpdateCurrentSlide('textBottomYPercent', val);
+                  }}
+                  className="w-full accent-indigo-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg"
+                />
+                <span className="text-[10px] font-bold text-slate-400">하단 (88%)</span>
+              </div>
+
+              <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1">
+                <span>💡 어느 높이를 선택하든 텍스트 박스 하단을 기준으로 글이 위로 자연스럽게 작성됩니다.</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const updated = slides.map(s => ({ 
+                      ...s, 
+                      textBottomYPercent: activeBottomYPercent, 
+                      textAlign: activeTextAlign 
+                    }));
+                    setSlides(updated);
+                    setScriptToast(`모든 슬라이드에 높이 ${activeBottomYPercent}% 및 정렬이 일괄 적용되었습니다! ✨`);
+                    setTimeout(() => setScriptToast(null), 2500);
+                  }}
+                  className="text-indigo-600 font-extrabold hover:text-indigo-800 shrink-0 ml-2 cursor-pointer underline"
+                >
+                  전체 슬라이드 일괄 적용
+                </button>
               </div>
             </div>
 
