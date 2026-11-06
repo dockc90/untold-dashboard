@@ -287,8 +287,10 @@ export const getSubtitleChunks = (
 // Fixes Android Stagefright / Samsung Gallery / KakaoTalk "00:12 / 00:03" metadata bug:
 export const patchWebmBinaryDuration = patchWebmBinaryDurationAndCues;
 
-// Helper: Shortens and formats long YouTube titles into punchy 2-line viral reels headlines
+// Industrial-grade Fragmented MP4 duration patcher & mehd injector
+// Solves Android Stagefright / Samsung Gallery / KakaoTalk "00:03" duration truncation bug:
 export const fixMp4Duration = async (blob: Blob, durationSec: number): Promise<Blob> => {
+  if (!durationSec || durationSec <= 0 || isNaN(durationSec)) return blob;
   try {
     const arrayBuffer = await blob.arrayBuffer();
     const view = new DataView(arrayBuffer);
@@ -296,7 +298,8 @@ export const fixMp4Duration = async (blob: Blob, durationSec: number): Promise<B
 
     const findBox = (tag: string, startOffset = 0, endOffset = arrayBuffer.byteLength): number => {
       const c0 = tag.charCodeAt(0), c1 = tag.charCodeAt(1), c2 = tag.charCodeAt(2), c3 = tag.charCodeAt(3);
-      for (let i = startOffset; i < endOffset - 4; i++) {
+      const limit = Math.min(endOffset - 4, bytes.length - 4);
+      for (let i = startOffset; i <= limit; i++) {
         if (bytes[i] === c0 && bytes[i + 1] === c1 && bytes[i + 2] === c2 && bytes[i + 3] === c3) {
           return i;
         }
@@ -304,44 +307,122 @@ export const fixMp4Duration = async (blob: Blob, durationSec: number): Promise<B
       return -1;
     };
 
+    // Locate moov box
+    const moovTagOffset = findBox('moov');
+    if (moovTagOffset === -1 || moovTagOffset < 4) {
+      return blob;
+    }
+    const moovBoxStart = moovTagOffset - 4;
+    const moovSize = view.getUint32(moovBoxStart);
+    const moovEnd = moovSize > 0 ? moovBoxStart + moovSize : arrayBuffer.byteLength;
+
     // 1. Patch mvhd (Movie Header Box)
-    const mvhdOffset = findBox('mvhd');
-    if (mvhdOffset !== -1) {
-      const version = view.getUint8(mvhdOffset + 4);
+    let movieTimescale = 1000;
+    const mvhdTagOffset = findBox('mvhd', moovBoxStart, moovEnd);
+    if (mvhdTagOffset !== -1) {
+      const version = view.getUint8(mvhdTagOffset + 4);
       if (version === 0) {
-        const timescale = view.getUint32(mvhdOffset + 16) || 1000;
-        view.setUint32(mvhdOffset + 20, Math.round(durationSec * timescale));
+        movieTimescale = view.getUint32(mvhdTagOffset + 16) || 1000;
+        const targetDur = Math.round(durationSec * movieTimescale);
+        view.setUint32(mvhdTagOffset + 20, targetDur);
       } else if (version === 1) {
-        const timescale = view.getUint32(mvhdOffset + 24) || 1000;
-        view.setUint32(mvhdOffset + 28, 0);
-        view.setUint32(mvhdOffset + 32, Math.round(durationSec * timescale));
+        movieTimescale = view.getUint32(mvhdTagOffset + 24) || 1000;
+        const targetDur = Math.round(durationSec * movieTimescale);
+        view.setUint32(mvhdTagOffset + 28, 0);
+        view.setUint32(mvhdTagOffset + 32, targetDur);
       }
     }
 
-    // 2. Patch tkhd (Track Header Boxes)
-    let curOffset = 0;
-    while (curOffset < arrayBuffer.byteLength) {
-      const tkhdOffset = findBox('tkhd', curOffset);
-      if (tkhdOffset === -1) break;
-      const version = view.getUint8(tkhdOffset + 4);
-      const timescale = mvhdOffset !== -1 ? (view.getUint32(mvhdOffset + (view.getUint8(mvhdOffset + 4) === 0 ? 16 : 24)) || 1000) : 1000;
-      if (version === 0) {
-        view.setUint32(tkhdOffset + 24, Math.round(durationSec * timescale));
+    // 2. Patch all tkhd (Track Header Boxes) and mdhd (Media Header Boxes) inside every trak
+    let curOffset = moovBoxStart;
+    while (curOffset < moovEnd) {
+      const trakTagOffset = findBox('trak', curOffset, moovEnd);
+      if (trakTagOffset === -1 || trakTagOffset < 4) break;
+      const trakBoxStart = trakTagOffset - 4;
+      const trakSize = view.getUint32(trakBoxStart);
+      const trakEnd = trakSize > 0 ? trakBoxStart + trakSize : moovEnd;
+
+      // Patch tkhd (duration in movieTimescale)
+      const tkhdTagOffset = findBox('tkhd', trakBoxStart, trakEnd);
+      if (tkhdTagOffset !== -1) {
+        const v = view.getUint8(tkhdTagOffset + 4);
+        const targetDur = Math.round(durationSec * movieTimescale);
+        if (v === 0) {
+          view.setUint32(tkhdTagOffset + 24, targetDur);
+        } else if (v === 1) {
+          view.setUint32(tkhdTagOffset + 32, 0);
+          view.setUint32(tkhdTagOffset + 36, targetDur);
+        }
       }
-      curOffset = tkhdOffset + 8;
+
+      // Patch mdhd inside mdia (duration in mediaTimescale)
+      const mdhdTagOffset = findBox('mdhd', trakBoxStart, trakEnd);
+      if (mdhdTagOffset !== -1) {
+        const v = view.getUint8(mdhdTagOffset + 4);
+        if (v === 0) {
+          const mediaTimescale = view.getUint32(mdhdTagOffset + 16) || 1000;
+          const targetDur = Math.round(durationSec * mediaTimescale);
+          view.setUint32(mdhdTagOffset + 20, targetDur);
+        } else if (v === 1) {
+          const mediaTimescale = view.getUint32(mdhdTagOffset + 24) || 1000;
+          const targetDur = Math.round(durationSec * mediaTimescale);
+          view.setUint32(mdhdTagOffset + 28, 0);
+          view.setUint32(mdhdTagOffset + 32, targetDur);
+        }
+      }
+
+      curOffset = Math.max(trakEnd, trakTagOffset + 4);
     }
 
-    // 3. Patch mehd (Movie Extends Header Box in fragmented MP4)
-    const mehdOffset = findBox('mehd');
-    if (mehdOffset !== -1) {
-      const version = view.getUint8(mehdOffset + 4);
-      const timescale = mvhdOffset !== -1 ? (view.getUint32(mvhdOffset + (view.getUint8(mvhdOffset + 4) === 0 ? 16 : 24)) || 1000) : 1000;
-      const targetDuration = Math.round(durationSec * timescale);
-      if (version === 0) {
-        view.setUint32(mehdOffset + 8, targetDuration);
-      } else if (version === 1) {
-        view.setUint32(mehdOffset + 8, 0);
-        view.setUint32(mehdOffset + 12, targetDuration);
+    // 3. Patch or Inject mehd (Movie Extends Header Box) inside mvex
+    // This is the absolute critical fix for Android Stagefright (MPEG4Extractor):
+    // Stagefright ignores mvhd in fragmented MP4 and defaults duration to the first ~3s fragment
+    // if mehd is absent in mvex!
+    const mvexTagOffset = findBox('mvex', moovBoxStart, moovEnd);
+    if (mvexTagOffset !== -1 && mvexTagOffset >= 4) {
+      const mvexBoxStart = mvexTagOffset - 4;
+      const mvexSize = view.getUint32(mvexBoxStart);
+      const mvexEnd = mvexSize > 0 ? mvexBoxStart + mvexSize : moovEnd;
+      const mehdTagOffset = findBox('mehd', mvexBoxStart, mvexEnd);
+      const targetDur = Math.round(durationSec * movieTimescale);
+
+      if (mehdTagOffset !== -1) {
+        const v = view.getUint8(mehdTagOffset + 4);
+        if (v === 0) {
+          view.setUint32(mehdTagOffset + 8, targetDur);
+        } else if (v === 1) {
+          view.setUint32(mehdTagOffset + 8, 0);
+          view.setUint32(mehdTagOffset + 12, targetDur);
+        }
+        return new Blob([bytes], { type: blob.type || 'video/mp4' });
+      } else {
+        // Inject mehd (16 bytes, version 0 FullBox) as the first child of mvex
+        const mehdBytes = new Uint8Array(16);
+        const mehdView = new DataView(mehdBytes.buffer);
+        mehdView.setUint32(0, 16); // box size
+        mehdBytes[4] = 0x6d; // 'm'
+        mehdBytes[5] = 0x65; // 'e'
+        mehdBytes[6] = 0x68; // 'h'
+        mehdBytes[7] = 0x64; // 'd'
+        mehdBytes[8] = 0; // version 0
+        mehdBytes[9] = 0; // flags
+        mehdBytes[10] = 0;
+        mehdBytes[11] = 0;
+        mehdView.setUint32(12, targetDur);
+
+        // Insertion index: right after mvex box header (mvexTagOffset + 4)
+        const insertPos = mvexTagOffset + 4;
+        const newBuf = new Uint8Array(bytes.length + 16);
+        newBuf.set(bytes.subarray(0, insertPos), 0);
+        newBuf.set(mehdBytes, insertPos);
+        newBuf.set(bytes.subarray(insertPos), insertPos + 16);
+
+        // Update container sizes: mvex and moov both expand by 16 bytes
+        const newView = new DataView(newBuf.buffer);
+        newView.setUint32(mvexBoxStart, mvexSize + 16);
+        newView.setUint32(moovBoxStart, moovSize + 16);
+
+        return new Blob([newBuf], { type: blob.type || 'video/mp4' });
       }
     }
 
