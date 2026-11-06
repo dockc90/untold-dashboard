@@ -184,6 +184,8 @@ export async function GET(req: Request) {
                 imageSearchKeyword: s.image_search_keyword,
                 visualEffect: s.visual_effect,
                 bgmSuggestion: s.bgm_suggestion,
+                uploadedImageUrl: s.uploaded_image_url || s.uploadedImageUrl || undefined,
+                motionEffect: s.motion_effect || s.motionEffect || 'zoom_in',
               }));
 
             const p = {

@@ -28,10 +28,65 @@ import {
   fetchProjectsBySyncCode,
   fetchDraftFromServer
 } from './lib/supabase';
+import { 
+  saveProjectToIDB, 
+  saveProjectsToIDB, 
+  getAllProjectsFromIDB, 
+  deleteProjectFromIDB 
+} from './utils/indexedDb';
 import { generateClientFallbackScript } from './utils/fallbackGenerator';
 import { getSceneFallbackImage } from './utils/sceneImages';
 
 const STORAGE_KEY = 'autoshorts_saved_projects_v2';
+
+// Helper: Perfectly merges project lists while strictly preserving all user-configured photos & scene assets
+export function mergeProjectsPreservingPhotos(existingList: ShortsProject[], incomingList: ShortsProject[]): ShortsProject[] {
+  const map = new Map<string, ShortsProject>();
+  const existingMap = new Map<string, ShortsProject>();
+  existingList.forEach((p) => existingMap.set(p.id, p));
+
+  incomingList.forEach((incoming) => {
+    const existing = existingMap.get(incoming.id);
+    if (!existing) {
+      map.set(incoming.id, incoming);
+    } else {
+      // Merge scenes: prioritize scene with uploadedImageUrl so photos are NEVER lost!
+      const mergedScenes = incoming.scenes.map((incScene, idx) => {
+        const existScene = existing.scenes?.[idx];
+        return {
+          ...incScene,
+          uploadedImageUrl: incScene.uploadedImageUrl || existScene?.uploadedImageUrl,
+          motionEffect: incScene.motionEffect || existScene?.motionEffect || 'zoom_in',
+        };
+      });
+
+      if (existing.scenes && existing.scenes.length > incoming.scenes.length) {
+        for (let i = incoming.scenes.length; i < existing.scenes.length; i++) {
+          mergedScenes.push(existing.scenes[i]);
+        }
+      }
+
+      map.set(incoming.id, {
+        ...incoming,
+        scenes: mergedScenes,
+        customTextOverlays: incoming.customTextOverlays || existing.customTextOverlays,
+        channelLogoOverlay: incoming.channelLogoOverlay || existing.channelLogoOverlay,
+        backdropStyle: incoming.backdropStyle || existing.backdropStyle,
+        photoAspectRatio: incoming.photoAspectRatio || existing.photoAspectRatio,
+        selectedVoiceId: incoming.selectedVoiceId || existing.selectedVoiceId,
+        voiceSpeedMultiplier: incoming.voiceSpeedMultiplier || existing.voiceSpeedMultiplier,
+      });
+    }
+  });
+
+  existingList.forEach((local) => {
+    if (!map.has(local.id)) {
+      map.set(local.id, local);
+    }
+  });
+
+  return Array.from(map.values());
+}
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState<AppTab>('studio');
@@ -50,9 +105,9 @@ export default function App() {
   const [renderingProject, setRenderingProject] = useState<ShortsProject | null>(SAMPLE_PROJECT);
   const [viralTopic, setViralTopic] = useState<string>('손흥민');
 
-  // Load saved projects on mount: LocalStorage cache + Supabase Cloud Database sync
+  // Load saved projects on mount: LocalStorage cache + IndexedDB + Supabase Cloud Database sync
   useEffect(() => {
-    // 1. Immediate local cache retrieval
+    // 1. Immediate local cache retrieval (LocalStorage)
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
@@ -69,6 +124,13 @@ export default function App() {
       console.warn('Local storage load warning:', e);
       setSavedProjects([SAMPLE_PROJECT]);
     }
+
+    // 1-B. IndexedDB retrieval (Restores high-res photo assets without localStorage quota limits)
+    getAllProjectsFromIDB().then((idbProjects) => {
+      if (idbProjects && idbProjects.length > 0) {
+        setSavedProjects((prev) => mergeProjectsPreservingPhotos(prev, idbProjects));
+      }
+    }).catch(console.warn);
 
     // 2. Draft retrieval (Auto-save)
     try {
@@ -92,17 +154,17 @@ export default function App() {
       }
     }).catch(() => {});
 
-    // 3. Background async sync with Supabase / Cloud Store
+    // 3. Background async sync with Supabase / Cloud Store (with photo-preservation)
     fetchProjectsFromSupabase().then((cloudProjects) => {
       if (cloudProjects && cloudProjects.length > 0) {
         setSavedProjects((prev) => {
-          const map = new Map<string, ShortsProject>();
-          cloudProjects.forEach((p) => map.set(p.id, p));
-          prev.forEach((p) => {
-            if (!map.has(p.id)) map.set(p.id, p);
-          });
-          const merged = Array.from(map.values());
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+          const merged = mergeProjectsPreservingPhotos(prev, cloudProjects);
+          saveProjectsToIDB(merged).catch(console.warn);
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+          } catch (qErr) {
+            console.warn('LocalStorage quota warning in initial cloud sync:', qErr);
+          }
           return merged;
         });
       }
@@ -170,13 +232,13 @@ export default function App() {
       const cloudProjects = await fetchProjectsFromSupabase();
       if (cloudProjects && cloudProjects.length > 0) {
         setSavedProjects((prev) => {
-          const map = new Map<string, ShortsProject>();
-          cloudProjects.forEach((p) => map.set(p.id, p));
-          prev.forEach((p) => {
-            if (!map.has(p.id)) map.set(p.id, p);
-          });
-          const merged = Array.from(map.values());
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+          const merged = mergeProjectsPreservingPhotos(prev, cloudProjects);
+          saveProjectsToIDB(merged).catch(console.warn);
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+          } catch (qErr) {
+            console.warn('LocalStorage quota warning in sync refresh:', qErr);
+          }
           return merged;
         });
       }
@@ -187,21 +249,21 @@ export default function App() {
 
   const handleImportProjects = (imported: ShortsProject[]) => {
     setSavedProjects((prev) => {
-      const map = new Map<string, ShortsProject>();
-      imported.forEach((p) => map.set(p.id, { ...p, isSaved: true }));
-      prev.forEach((p) => {
-        if (!map.has(p.id)) map.set(p.id, p);
-      });
-      const merged = Array.from(map.values());
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      const merged = mergeProjectsPreservingPhotos(prev, imported.map((p) => ({ ...p, isSaved: true })));
+      saveProjectsToIDB(merged).catch(console.warn);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      } catch (qErr) {
+        console.warn('LocalStorage quota warning in import:', qErr);
+      }
       imported.forEach((p) => saveProjectToSupabase(p).catch(() => {}));
       return merged;
     });
-    setSuccessToast(`🎉 ${imported.length}개 프로젝트가 성공적으로 보관함에 연동되었습니다!`);
+    setSuccessToast(`🎉 ${imported.length}개 프로젝트가 사진과 함께 보관함에 연동되었습니다!`);
     setTimeout(() => setSuccessToast(null), 3500);
   };
 
-  // Save project helper (Syncs to both LocalStorage and Cloud Database)
+  // Save project helper (Syncs to IndexedDB, LocalStorage and Cloud Database with photo protection)
   const handleSaveProject = async (project: ShortsProject) => {
     try {
       const nowIso = new Date().toISOString();
@@ -221,12 +283,22 @@ export default function App() {
         updated = [projectWithTime, ...savedProjects];
       }
       setSavedProjects(updated);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
 
-      // Asynchronously sync to Cloud Database / Server Store
+      // 1. Save to IndexedDB (Guarantees zero photo loss, handles large base64 images seamlessly)
+      await saveProjectToIDB(projectWithTime).catch(console.warn);
+      await saveProjectsToIDB(updated).catch(console.warn);
+
+      // 2. Save to LocalStorage with quota protection
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      } catch (quotaErr) {
+        console.warn('LocalStorage quota exceeded, photos safely preserved in IndexedDB:', quotaErr);
+      }
+
+      // 3. Asynchronously sync to Cloud Database / Server Store
       const savedToDb = await saveProjectToSupabase(projectWithTime);
       if (savedToDb) {
-        setSuccessToast(`☁️ 클라우드 보관함에 안전하게 자동 저장되었습니다!`);
+        setSuccessToast(`☁️ 보관함 및 클라우드에 사진과 함께 안전하게 저장되었습니다!`);
         setTimeout(() => setSuccessToast(null), 3500);
       }
     } catch (e) {
@@ -237,7 +309,10 @@ export default function App() {
   const handleDeleteProject = (id: string) => {
     const updated = savedProjects.filter((p) => p.id !== id);
     setSavedProjects(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    deleteProjectFromIDB(id).catch(console.warn);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    } catch {}
     deleteProjectFromSupabase(id).catch(console.warn);
   };
 

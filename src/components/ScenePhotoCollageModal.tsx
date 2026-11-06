@@ -974,7 +974,7 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
     try {
       // 1. Re-render canvas cleanly without any purple selection borders or edit outlines
       renderCanvasCells(true);
-      const mergedDataUrl = canvas.toDataURL('image/jpeg', 0.94);
+      const mergedDataUrl = canvas.toDataURL('image/jpeg', 0.86);
       onApplyImage(mergedDataUrl);
       onClose();
     } catch (err) {

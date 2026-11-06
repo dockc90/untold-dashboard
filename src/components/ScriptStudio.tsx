@@ -176,18 +176,53 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
     setEditableScenes(updated);
   };
 
-  // Scene photo file upload
+  // Scene photo file upload with smart resolution optimization (prevents memory exhaustion & photo loss)
   const handleImageFileUpload = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      const dataUrl = event.target?.result as string;
-      const updated = [...editableScenes];
-      updated[index] = { ...updated[index], uploadedImageUrl: dataUrl };
-      setEditableScenes(updated);
-      handleOpenCollageModal(index);
+      const rawDataUrl = event.target?.result as string;
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 1920;
+        let w = img.naturalWidth;
+        let h = img.naturalHeight;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) {
+            h = Math.round((h * maxDim) / w);
+            w = maxDim;
+          } else {
+            w = Math.round((w * maxDim) / h);
+            h = maxDim;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, w, h);
+          const compressed = canvas.toDataURL('image/jpeg', 0.88);
+          const updated = [...editableScenes];
+          updated[index] = { ...updated[index], uploadedImageUrl: compressed };
+          setEditableScenes(updated);
+          handleOpenCollageModal(index);
+          return;
+        }
+        const updated = [...editableScenes];
+        updated[index] = { ...updated[index], uploadedImageUrl: rawDataUrl };
+        setEditableScenes(updated);
+        handleOpenCollageModal(index);
+      };
+      img.onerror = () => {
+        const updated = [...editableScenes];
+        updated[index] = { ...updated[index], uploadedImageUrl: rawDataUrl };
+        setEditableScenes(updated);
+        handleOpenCollageModal(index);
+      };
+      img.src = rawDataUrl;
     };
     reader.readAsDataURL(file);
     if (e.target) e.target.value = '';

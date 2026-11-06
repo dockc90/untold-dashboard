@@ -68,8 +68,8 @@ interface VideoRendererModalProps {
 const SPEED_PRESETS = [0.8, 1.0, 1.1, 1.2, 1.3, 1.5];
 
 const COMMERCIAL_FONTS: { id: SubtitleFontFamily; name: string; tag: string; sample: string }[] = [
+  { id: 'Pretendard', name: '프리텐다드 (Pretendard)', tag: '가독성 1위 모던 고딕 (기본 추천)', sample: '인생을 바꾼 3초의 기적' },
   { id: 'GmarketSans', name: '지마켓 산스 (Gmarket Sans)', tag: '쇼츠 추천 볼드', sample: '인생을 바꾼 3초의 기적' },
-  { id: 'Pretendard', name: '프리텐다드 (Pretendard)', tag: '가독성 1위 모던 고딕', sample: '인생을 바꾼 3초의 기적' },
   { id: 'Black Han Sans', name: '검은고딕 (Black Han Sans)', tag: '압도적 임팩트 헤드라인', sample: '인생을 바꾼 3초의 기적' },
   { id: 'ScoreDream', name: '에스코어 드림 (S-Core Dream)', tag: '직선형 방송 자막', sample: '인생을 바꾼 3초의 기적' },
   { id: 'Do Hyeon', name: '배민 도현체 (Do Hyeon)', tag: '인기 예능 쇼츠 자막', sample: '인생을 바꾼 3초의 기적' },
@@ -744,7 +744,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         positionYPercent: 14,
         positionX: 'center',
         fontSizeScale: 1.25,
-        fontFamily: 'Black Han Sans',
+        fontFamily: 'Pretendard',
         textColor: '#000000',
         backgroundColor: 'transparent',
         isBold: true,
@@ -785,8 +785,8 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     }
   }, [channelLogo.imageUrl]);
 
-  // Subtitle Customizations
-  const [subtitleFont, setSubtitleFont] = useState<SubtitleFontFamily>('GmarketSans');
+  // Subtitle Customizations (화이트 카드뉴스 프레임 및 쇼츠 기본값: 프리텐다드)
+  const [subtitleFont, setSubtitleFont] = useState<SubtitleFontFamily>(project.subtitleFont || 'Pretendard');
   const [subtitleYPercent, setSubtitleYPercent] = useState<number>(78); // 15 to 90
   const [subtitleSizeScale, setSubtitleSizeScale] = useState<number>(1.1); // 0.8 to 1.4
   const [subtitleStyle, setSubtitleStyle] = useState<SubtitleEffectStyle>('yellow_box');
@@ -1059,7 +1059,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
           positionYPercent: 14,
           positionX: 'center',
           fontSizeScale: 1.25,
-          fontFamily: 'Do Hyeon',
+          fontFamily: 'Pretendard',
           textColor: '#000000',
           backgroundColor: 'transparent',
           isBold: true,
@@ -1079,7 +1079,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       positionYPercent: 50,
       positionX: 'center',
       fontSizeScale: 1.0,
-      fontFamily: 'Do Hyeon',
+      fontFamily: 'Pretendard',
       textColor: '#ffffff',
       backgroundColor: 'rgba(0, 0, 0, 0.75)',
       isBold: true,
@@ -1198,6 +1198,10 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     ctx.fillStyle = '#0a0f1d';
     ctx.fillRect(0, 0, w, h);
 
+    // Smooth cinematic easing: smoothstep ensures silky continuous velocity (no stuttering or abrupt pauses)
+    const clampedP = Math.max(0, Math.min(1, progress));
+    const easedProgress = clampedP * clampedP * (3 - 2 * clampedP);
+
     if (photoAspectRatio === '9:16') {
       // Fullscreen 9:16 cover
       let scale = 1.0;
@@ -1205,20 +1209,20 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       let transY = 0;
 
       if (motion === 'zoom_in') {
-        scale = 1.0 + progress * 0.16;
+        scale = 1.0 + easedProgress * 0.14;
       } else if (motion === 'zoom_out') {
-        scale = 1.16 - progress * 0.16;
+        scale = 1.14 - easedProgress * 0.14;
       } else if (motion === 'pan_left') {
         scale = 1.12;
-        transX = progress * -0.08 * w;
+        transX = easedProgress * -0.07 * w;
       } else if (motion === 'pan_right') {
         scale = 1.12;
-        transX = (1 - progress) * -0.08 * w;
+        transX = (1 - easedProgress) * -0.07 * w;
       } else if (motion === 'pan_down') {
         scale = 1.12;
-        transY = progress * 0.06 * h;
-      } else if (motion === 'fade' && progress < 0.2) {
-        ctx.globalAlpha = progress / 0.2;
+        transY = easedProgress * 0.05 * h;
+      } else if (motion === 'fade' && progress < 0.25) {
+        ctx.globalAlpha = Math.min(1, progress / 0.25);
       } else {
         scale = 1.02;
       }
@@ -1339,26 +1343,26 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     }
     ctx.clip();
 
-    // 6. Ken Burns Motion inside Card
+    // 6. Ken Burns Motion inside Card (Silky smooth eased motion)
     let scale = 1.0;
     let transX = 0;
     let transY = 0;
 
     if (motion === 'zoom_in') {
-      scale = 1.0 + progress * 0.14;
+      scale = 1.0 + easedProgress * 0.12;
     } else if (motion === 'zoom_out') {
-      scale = 1.14 - progress * 0.14;
+      scale = 1.12 - easedProgress * 0.12;
     } else if (motion === 'pan_left') {
       scale = 1.1;
-      transX = progress * -0.05 * cardW;
+      transX = easedProgress * -0.05 * cardW;
     } else if (motion === 'pan_right') {
       scale = 1.1;
-      transX = (1 - progress) * -0.05 * cardW;
+      transX = (1 - easedProgress) * -0.05 * cardW;
     } else if (motion === 'pan_down') {
       scale = 1.1;
-      transY = progress * 0.04 * cardH;
-    } else if (motion === 'fade' && progress < 0.2) {
-      ctx.globalAlpha = progress / 0.2;
+      transY = easedProgress * 0.04 * cardH;
+    } else if (motion === 'fade' && progress < 0.25) {
+      ctx.globalAlpha = Math.min(1, progress / 0.25);
     } else {
       scale = 1.02;
     }
@@ -1410,7 +1414,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     const fontSize = Math.round(baseSize * subtitleSizeScale);
 
     ctx.save();
-    ctx.font = `bold ${fontSize}px "${subtitleFont}", "GmarketSans", "Pretendard", sans-serif`;
+    ctx.font = `bold ${fontSize}px "${subtitleFont}", "Pretendard", -apple-system, BlinkMacSystemFont, "Noto Sans KR", sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
@@ -1600,16 +1604,16 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       ctx.fillStyle = '#6366f1';
       ctx.fill();
       ctx.fillStyle = '#ffffff';
-      ctx.font = `900 ${Math.round(logoSize * 0.46)}px "GmarketSans", sans-serif`;
+      ctx.font = `900 ${Math.round(logoSize * 0.46)}px "Pretendard", -apple-system, BlinkMacSystemFont, "Noto Sans KR", sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText((channelLogo.channelName || 'U').charAt(0).toUpperCase(), x + logoSize / 2, y + logoSize / 2);
     }
 
-    // Draw Channel Name
+    // Draw Channel Name (Pretendard font)
     if (channelLogo.showChannelName && channelLogo.channelName) {
       const fontSize = Math.round(logoSize * 0.42);
-      ctx.font = `bold ${fontSize}px "GmarketSans", "Pretendard", sans-serif`;
+      ctx.font = `bold ${fontSize}px "Pretendard", -apple-system, BlinkMacSystemFont, "Noto Sans KR", sans-serif`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       const textX = x + logoSize + Math.round(logoSize * 0.25);
@@ -1648,7 +1652,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       const baseFontSize = resolution === '1080p' ? 50 : 34;
       const fontSize = Math.round(baseFontSize * (ov.fontSizeScale || 1.0));
       const fontWeight = ov.isBold ? '900' : 'bold';
-      ctx.font = `${fontWeight} ${fontSize}px "${ov.fontFamily || 'Black Han Sans'}", "GmarketSans", "Pretendard", sans-serif`;
+      ctx.font = `${fontWeight} ${fontSize}px "${ov.fontFamily || 'Pretendard'}", "Pretendard", -apple-system, BlinkMacSystemFont, "Noto Sans KR", sans-serif`;
       ctx.textAlign = ov.positionX || 'center';
       ctx.textBaseline = 'middle';
 
@@ -2246,9 +2250,14 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     };
 
     mediaRecorder.onstop = async () => {
+      isStopped = true;
       if (renderIntervalId) {
         clearInterval(renderIntervalId);
         renderIntervalId = null;
+      }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
       }
       const finalBlobType = chosenMime || 'video/mp4';
       let blob = new Blob(recordedChunksRef.current, { type: finalBlobType });
@@ -2340,9 +2349,14 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       const clampedElapsed = Math.max(0, elapsedSec);
 
       if (clampedElapsed >= totalVideoSec) {
+        isStopped = true;
         if (renderIntervalId) {
           clearInterval(renderIntervalId);
           renderIntervalId = null;
+        }
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current);
+          animationFrameRef.current = null;
         }
         // Redraw last scene frame cleanly before final cut
         const lastIdx = scenes.length - 1;
@@ -2441,18 +2455,34 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         setStatusMessage(`Scene ${activeIdx + 1}/${scenes.length} 실시간 렌더링 중 (${currentPct}%)`);
         setCurrentRenderingScene(activeIdx + 1);
       }
-
-      animationFrameRef.current = requestAnimationFrame(renderFrame);
     };
 
-    // Keep active frame pumping even if tab is blurred or throttled
+    // Single unified frame pump: perfectly paced 60/30fps rendering without stutter or frame collision
+    let isStopped = false;
+    let lastRenderTime = 0;
+
+    const renderLoop = () => {
+      if (isStopped) return;
+      const now = performance.now();
+      // Ensure smooth, steady frame pacing (~30-60 FPS) without jitter
+      if (now - lastRenderTime >= 15) {
+        lastRenderTime = now;
+        renderFrame();
+      }
+      animationFrameRef.current = requestAnimationFrame(renderLoop);
+    };
+
+    animationFrameRef.current = requestAnimationFrame(renderLoop);
+
+    // Fallback interval ONLY steps the frame if requestAnimationFrame was frozen by an inactive/background tab
     renderIntervalId = setInterval(() => {
-      if (mediaRecorder.state === 'recording') {
+      if (isStopped || mediaRecorder.state !== 'recording') return;
+      const now = performance.now();
+      if (now - lastRenderTime > 50) {
+        lastRenderTime = now;
         renderFrame();
       }
     }, 33);
-
-    renderFrame();
   };
 
   const handleDownload = (preferredExt?: 'mp4' | 'webm') => {

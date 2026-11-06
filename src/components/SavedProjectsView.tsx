@@ -476,9 +476,19 @@ export const SavedProjectsView: React.FC<SavedProjectsViewProps> = ({
                       {proj.titles?.[0] || '쇼츠 프로젝트'}
                     </p>
                   </div>
-                  <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
-                    {proj.targetDuration}초 ({proj.scenes?.length || 0}씬)
-                  </span>
+                  <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                    {(() => {
+                      const photoCount = proj.scenes?.filter((s) => Boolean(s.uploadedImageUrl)).length || 0;
+                      return photoCount > 0 ? (
+                        <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+                          📷 사진 {photoCount}장
+                        </span>
+                      ) : null;
+                    })()}
+                    <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                      {proj.targetDuration}초 ({proj.scenes?.length || 0}씬)
+                    </span>
+                  </div>
                 </div>
 
                 <p className="text-xs text-slate-600 line-clamp-3 leading-relaxed bg-slate-50 p-3 rounded-2xl border border-slate-200 font-medium">
