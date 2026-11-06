@@ -31,7 +31,8 @@ import {
   Move,
   Check,
   Eye,
-  Share2
+  Share2,
+  Zap
 } from 'lucide-react';
 import { fixWebmBlob, patchWebmBinaryDurationAndCues } from '../utils/webmFixer';
 import { ShortsSafeZoneOverlay, PlatformGuideSelector, PlatformGuideType } from './ShortsSafeZoneOverlay';
@@ -906,8 +907,8 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   const sceneAudioSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const scenePreviewAnimRef = useRef<number | null>(null);
 
-  // Active custom tab on left ('ratio' | 'overlay' | 'subtitle' | 'voice' | 'output')
-  const [activeSettingsSection, setActiveSettingsSection] = useState<'ratio' | 'overlay' | 'subtitle' | 'voice' | 'output'>('ratio');
+  // Active custom tab on left ('ratio' | 'overlay' | 'subtitle' | 'voice' | 'thumbnail' | 'output')
+  const [activeSettingsSection, setActiveSettingsSection] = useState<'ratio' | 'overlay' | 'subtitle' | 'voice' | 'thumbnail' | 'output'>('ratio');
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -916,6 +917,23 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   const audioContextRef = useRef<AudioContext | null>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
   const sampleAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Screen Wake Lock API for zero sleep during video render
+  const wakeLockRef = useRef<any>(null);
+  const [isWakeLockActive, setIsWakeLockActive] = useState<boolean>(false);
+
+  // 1-Second Thumbnail Extractor & CTR Hooking Title Mode
+  const [thumbnailSceneIndex, setThumbnailSceneIndex] = useState<number>(0);
+  const [isCtrTitleEnabled, setIsCtrTitleEnabled] = useState<boolean>(true);
+  const [ctrTitleText, setCtrTitleText] = useState<string>(() => {
+    const firstOverlay = project.customTextOverlays?.[0]?.text;
+    if (firstOverlay && firstOverlay.trim()) return firstOverlay.trim();
+    return project.figureName ? `${project.figureName}의 충격 실화` : '3초 만에 몰입되는 쇼츠 이야기';
+  });
+  const [ctrTitleStyle, setCtrTitleStyle] = useState<'yt_yellow' | 'netflix_red' | 'neon_cyan' | 'black_capsule'>('yt_yellow');
+  const [ctrTitleYPercent, setCtrTitleYPercent] = useState<number>(24);
+  const [thumbnailToast, setThumbnailToast] = useState<string | null>(null);
+  const [isExtractingThumbnail, setIsExtractingThumbnail] = useState<boolean>(false);
 
   // Voice Favorites (찜) saved in localStorage
   const [favoriteVoiceIds, setFavoriteVoiceIds] = useState<string[]>(() => {
@@ -1003,6 +1021,49 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, isRendering, onClose]);
+
+  // Screen Wake Lock API helper
+  const requestWakeLock = async () => {
+    if (typeof navigator !== 'undefined' && 'wakeLock' in navigator && (navigator as any).wakeLock) {
+      try {
+        const lock = await (navigator as any).wakeLock.request('screen');
+        wakeLockRef.current = lock;
+        setIsWakeLockActive(true);
+        lock.addEventListener('release', () => {
+          setIsWakeLockActive(false);
+          wakeLockRef.current = null;
+        });
+      } catch (err) {
+        console.warn('Screen wakeLock request error:', err);
+      }
+    }
+  };
+
+  const releaseWakeLock = async () => {
+    if (wakeLockRef.current) {
+      try {
+        await wakeLockRef.current.release();
+      } catch (err) {
+        console.warn('Screen wakeLock release error:', err);
+      }
+      wakeLockRef.current = null;
+      setIsWakeLockActive(false);
+    }
+  };
+
+  // Re-acquire wake lock if user tabs away and returns during render
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible' && isRendering && !wakeLockRef.current) {
+        await requestWakeLock();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      releaseWakeLock();
+    };
+  }, [isRendering]);
 
   // Quick preset helper to apply optimal viral shorts settings
   const handleSelectBackdrop = (bgId: BackdropStyle) => {
@@ -1792,17 +1853,21 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
           }
         }
 
-        // Draw Channel Logo & Watermark
-        renderChannelLogo(ctx, width, height, previewSceneIndex, logoImageRef.current);
+        if (activeSettingsSection === 'thumbnail' && isCtrTitleEnabled && ctrTitleText.trim()) {
+          drawCtrHookingTitle(ctx, ctrTitleText.trim(), width, height, ctrTitleYPercent, ctrTitleStyle);
+        } else {
+          // Draw Channel Logo & Watermark
+          renderChannelLogo(ctx, width, height, previewSceneIndex, logoImageRef.current);
 
-        // Draw CapCut-style Custom Text Overlays (상단 헤드라인 및 커스텀 자막들)
-        renderCustomTextOverlays(ctx, width, height, previewSceneIndex);
+          // Draw CapCut-style Custom Text Overlays (상단 헤드라인 및 커스텀 자막들)
+          renderCustomTextOverlays(ctx, width, height, previewSceneIndex);
 
-        // Draw Subtitles: CapCut-style dynamic short chunks
-        const previewChunks = getSubtitleChunks(previewText, subtitleTempo);
-        const activeChunkIdx = Math.min(previewChunkIndex, Math.max(0, previewChunks.length - 1));
-        const activeSubtitle = previewChunks[activeChunkIdx] || previewChunks[0];
-        drawSubtitles(ctx, activeSubtitle, width, height);
+          // Draw Subtitles: CapCut-style dynamic short chunks
+          const previewChunks = getSubtitleChunks(previewText, subtitleTempo);
+          const activeChunkIdx = Math.min(previewChunkIndex, Math.max(0, previewChunks.length - 1));
+          const activeSubtitle = previewChunks[activeChunkIdx] || previewChunks[0];
+          drawSubtitles(ctx, activeSubtitle, width, height);
+        }
       } catch (err) {
         console.warn('Live preview canvas error:', err);
       }
@@ -1832,6 +1897,11 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     height,
     customTextOverlays,
     channelLogo,
+    activeSettingsSection,
+    isCtrTitleEnabled,
+    ctrTitleText,
+    ctrTitleStyle,
+    ctrTitleYPercent,
   ]);
 
   if (!isOpen) return null;
@@ -2155,9 +2225,280 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     }
   };
 
+  // Helper: Wrap text for high-impact CTR headline
+  const wrapTitleText = (c: CanvasRenderingContext2D, text: string, maxWidth: number): string[] => {
+    const rawLines = text.split('\n');
+    const result: string[] = [];
+    for (const rawLine of rawLines) {
+      const trimmed = rawLine.trim();
+      if (!trimmed) continue;
+      const words = trimmed.split(' ');
+      let current = '';
+      for (let i = 0; i < words.length; i++) {
+        const testLine = current ? `${current} ${words[i]}` : words[i];
+        if (c.measureText(testLine).width <= maxWidth) {
+          current = testLine;
+        } else {
+          if (current) result.push(current);
+          current = words[i];
+        }
+      }
+      if (current) result.push(current);
+    }
+    return result.length > 0 ? result : [text];
+  };
+
+  // Helper: Draw high-impact "대문짝 CTR 후킹 타이틀"
+  const drawCtrHookingTitle = (
+    c: CanvasRenderingContext2D,
+    title: string,
+    w: number,
+    h: number,
+    yPercent: number,
+    style: 'yt_yellow' | 'netflix_red' | 'neon_cyan' | 'black_capsule'
+  ) => {
+    c.save();
+    const centerY = (h * yPercent) / 100;
+    const maxWidth = w * 0.86;
+
+    // Font setting: ultra-bold impactful headline font
+    const fontSize = 84;
+    c.font = `900 ${fontSize}px "Pretendard", "Black Han Sans", "GmarketSans", sans-serif`;
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+
+    const lines = wrapTitleText(c, title, maxWidth);
+    const lineHeight = fontSize * 1.28;
+    const totalBlockHeight = lines.length * lineHeight;
+    const startY = centerY - totalBlockHeight / 2 + lineHeight / 2;
+
+    if (style === 'netflix_red') {
+      const paddingX = 46;
+      const paddingY = 28;
+      let maxW = 0;
+      lines.forEach(l => {
+        const lw = c.measureText(l).width;
+        if (lw > maxW) maxW = lw;
+      });
+      const boxW = Math.min(w * 0.92, maxW + paddingX * 2);
+      const boxH = totalBlockHeight + paddingY * 2;
+      const boxX = (w - boxW) / 2;
+      const boxY = centerY - boxH / 2;
+
+      c.shadowColor = 'rgba(0,0,0,0.7)';
+      c.shadowBlur = 30;
+      c.shadowOffsetY = 10;
+      c.fillStyle = '#E11D48';
+      c.beginPath();
+      c.roundRect(boxX, boxY, boxW, boxH, 24);
+      c.fill();
+
+      c.shadowColor = 'rgba(0,0,0,0.85)';
+      c.shadowBlur = 8;
+      c.fillStyle = '#FFFFFF';
+      lines.forEach((line, idx) => {
+        c.fillText(line, w / 2, startY + idx * lineHeight);
+      });
+    } else if (style === 'neon_cyan') {
+      const paddingX = 44;
+      const paddingY = 28;
+      let maxW = 0;
+      lines.forEach(l => {
+        const lw = c.measureText(l).width;
+        if (lw > maxW) maxW = lw;
+      });
+      const boxW = Math.min(w * 0.92, maxW + paddingX * 2);
+      const boxH = totalBlockHeight + paddingY * 2;
+      const boxX = (w - boxW) / 2;
+      const boxY = centerY - boxH / 2;
+
+      c.shadowColor = 'rgba(6, 182, 212, 0.9)';
+      c.shadowBlur = 35;
+      c.fillStyle = 'rgba(10, 15, 29, 0.92)';
+      c.beginPath();
+      c.roundRect(boxX, boxY, boxW, boxH, 24);
+      c.fill();
+
+      c.strokeStyle = '#06B6D4';
+      c.lineWidth = 5;
+      c.stroke();
+
+      c.shadowColor = 'rgba(6, 182, 212, 0.8)';
+      c.shadowBlur = 16;
+      c.fillStyle = '#E0F2FE';
+      lines.forEach((line, idx) => {
+        c.fillText(line, w / 2, startY + idx * lineHeight);
+      });
+    } else if (style === 'black_capsule') {
+      const paddingX = 44;
+      const paddingY = 28;
+      let maxW = 0;
+      lines.forEach(l => {
+        const lw = c.measureText(l).width;
+        if (lw > maxW) maxW = lw;
+      });
+      const boxW = Math.min(w * 0.92, maxW + paddingX * 2);
+      const boxH = totalBlockHeight + paddingY * 2;
+      const boxX = (w - boxW) / 2;
+      const boxY = centerY - boxH / 2;
+
+      c.shadowColor = 'rgba(0, 0, 0, 0.8)';
+      c.shadowBlur = 30;
+      c.fillStyle = 'rgba(15, 23, 42, 0.94)';
+      c.beginPath();
+      c.roundRect(boxX, boxY, boxW, boxH, 24);
+      c.fill();
+
+      c.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+      c.lineWidth = 3;
+      c.stroke();
+
+      c.shadowColor = 'rgba(0, 0, 0, 0.9)';
+      c.shadowBlur = 8;
+      c.fillStyle = '#FFFFFF';
+      lines.forEach((line, idx) => {
+        c.fillText(line, w / 2, startY + idx * lineHeight);
+      });
+    } else {
+      // 'yt_yellow' (YouTube #1 CTR Impact)
+      c.shadowColor = 'rgba(0, 0, 0, 0.95)';
+      c.shadowBlur = 24;
+      c.shadowOffsetY = 10;
+
+      lines.forEach((line, idx) => {
+        const lineY = startY + idx * lineHeight;
+        // Stroke
+        c.strokeStyle = '#000000';
+        c.lineWidth = 20;
+        c.lineJoin = 'round';
+        c.miterLimit = 2;
+        c.strokeText(line, w / 2, lineY);
+
+        // Fill
+        c.fillStyle = '#FDE047';
+        c.fillText(line, w / 2, lineY);
+      });
+    }
+
+    c.restore();
+  };
+
+  // 1-Second Thumbnail Generation
+  const generateThumbnailCanvas = async (sceneIdx: number): Promise<HTMLCanvasElement | null> => {
+    const thumbCanvas = document.createElement('canvas');
+    thumbCanvas.width = 1080;
+    thumbCanvas.height = 1920;
+    const c = thumbCanvas.getContext('2d');
+    if (!c) return null;
+
+    const targetScene = scenes[sceneIdx] || scenes[0];
+    const imgSrc = targetScene?.imageUrl || targetScene?.image || getSceneFallbackImage(sceneIdx, targetScene?.keyword, targetScene?.text);
+    const img = await loadImage(imgSrc);
+
+    // Draw scene photo using selected aspect ratio and backdrop
+    drawSceneImage(c, img, 1080, 1920, 0, 'static');
+
+    // Vignette shading
+    if (backdropStyle !== 'card_white' && backdropStyle !== 'card_black') {
+      const topGrad = c.createLinearGradient(0, 0, 0, 1920 * 0.38);
+      topGrad.addColorStop(0, 'rgba(0,0,0,0.85)');
+      topGrad.addColorStop(1, 'rgba(0,0,0,0)');
+      c.fillStyle = topGrad;
+      c.fillRect(0, 0, 1080, 1920 * 0.38);
+
+      const bottomGrad = c.createLinearGradient(0, 1920 * 0.65, 0, 1920);
+      bottomGrad.addColorStop(0, 'rgba(0,0,0,0)');
+      bottomGrad.addColorStop(1, 'rgba(0,0,0,0.88)');
+      c.fillStyle = bottomGrad;
+      c.fillRect(0, 1920 * 0.65, 1080, 1920 * 0.35);
+    }
+
+    if (isCtrTitleEnabled && ctrTitleText.trim()) {
+      drawCtrHookingTitle(c, ctrTitleText.trim(), 1080, 1920, ctrTitleYPercent, ctrTitleStyle);
+    } else {
+      // Draw standard overlays and subtitles
+      renderChannelLogo(c, 1080, 1920, sceneIdx, logoImageRef.current);
+      renderCustomTextOverlays(c, 1080, 1920, sceneIdx);
+      const chunks = getSubtitleChunks(targetScene?.text || '', subtitleTempo);
+      if (chunks.length > 0) {
+        drawSubtitles(c, chunks[0], 1080, 1920);
+      }
+    }
+
+    return thumbCanvas;
+  };
+
+  const handleDownloadThumbnail = async (sceneIdx: number = thumbnailSceneIndex) => {
+    setIsExtractingThumbnail(true);
+    try {
+      const canvas = await generateThumbnailCanvas(sceneIdx);
+      if (!canvas) return;
+      const orderNum = String(sceneIdx + 1).padStart(2, '0');
+      const fileName = `Untold_Thumbnail_Scene${orderNum}_${project.figureName}_1080x1920.png`;
+      const link = document.createElement('a');
+      link.download = fileName;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      setThumbnailToast(`🎉 ${sceneIdx + 1}번 씬 1초 HD 썸네일 다운로드 완료!`);
+      setTimeout(() => setThumbnailToast(null), 3500);
+    } catch (err) {
+      console.warn('Thumbnail download error:', err);
+    } finally {
+      setIsExtractingThumbnail(false);
+    }
+  };
+
+  const handleShareThumbnail = async (sceneIdx: number = thumbnailSceneIndex) => {
+    setIsExtractingThumbnail(true);
+    try {
+      const canvas = await generateThumbnailCanvas(sceneIdx);
+      if (!canvas) return;
+      const orderNum = String(sceneIdx + 1).padStart(2, '0');
+      const fileName = `Untold_Thumbnail_Scene${orderNum}_${project.figureName}.png`;
+      const shareTitle = `${project.figureName} 쇼츠 표지 썸네일`;
+      const shareText = ctrTitleText || `${project.figureName} 쇼츠`;
+
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        const file = new File([blob], fileName, { type: 'image/png' });
+
+        if (typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: shareTitle,
+              text: shareText,
+            });
+            return;
+          } catch (err: any) {
+            if (err.name === 'AbortError') return;
+          }
+        }
+
+        // Fallback: clipboard & download
+        try {
+          if (typeof navigator !== 'undefined' && navigator.clipboard) {
+            await navigator.clipboard.writeText(shareText);
+            setThumbnailToast('📋 텍스트가 복사되었으며 썸네일을 다운로드합니다!');
+            setTimeout(() => setThumbnailToast(null), 3500);
+          }
+        } catch (e) {
+          // ignore
+        }
+        handleDownloadThumbnail(sceneIdx);
+      }, 'image/png');
+    } catch (err) {
+      console.warn('Share thumbnail error:', err);
+      handleDownloadThumbnail(sceneIdx);
+    } finally {
+      setIsExtractingThumbnail(false);
+    }
+  };
+
   const startRendering = async () => {
     if (!canvasRef.current || scenes.length === 0) return;
     setIsRendering(true);
+    await requestWakeLock();
     setRenderProgress(0);
     setStatusMessage('에셋 사진 다운로드 및 내레이션 음성 합성 준비 중...');
     setVideoBlobUrl(null);
@@ -2403,6 +2744,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       setVideoBlobUrl(url);
       setPreviewViewMode('video');
       setIsRendering(false);
+      await releaseWakeLock();
       setStatusMessage(`쇼츠 영상 제작 완료! (총 ${Math.round(totalVideoSec)}초 - 갤러리 및 카카오톡 전송 시 전체 길이 완벽 유지)`);
       setRenderProgress(100);
 
@@ -2721,66 +3063,78 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
           <button onClick={() => setSaveSuccessMsg(null)} className="text-emerald-600 hover:text-emerald-900 font-bold px-2 py-0.5">✕</button>
         </div>
       )}
-          {/* Settings Navigation Tabs (5 Sections) */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200 text-xs font-bold">
+          {/* Settings Navigation Tabs (6 Sections) */}
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200 text-xs font-bold">
             <button
               onClick={() => setActiveSettingsSection('ratio')}
-              className={`py-2 px-2 rounded-xl transition flex items-center justify-center space-x-1.5 cursor-pointer ${
+              className={`py-2 px-1.5 rounded-xl transition flex items-center justify-center space-x-1 cursor-pointer ${
                 activeSettingsSection === 'ratio'
                   ? 'bg-white text-indigo-700 shadow-2xs font-black ring-1 ring-slate-200'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <Square className="w-3.5 h-3.5 text-indigo-600" />
+              <Square className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
               <span className="truncate">프레임 비율</span>
             </button>
 
             <button
               onClick={() => setActiveSettingsSection('overlay')}
-              className={`py-2 px-2 rounded-xl transition flex items-center justify-center space-x-1.5 cursor-pointer relative ${
+              className={`py-2 px-1.5 rounded-xl transition flex items-center justify-center space-x-1 cursor-pointer relative ${
                 activeSettingsSection === 'overlay'
                   ? 'bg-white text-indigo-700 shadow-2xs font-black ring-1 ring-slate-200'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <Layers className="w-3.5 h-3.5 text-rose-500" />
+              <Layers className="w-3.5 h-3.5 text-rose-500 shrink-0" />
               <span className="truncate">자막·로고 ({customTextOverlays.length})</span>
             </button>
 
             <button
               onClick={() => setActiveSettingsSection('subtitle')}
-              className={`py-2 px-2 rounded-xl transition flex items-center justify-center space-x-1.5 cursor-pointer ${
+              className={`py-2 px-1.5 rounded-xl transition flex items-center justify-center space-x-1 cursor-pointer ${
                 activeSettingsSection === 'subtitle'
                   ? 'bg-white text-indigo-700 shadow-2xs font-black ring-1 ring-slate-200'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <Type className="w-3.5 h-3.5 text-indigo-600" />
-              <span className="truncate">나레이션 자막</span>
+              <Type className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+              <span className="truncate">나레이션</span>
             </button>
 
             <button
               onClick={() => setActiveSettingsSection('voice')}
-              className={`py-2 px-2 rounded-xl transition flex items-center justify-center space-x-1.5 cursor-pointer ${
+              className={`py-2 px-1.5 rounded-xl transition flex items-center justify-center space-x-1 cursor-pointer ${
                 activeSettingsSection === 'voice'
                   ? 'bg-white text-indigo-700 shadow-2xs font-black ring-1 ring-slate-200'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <Mic className="w-3.5 h-3.5 text-indigo-600" />
+              <Mic className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
               <span className="truncate">성우 ({voiceSpeedMultiplier}x)</span>
             </button>
 
             <button
+              onClick={() => setActiveSettingsSection('thumbnail')}
+              className={`py-2 px-1.5 rounded-xl transition flex items-center justify-center space-x-1 cursor-pointer ${
+                activeSettingsSection === 'thumbnail'
+                  ? 'bg-white text-amber-700 shadow-2xs font-black ring-1 ring-amber-300'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <ImageIcon className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <span className="truncate">표지 썸네일</span>
+            </button>
+
+            <button
               onClick={() => setActiveSettingsSection('output')}
-              className={`py-2 px-2 rounded-xl transition flex items-center justify-center space-x-1.5 cursor-pointer ${
+              className={`py-2 px-1.5 rounded-xl transition flex items-center justify-center space-x-1 cursor-pointer ${
                 activeSettingsSection === 'output'
                   ? 'bg-white text-indigo-700 shadow-2xs font-black ring-1 ring-slate-200'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <Monitor className="w-3.5 h-3.5 text-indigo-600" />
-              <span className="truncate">해상도</span>
+              <Monitor className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+              <span className="truncate">출력 해상도</span>
             </button>
           </div>
 
@@ -4418,6 +4772,221 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
             )}
 
 
+            {/* SECTION: 1-Second Thumbnail Extractor & CTR Hooking Title Overlay */}
+            {activeSettingsSection === 'thumbnail' && (
+              <div className="space-y-4">
+                {/* Header banner */}
+                <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-500/10 via-rose-500/10 to-indigo-500/10 border border-amber-200/80 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-amber-950 flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-amber-500" />
+                      <span>쇼츠 표지/썸네일 1초 자동 추출 (1080x1920 세로 풀HD)</span>
+                    </span>
+                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-500 text-slate-950">
+                      ⚡ 1초 무손실 PNG
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                    복잡한 캡컷 캡처나 별도 포토샵 작업 없이, 원하는 씬의 9:16 표지 썸네일을 1초 만에 추출하고 유튜브·릴스 클릭률(CTR)을 극대화하는 대문짝 타이틀을 합성합니다.
+                  </p>
+                </div>
+
+                {/* 1. Scene Selection */}
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                      <ImageIcon className="w-4 h-4 text-indigo-600" />
+                      <span>표지로 추출할 씬(장면) 선택</span>
+                    </label>
+                    <span className="text-xs font-bold text-slate-500">
+                      {thumbnailSceneIndex + 1}번 씬 선택됨
+                    </span>
+                  </div>
+                  <div className="flex gap-2 overflow-x-auto pb-1 text-xs">
+                    {scenes.map((sc, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setThumbnailSceneIndex(idx);
+                          setPreviewSceneIndex(idx);
+                        }}
+                        className={`px-3 py-2 rounded-xl shrink-0 font-black transition cursor-pointer border ${
+                          thumbnailSceneIndex === idx
+                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        <span>{idx === 0 ? '⭐ 1번 씬 (추천 도입부)' : `${idx + 1}번 씬`}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 2. CTR Hooking Title Toggle & Customizer */}
+                <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3.5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-black text-slate-900 block flex items-center gap-1.5">
+                        <Tag className="w-4 h-4 text-rose-500" />
+                        <span>대문짝 CTR 후킹 타이틀 합성 모드</span>
+                      </span>
+                      <span className="text-[11px] text-slate-500 font-medium">
+                        유튜브 쇼츠 탐색 피드에서 시선을 한 번에 사로잡는 대문짝 텍스트를 합성합니다.
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsCtrTitleEnabled(!isCtrTitleEnabled)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-black transition border cursor-pointer ${
+                        isCtrTitleEnabled
+                          ? 'bg-rose-600 text-white border-rose-700 shadow-xs'
+                          : 'bg-slate-100 text-slate-400 border-slate-200'
+                      }`}
+                    >
+                      {isCtrTitleEnabled ? 'ON (대문짝 합성)' : 'OFF (원본 자막 유지)'}
+                    </button>
+                  </div>
+
+                  {isCtrTitleEnabled && (
+                    <div className="space-y-3 pt-2 border-t border-slate-100">
+                      {/* Title text input */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-slate-700">후킹 타이틀 문구 입력 (줄바꿈 가능)</label>
+                          <span className="text-[10px] text-slate-400">{ctrTitleText.length}자</span>
+                        </div>
+                        <textarea
+                          rows={2}
+                          value={ctrTitleText}
+                          onChange={(e) => setCtrTitleText(e.target.value)}
+                          placeholder="예: 정비병에서 미슐랭 3스타까지\n안성재 셰프의 충격 실화"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500 resize-none leading-relaxed"
+                        />
+                        {/* Quick preset suggestions */}
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {[
+                            `${project.figureName}의 충격 실화`,
+                            `3초 만에 밝혀진 ${project.figureName}의 비밀`,
+                            `미슐랭 3스타의 감춰진 기적`,
+                            `절대 모르면 후회하는 반전`,
+                          ].map((suggestion, sIdx) => (
+                            <button
+                              key={sIdx}
+                              type="button"
+                              onClick={() => setCtrTitleText(suggestion)}
+                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-600 text-[10px] font-bold transition cursor-pointer"
+                            >
+                              💡 {suggestion}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Style presets */}
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-700 block">CTR 극대화 스타일 프리셋</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {[
+                            { id: 'yt_yellow', name: '🟡 유튜브 옐로우', desc: '두꺼운 블랙 테두리 + 노랑 (CTR 1위)' },
+                            { id: 'netflix_red', name: '🔴 넷플릭스 레드', desc: '강렬한 레드 박스 + 화이트 볼드' },
+                            { id: 'neon_cyan', name: '💎 사이버 네온', desc: '시안 네온 글로우 + 딥 다크 박스' },
+                            { id: 'black_capsule', name: '⚫ 블랙 매트 볼드', desc: '고대비 다크 캡슐 + 화이트 폰트' },
+                          ].map((st) => (
+                            <button
+                              key={st.id}
+                              type="button"
+                              onClick={() => setCtrTitleStyle(st.id as any)}
+                              className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${
+                                ctrTitleStyle === st.id
+                                  ? 'bg-rose-50/70 border-rose-500 ring-1 ring-rose-400'
+                                  : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              <div className="font-black text-xs text-slate-900">{st.name}</div>
+                              <div className="text-[10px] text-slate-500 truncate">{st.desc}</div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Title Y-Position */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-slate-700">타이틀 Y축 높이 위치 ({ctrTitleYPercent}%)</label>
+                          <div className="flex gap-1 text-[10px]">
+                            <button
+                              type="button"
+                              onClick={() => setCtrTitleYPercent(24)}
+                              className={`px-2 py-0.5 rounded font-bold cursor-pointer ${ctrTitleYPercent === 24 ? 'bg-rose-600 text-white' : 'bg-slate-200 text-slate-700'}`}
+                            >
+                              상단 24%
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setCtrTitleYPercent(48)}
+                              className={`px-2 py-0.5 rounded font-bold cursor-pointer ${ctrTitleYPercent === 48 ? 'bg-rose-600 text-white' : 'bg-slate-200 text-slate-700'}`}
+                            >
+                              중앙 48%
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setCtrTitleYPercent(70)}
+                              className={`px-2 py-0.5 rounded font-bold cursor-pointer ${ctrTitleYPercent === 70 ? 'bg-rose-600 text-white' : 'bg-slate-200 text-slate-700'}`}
+                            >
+                              하단 70%
+                            </button>
+                          </div>
+                        </div>
+                        <input
+                          type="range"
+                          min={15}
+                          max={85}
+                          step={1}
+                          value={ctrTitleYPercent}
+                          onChange={(e) => setCtrTitleYPercent(parseInt(e.target.value))}
+                          className="w-full accent-rose-600 cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Action Buttons */}
+                <div className="space-y-2 pt-1">
+                  {thumbnailToast && (
+                    <div className="p-3 rounded-xl bg-emerald-500 text-white font-black text-xs text-center animate-fade-in shadow-md">
+                      {thumbnailToast}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadThumbnail(thumbnailSceneIndex)}
+                      disabled={isExtractingThumbnail}
+                      className="py-3.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/20 transition cursor-pointer active:scale-98 disabled:opacity-50"
+                      title="1080x1920 세로 풀HD 무손실 PNG 다운로드"
+                    >
+                      <Download className="w-4 h-4 text-slate-950" />
+                      <span>{isExtractingThumbnail ? '추출 중...' : '🖼️ 1초 표지 썸네일 HD 다운로드'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleShareThumbnail(thumbnailSceneIndex)}
+                      disabled={isExtractingThumbnail}
+                      className="py-3.5 px-4 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/20 transition cursor-pointer active:scale-98 disabled:opacity-50"
+                      title="모바일 SNS, 인스타그램 스토리, 카카오톡으로 바로 전송"
+                    >
+                      <Share2 className="w-4 h-4 text-white" />
+                      <span>📱 썸네일 SNS/카톡 즉시 공유</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* SECTION 3: Output & Resolution */}
             {activeSettingsSection === 'output' && (
               <div className="space-y-4">
@@ -4512,6 +5081,14 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                       style={{ width: `${renderProgress}%` }}
                     />
                   </div>
+                  {/* Screen Wake Lock Status Badge */}
+                  <div className="flex items-center justify-between pt-1 border-t border-slate-800 text-[10px]">
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-300 font-bold">
+                      <Zap className="w-3 h-3 text-amber-400 animate-pulse" />
+                      <span>{isWakeLockActive ? '⚡ 화면 꺼짐 방지(Screen Wake Lock) 작동 중' : '⚡ 화면 꺼짐 방지 준비 완료'}</span>
+                    </div>
+                    <span className="text-slate-400 font-medium">모바일·PC 절전 꺼짐 보호</span>
+                  </div>
                 </div>
               )}
 
@@ -4527,17 +5104,49 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                       <span>{resolution} 쇼츠 다운로드 ({videoDuration}초)</span>
                     </button>
 
-                    {typeof navigator !== 'undefined' && !!navigator.share && (
+                    <button
+                      type="button"
+                      onClick={handleShareVideo}
+                      className="py-3.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-sm rounded-2xl shadow-md shadow-indigo-600/20 flex items-center justify-center space-x-2 transition cursor-pointer active:scale-98 shrink-0"
+                      title="카카오톡, 인스타그램, 틱톡, 갤러리로 직접 전송"
+                    >
+                      <Share2 className="w-4 h-4" />
+                      <span>📱 SNS/카톡 바로 공유</span>
+                    </button>
+                  </div>
+
+                  {/* 1-Second Thumbnail Quick Action after Video Render */}
+                  <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200 flex items-center justify-between gap-2 shadow-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">🖼️</span>
+                      <div className="text-left">
+                        <div className="font-black text-xs text-amber-950 flex items-center gap-1">
+                          <span>쇼츠 표지 썸네일 (1080x1920)</span>
+                          <span className="px-1.5 py-0.2 rounded bg-amber-200 text-amber-900 text-[9px] font-bold">1초 완성</span>
+                        </div>
+                        <div className="text-[10px] text-amber-700 font-medium">
+                          {isCtrTitleEnabled ? `CTR 대문짝 타이틀 적용됨` : `1번 씬 원본 고화질`}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
                       <button
                         type="button"
-                        onClick={handleShareVideo}
-                        className="py-3.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-sm rounded-2xl shadow-md shadow-indigo-600/20 flex items-center justify-center space-x-2 transition cursor-pointer active:scale-98 shrink-0"
-                        title="카카오톡, 인스타그램, 틱톡, 갤러리로 직접 전송"
+                        onClick={() => handleDownloadThumbnail(thumbnailSceneIndex)}
+                        disabled={isExtractingThumbnail}
+                        className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-50"
                       >
-                        <Share2 className="w-4 h-4" />
-                        <span>SNS/카톡 바로 공유</span>
+                        HD 다운로드
                       </button>
-                    )}
+                      <button
+                        type="button"
+                        onClick={() => handleShareThumbnail(thumbnailSceneIndex)}
+                        disabled={isExtractingThumbnail}
+                        className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-50"
+                      >
+                        📱 공유
+                      </button>
+                    </div>
                   </div>
 
                   {onSaveProject && (

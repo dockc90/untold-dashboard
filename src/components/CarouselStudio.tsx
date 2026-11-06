@@ -909,6 +909,46 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
     link.click();
   };
 
+  // 2026 Mobile Instant Share (Web Share API)
+  const handleShareSlide = async () => {
+    const canvas = await renderSlideCanvas(currentSlideIndex);
+    if (!canvas) return;
+    const slide = slides[currentSlideIndex];
+    const orderNum = String(slide.slideNumber).padStart(2, '0');
+    const fileName = `${orderNum}_${slide.type}_${topic}.png`;
+    const shareText = `${slide.mainHook || topic}\n\n${slide.subDetail || ''}`;
+
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+      const file = new File([blob], fileName, { type: 'image/png' });
+
+      if (typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: `${topic} - 카드 ${slide.slideNumber}`,
+            text: shareText,
+          });
+          return;
+        } catch (err: any) {
+          if (err.name === 'AbortError') return;
+        }
+      }
+
+      // Fallback: clipboard copy and image download
+      try {
+        if (typeof navigator !== 'undefined' && navigator.clipboard) {
+          await navigator.clipboard.writeText(shareText);
+          setScriptToast('📋 카드 본문이 클립보드에 복사되었으며 이미지를 다운로드합니다!');
+          setTimeout(() => setScriptToast(null), 3500);
+        }
+      } catch (clipErr) {
+        // ignore
+      }
+      drawAndDownloadSlide();
+    }, 'image/png');
+  };
+
   // 2026 Batch Export: Download All Slides Sequentially
   const downloadAllSlides = async () => {
     if (slides.length === 0 || isExportingAll) return;
@@ -1377,6 +1417,16 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
             </div>
 
             <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={handleShareSlide}
+                className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs flex items-center gap-1.5 shadow-md transition cursor-pointer active:scale-95"
+                title="인스타그램, 카카오톡, 틱톡, 갤러리로 즉시 전송"
+              >
+                <Share2 className="w-4 h-4 text-white" />
+                <span>📱 즉시 공유</span>
+              </button>
+
               <button
                 onClick={drawAndDownloadSlide}
                 className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs flex items-center gap-1.5 shadow-md transition cursor-pointer"
