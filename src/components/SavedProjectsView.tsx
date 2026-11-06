@@ -67,6 +67,10 @@ export const SavedProjectsView: React.FC<SavedProjectsViewProps> = ({
   const [syncStatusMsg, setSyncStatusMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const [pairedSyncCode, setPairedSyncCode] = useState<string | null>(() => {
+    return typeof window !== 'undefined' ? localStorage.getItem('untold_paired_sync_code') : null;
+  });
+
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
@@ -94,8 +98,11 @@ export const SavedProjectsView: React.FC<SavedProjectsViewProps> = ({
     try {
       const code = await createSyncCodeOnServer(projects);
       if (code) {
+        const clean = code.replace(/[^0-9]/g, '');
         setGeneratedSyncCode(code);
-        setSyncStatusMsg(`🔑 6자리 동기화 코드 발급 완료: [ ${code} ] (PC에서 입력 시 즉시 연동)`);
+        setPairedSyncCode(clean);
+        localStorage.setItem('untold_paired_sync_code', clean);
+        setSyncStatusMsg(`🔑 연동 채널 등록 완료: [ ${code} ] (이제 새로고침만 해도 바로 최신 내용이 자동 동기화됩니다!)`);
       } else {
         setSyncStatusMsg('동기화 코드 생성에 실패했습니다. 다시 시도해 주세요.');
       }
@@ -106,7 +113,7 @@ export const SavedProjectsView: React.FC<SavedProjectsViewProps> = ({
     }
   };
 
-  // Fetch projects from 6-digit Sync Code
+  // Fetch projects from 6-digit Sync Code and permanently pair this device
   const handleApplySyncCode = async () => {
     const cleanCode = inputSyncCode.replace(/[^0-9]/g, '');
     if (cleanCode.length !== 6) {
@@ -114,12 +121,14 @@ export const SavedProjectsView: React.FC<SavedProjectsViewProps> = ({
       return;
     }
 
-    setSyncStatusMsg('⏳ 동기화 코드 프로젝트 조회 중...');
+    setSyncStatusMsg('⏳ 동기화 코드 프로젝트 조회 및 기기 페어링 중...');
     try {
       const imported = await fetchProjectsBySyncCode(cleanCode);
       if (imported && imported.length > 0) {
         onImportProjects?.(imported);
-        setSyncStatusMsg(`🎉 성공! ${imported.length}개의 프로젝트가 즉시 연동 및 보관되었습니다!`);
+        setPairedSyncCode(cleanCode);
+        localStorage.setItem('untold_paired_sync_code', cleanCode);
+        setSyncStatusMsg(`🎉 성공! [${cleanCode.slice(0, 3)}-${cleanCode.slice(3)}] 채널이 기기에 영구 연동되었습니다! (앞으로 새로고침만 해도 최신 내용이 자동 유지됩니다)`);
         setInputSyncCode('');
       } else {
         setSyncStatusMsg('❌ 해당 코드의 프로젝트를 찾을 수 없거나 만료되었습니다.');
@@ -128,6 +137,13 @@ export const SavedProjectsView: React.FC<SavedProjectsViewProps> = ({
       setSyncStatusMsg('동기화 적용 중 오류가 발생했습니다.');
     }
     setTimeout(() => setSyncStatusMsg(null), 5000);
+  };
+
+  const handleUnpairSyncCode = () => {
+    localStorage.removeItem('untold_paired_sync_code');
+    setPairedSyncCode(null);
+    setSyncStatusMsg('🔓 기기 연동이 해제되었습니다.');
+    setTimeout(() => setSyncStatusMsg(null), 3000);
   };
 
   // Export full backup as JSON
@@ -225,6 +241,45 @@ export const SavedProjectsView: React.FC<SavedProjectsViewProps> = ({
           </span>
         </div>
       </div>
+
+      {/* Paired Sync Channel Persistent Badge */}
+      {pairedSyncCode && (
+        <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-indigo-50 border border-emerald-300/80 rounded-2xl p-3 sm:p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-2xs">
+          <div className="flex items-center space-x-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-black text-slate-800">
+                기기 간 자동 연동 중:
+              </span>
+              <span className="font-mono font-black text-sm text-indigo-700 bg-white px-2 py-0.5 rounded-lg border border-indigo-200">
+                {pairedSyncCode.length === 6 ? `${pairedSyncCode.slice(0, 3)}-${pairedSyncCode.slice(3)}` : pairedSyncCode}
+              </span>
+              <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">
+                ⚡ 새로고침 시 바로 최신 동기화
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2 shrink-0">
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="px-2.5 py-1 rounded-xl bg-white hover:bg-emerald-50 text-emerald-700 font-bold text-xs border border-emerald-200 transition cursor-pointer flex items-center space-x-1"
+            >
+              <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span>동기화</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleUnpairSyncCode}
+              className="px-2 py-1 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 font-bold text-xs transition cursor-pointer"
+              title="연동 해제 시 개별 보관함으로 복귀합니다"
+            >
+              연동 해제
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Sync Status Banner */}
       {syncStatusMsg && (

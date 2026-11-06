@@ -62,6 +62,7 @@ interface VideoRendererModalProps {
   onBackToEditor?: () => void;
   onBackToTrends?: () => void;
   onUpdateProject?: (updated: ShortsProject) => void;
+  onSaveProject?: (project: ShortsProject) => Promise<void> | void;
 }
 
 const SPEED_PRESETS = [0.8, 1.0, 1.1, 1.2, 1.3, 1.5];
@@ -282,24 +283,104 @@ export const getSubtitleChunks = (
   return finalChunks.length > 0 ? finalChunks : [clean];
 };
 
-// Direct WebM EBML binary duration patcher (Overwrites Chrome's 3000ms chunk header with true duration)
-export const patchWebmBinaryDuration = (bytes: Uint8Array, targetDurationMs: number): boolean => {
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  let patched = false;
-  // Search for EBML ID 0x4489 (Duration)
-  for (let i = 0; i < bytes.length - 10; i++) {
-    if (bytes[i] === 0x44 && bytes[i + 1] === 0x89) {
-      const sizeByte = bytes[i + 2];
-      if (sizeByte === 0x84) { // 4-byte float (Float32)
-        view.setFloat32(i + 3, targetDurationMs);
-        patched = true;
-      } else if (sizeByte === 0x88) { // 8-byte float (Float64)
-        view.setFloat64(i + 3, targetDurationMs);
-        patched = true;
+// Direct WebM EBML binary duration & Segment patcher
+// Fixes Android Stagefright / Samsung Gallery / KakaoTalk "00:12 / 00:03" metadata bug by:
+// 1. Overwriting Duration float (Float64 or Float32) with true target duration in milliseconds
+// 2. Patching unknown Segment size (0x01FFFFFFFFFFFFFF) with exact byte length so Android MatroskaExtractor can seek to all clusters
+export const patchWebmBinaryDuration = (bytes: Uint8Array, targetDurationMs: number): Uint8Array => {
+  try {
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    let patchedDuration = false;
+
+    // 1. Search and patch EBML ID 0x4489 (Duration)
+    for (let i = 0; i < bytes.length - 12; i++) {
+      if (bytes[i] === 0x44 && bytes[i + 1] === 0x89) {
+        const sizeByte = bytes[i + 2];
+        if (sizeByte === 0x84) { // 4-byte float (Float32)
+          view.setFloat32(i + 3, targetDurationMs);
+          patchedDuration = true;
+        } else if (sizeByte === 0x88) { // 8-byte float (Float64)
+          view.setFloat64(i + 3, targetDurationMs);
+          patchedDuration = true;
+        } else if (sizeByte === 0x40 && bytes[i + 3] === 0x08) { // 2-byte VINT Float64
+          view.setFloat64(i + 4, targetDurationMs);
+          patchedDuration = true;
+        } else if (sizeByte === 0x40 && bytes[i + 3] === 0x04) { // 2-byte VINT Float32
+          view.setFloat32(i + 4, targetDurationMs);
+          patchedDuration = true;
+        }
       }
     }
+
+    // 2. Search Segment header (0x18 0x53 0x80 0x67) and patch Unknown size to exact length
+    for (let i = 0; i < Math.min(bytes.length - 12, 500); i++) {
+      if (bytes[i] === 0x18 && bytes[i + 1] === 0x53 && bytes[i + 2] === 0x80 && bytes[i + 3] === 0x67) {
+        // Check if Segment length is 8-byte unknown VINT: 0x01 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF
+        if (bytes[i + 4] === 0x01 && bytes[i + 5] === 0xFF && bytes[i + 6] === 0xFF && bytes[i + 7] === 0xFF) {
+          const actualSegDataSize = bytes.length - (i + 12);
+          if (actualSegDataSize > 0) {
+            // Write 8-byte VINT with high bit marker 0x01
+            try {
+              const highPart = (0x01 << 24) | Math.floor(actualSegDataSize / 0x100000000);
+              const lowPart = actualSegDataSize >>> 0;
+              view.setUint32(i + 4, highPart);
+              view.setUint32(i + 8, lowPart);
+            } catch (e) {}
+          }
+        }
+        break;
+      }
+    }
+
+    // 3. If Duration was NOT found at all, inject Duration (0x4489 + 8-byte float) directly into Info container (0x1549A966)
+    if (!patchedDuration) {
+      let infoOffset = -1;
+      for (let i = 0; i < Math.min(bytes.length - 16, 2048); i++) {
+        if (bytes[i] === 0x15 && bytes[i + 1] === 0x49 && bytes[i + 2] === 0xA9 && bytes[i + 3] === 0x66) {
+          infoOffset = i;
+          break;
+        }
+      }
+
+      if (infoOffset !== -1) {
+        // Read Info container VINT size
+        let infoSizeLen = 1;
+        const b = bytes[infoOffset + 4];
+        if (b & 0x80) infoSizeLen = 1;
+        else if (b & 0x40) infoSizeLen = 2;
+        else if (b & 0x20) infoSizeLen = 3;
+        else if (b & 0x10) infoSizeLen = 4;
+
+        const infoContentStart = infoOffset + 4 + infoSizeLen;
+        // Build 11-byte Duration element: [0x44, 0x89, 0x88, 8-byte Float64]
+        const durTag = new Uint8Array(11);
+        durTag[0] = 0x44;
+        durTag[1] = 0x89;
+        durTag[2] = 0x88; // 8-byte Float64
+        new DataView(durTag.buffer).setFloat64(3, targetDurationMs);
+
+        // Splice durTag right at the start of Info container content
+        const newBytes = new Uint8Array(bytes.length + 11);
+        newBytes.set(bytes.subarray(0, infoContentStart), 0);
+        newBytes.set(durTag, infoContentStart);
+        newBytes.set(bytes.subarray(infoContentStart), infoContentStart + 11);
+
+        // Update Info container size in newBytes
+        if (infoSizeLen === 1 && (b & 0x80)) {
+          const oldSize = b & 0x7F;
+          if (oldSize + 11 < 0x7F) {
+            newBytes[infoOffset + 4] = 0x80 | (oldSize + 11);
+          }
+        }
+        return newBytes;
+      }
+    }
+
+    return bytes;
+  } catch (err) {
+    console.warn('patchWebmBinaryDuration error:', err);
+    return bytes;
   }
-  return patched;
 };
 
 // Helper: Shortens and formats long YouTube titles into punchy 2-line viral reels headlines
@@ -780,6 +861,45 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   const [videoDuration, setVideoDuration] = useState(0);
   const [previewViewMode, setPreviewViewMode] = useState<'live' | 'video'>('live');
   const [previewSceneIndex, setPreviewSceneIndex] = useState(0);
+
+  // Step 3 Vault Save States
+  const [isSavingToVault, setIsSavingToVault] = useState(false);
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+
+  const handleSaveToVault = async () => {
+    if (!onSaveProject) return;
+    setIsSavingToVault(true);
+    setSaveSuccessMsg(null);
+    try {
+      const updatedProj: ShortsProject = {
+        ...project,
+        customTextOverlays,
+        channelLogoOverlay: channelLogo,
+        backdropStyle,
+        photoAspectRatio,
+        videoTone,
+        subtitleTempo,
+        selectedVoiceId,
+        voiceSpeedMultiplier,
+        elevenLabsModel,
+        elevenLabsSettings: {
+          stability: elevenLabsStability,
+          similarityBoost: elevenLabsSimilarity,
+          style: elevenLabsStyle,
+          useSpeakerBoost: elevenLabsSpeakerBoost,
+        },
+        isSaved: true,
+      };
+      await onSaveProject(updatedProj);
+      setSaveSuccessMsg('💾 보관함에 안전하게 저장되었습니다!');
+      setTimeout(() => setSaveSuccessMsg(null), 3500);
+    } catch (e) {
+      setSaveSuccessMsg('보관함 저장 중 오류가 발생했습니다.');
+      setTimeout(() => setSaveSuccessMsg(null), 3500);
+    } finally {
+      setIsSavingToVault(false);
+    }
+  };
 
   // Scene Live Audio & Subtitle Sync Preview States
   const [isPlayingSceneSync, setIsPlayingSceneSync] = useState(false);
@@ -2125,6 +2245,10 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     };
 
     mediaRecorder.onstop = async () => {
+      if (renderIntervalId) {
+        clearInterval(renderIntervalId);
+        renderIntervalId = null;
+      }
       const finalBlobType = chosenMime || 'video/mp4';
       let blob = new Blob(recordedChunksRef.current, { type: finalBlobType });
       const durationMs = totalVideoSec * 1000;
@@ -2132,17 +2256,17 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       // Patch duration metadata so Gallery, KakaoTalk, and Instagram read the full video length (never 3s!)
       try {
         if (finalBlobType.includes('webm')) {
-          // 1. Run fixWebmDuration library first
+          // 1. Run fixWebmDuration library
           try {
             blob = await fixWebmDuration(blob, durationMs);
           } catch (e) {
             console.warn('fixWebmDuration lib error:', e);
           }
-          // 2. ALWAYS force-patch WebM binary Duration float (so Chrome\'s initial 3000ms is never left unpatched!)
+          // 2. ALWAYS force-patch WebM binary Duration float and Segment size
           const arrayBuffer = await blob.arrayBuffer();
           const bytes = new Uint8Array(arrayBuffer);
-          patchWebmBinaryDuration(bytes, durationMs);
-          blob = new Blob([bytes], { type: finalBlobType });
+          const patchedBytes = patchWebmBinaryDuration(bytes, durationMs);
+          blob = new Blob([patchedBytes], { type: finalBlobType });
         } else {
           blob = await fixMp4Duration(blob, totalVideoSec);
         }
@@ -2205,6 +2329,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
     // 8. Video Rendering Frame Loop SLAVED TO audioCtx.currentTime
     let lastProgressUpdateTime = 0;
+    let renderIntervalId: any = null;
 
     const renderFrame = () => {
       // MASTER CLOCK: exact hardware audio seconds elapsed since audio playback began
@@ -2214,6 +2339,10 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       const clampedElapsed = Math.max(0, elapsedSec);
 
       if (clampedElapsed >= totalVideoSec) {
+        if (renderIntervalId) {
+          clearInterval(renderIntervalId);
+          renderIntervalId = null;
+        }
         // Redraw last scene frame cleanly before final cut
         const lastIdx = scenes.length - 1;
         drawSceneImage(ctx, loadedImages[lastIdx], width, height, 0.999, scenes[lastIdx]?.motionEffect || 'zoom_in', precomputedBackdrops[lastIdx]);
@@ -2227,23 +2356,31 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         return;
       }
 
-      // Determine active scene strictly by AudioContext elapsed seconds
+      // Determine active scene strictly by AudioContext elapsed seconds with exact bounds
+      // Prevents any scene from lingering too long or overlapping subsequent scenes!
       let activeIdx = 0;
-      for (let i = scenes.length - 1; i >= 0; i--) {
-        if (clampedElapsed >= sceneStartTimesSec[i]) {
+      for (let i = 0; i < scenes.length; i++) {
+        const sStart = sceneStartTimesSec[i];
+        const sEnd = i < scenes.length - 1 ? sceneStartTimesSec[i + 1] : totalVideoSec;
+        if (clampedElapsed >= sStart && clampedElapsed < sEnd) {
+          activeIdx = i;
+          break;
+        }
+        if (i === scenes.length - 1 && clampedElapsed >= sStart) {
           activeIdx = i;
           break;
         }
       }
 
       const scene = scenes[activeIdx];
-      const img = loadedImages[activeIdx];
+      const img = loadedImages[activeIdx] || loadedImages[0];
       const sceneStartTime = sceneStartTimesSec[activeIdx];
-      const sceneDuration = sceneDurationsSec[activeIdx];
-      const timeInScene = Math.max(0, clampedElapsed - sceneStartTime);
-      const progressInScene = Math.min(0.999, Math.max(0, timeInScene / sceneDuration));
+      const nextStartTime = activeIdx < scenes.length - 1 ? sceneStartTimesSec[activeIdx + 1] : totalVideoSec;
+      const actualSceneDuration = Math.max(0.1, nextStartTime - sceneStartTime);
+      const timeInScene = Math.max(0, Math.min(actualSceneDuration, clampedElapsed - sceneStartTime));
+      const progressInScene = Math.min(0.999, Math.max(0, timeInScene / actualSceneDuration));
 
-      const motion: MotionEffectType = scene.motionEffect || 'zoom_in';
+      const motion: MotionEffectType = scene?.motionEffect || 'zoom_in';
 
       // Draw scene photo with user-selected aspect ratio, precomputed backdrop (0ms CPU cost), and motion
       drawSceneImage(ctx, img, width, height, progressInScene, motion, precomputedBackdrops[activeIdx]);
@@ -2288,7 +2425,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
           activeSubtitleText = currentTimings[0].text;
         }
       } else {
-        activeSubtitleText = scene.narration;
+        activeSubtitleText = scene?.narration || '';
       }
 
       // Draw custom subtitles for current chunk
@@ -2307,85 +2444,97 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       animationFrameRef.current = requestAnimationFrame(renderFrame);
     };
 
+    // Keep active frame pumping even if tab is blurred or throttled
+    renderIntervalId = setInterval(() => {
+      if (mediaRecorder.state === 'recording') {
+        renderFrame();
+      }
+    }, 33);
+
     renderFrame();
   };
 
   const handleDownload = (preferredExt?: 'mp4' | 'webm') => {
     if (!videoBlobUrl) return;
     const isWebm = (videoBlobType || '').includes('webm');
-    // Ensure MP4 extension is default so mobile gallery & KakaoTalk treat it as standard playable video!
-    const ext = preferredExt || (isWebm ? 'mp4' : 'mp4');
+    // Ensure accurate file extension matching video stream encoding
+    const ext = preferredExt || (isWebm ? 'webm' : 'mp4');
     const a = document.createElement('a');
     a.href = videoBlobUrl;
     a.download = `Untold_${project.figureName}_${resolution}.${ext}`;
     a.click();
   };
 
-  const handleShareToMobile = async () => {
-    if (!videoBlobFile) {
-      handleDownload();
-      return;
-    }
-    const fileName = `Untold_${project.figureName}_${resolution}.mp4`;
-    // Explicitly designate as standard video/mp4 file for native share sheet & KakaoTalk
-    const file = new File([videoBlobFile], fileName, { type: 'video/mp4' });
-
-    if (typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files: [file] })) {
-      try {
-        await navigator.share({
-          files: [file],
-          title: `${project.figureName} 쇼츠 영상`,
-          text: `${project.figureName} 쇼츠 영상 (전체 ${videoDuration}초)`,
-        });
-      } catch (err: any) {
-        if (err.name !== 'AbortError') {
-          handleDownload();
-        }
-      }
-    } else {
-      handleDownload();
-    }
-  };
-
   const modalHeaderContent = (
-    <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 px-5 sm:px-7 py-3.5 flex items-center justify-between shrink-0">
-      <div className="flex items-center space-x-3">
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-rose-500 via-amber-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
-          <Film className="w-5 h-5" />
+    <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 px-3 sm:px-7 py-2.5 sm:py-3.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 shrink-0">
+      <div className="flex items-center space-x-2.5 min-w-0">
+        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-rose-500 via-amber-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 shrink-0">
+          <Film className="w-4 h-4 sm:w-5 sm:h-5" />
         </div>
-        <div>
-          <div className="flex items-center space-x-2">
-            <h3 className="text-base sm:text-lg font-black text-slate-900">
-              {project.figureName} 쇼츠 영상 렌더링 & 변환
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <h3 className="text-sm sm:text-lg font-black text-slate-900 truncate">
+              {project.figureName} 쇼츠 영상 스튜디오
             </h3>
-            <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-200">
-              9:16 세로 쇼츠
+            <span className="text-[10px] sm:text-[11px] font-black px-1.5 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-200 shrink-0">
+              9:16 쇼츠
             </span>
-            <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
-              사진: {photoAspectRatio === '1:1' ? '1:1 정사각형 카드' : photoAspectRatio === '9:16' ? '전체 풀채움' : photoAspectRatio}
+            <span className="text-[10px] sm:text-[11px] font-black px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 shrink-0">
+              {photoAspectRatio === '1:1' ? '1:1 카드' : photoAspectRatio === '9:16' ? '풀채움' : photoAspectRatio}
             </span>
           </div>
-          <p className="text-xs text-slate-500 font-medium">
+          <p className="hidden sm:block text-xs text-slate-500 font-medium truncate">
             음성-화면 100% 싱크 동기화 + 긴 자막 화면 유지 자동 넘김
           </p>
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={onBackToEditor || onClose}
-        disabled={isRendering}
-        className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-600 border border-slate-200 font-black text-xs transition disabled:opacity-50 cursor-pointer shadow-2xs"
-        title="대본 스튜디오로 돌아가기"
-      >
-        <ArrowLeft className="w-4 h-4 text-indigo-600" />
-        <span>대본 스튜디오로 복귀</span>
-      </button>
+      <div className="flex items-center justify-end space-x-2 shrink-0">
+        {onSaveProject && (
+          <button
+            type="button"
+            onClick={handleSaveToVault}
+            disabled={isSavingToVault}
+            className="flex items-center space-x-1 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs transition cursor-pointer shadow-xs active:scale-95 disabled:opacity-50"
+            title="현재 설정을 보관함에 저장합니다"
+          >
+            <span>💾</span>
+            <span>{isSavingToVault ? '저장 중...' : '보관함에 보관하기'}</span>
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={onBackToEditor || onClose}
+          disabled={isRendering}
+          className="flex items-center space-x-1 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-600 border border-slate-200 font-black text-xs transition disabled:opacity-50 cursor-pointer shadow-2xs"
+          title="대본 스튜디오로 돌아가기"
+        >
+          <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-600" />
+          <span className="hidden xs:inline">대본 스튜디오로 복귀</span>
+          <span className="xs:hidden">대본 복귀</span>
+        </button>
+      </div>
+
+      {saveSuccessMsg && (
+        <div className="sm:hidden w-full p-2 bg-emerald-50 text-emerald-800 text-xs font-bold rounded-xl border border-emerald-200 text-center animate-fadeIn">
+          {saveSuccessMsg}
+        </div>
+      )}
     </div>
   );
 
   const modalBodyContent = (
-    <div className="overflow-y-auto flex-1 p-5 sm:p-7 space-y-5">
+    <div className="overflow-y-auto flex-1 p-4 sm:p-7 space-y-4 sm:space-y-5">
+      {saveSuccessMsg && (
+        <div className="w-full p-3 bg-emerald-50 text-emerald-900 text-xs font-black rounded-2xl border border-emerald-300 shadow-2xs flex items-center justify-between animate-fadeIn">
+          <div className="flex items-center space-x-2">
+            <span className="text-base">✅</span>
+            <span>{saveSuccessMsg}</span>
+          </div>
+          <button onClick={() => setSaveSuccessMsg(null)} className="text-emerald-600 hover:text-emerald-900 font-bold px-2 py-0.5">✕</button>
+        </div>
+      )}
           {/* Settings Navigation Tabs (6 Sections with CapCut Overlays) */}
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200 text-xs font-bold">
             <button
@@ -4109,13 +4258,27 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
             {/* Bottom Action Buttons */}
             <div className="space-y-2 pt-1">
               {!isRendering ? (
-                <button
-                  onClick={startRendering}
-                  className="w-full py-3.5 px-4 bg-gradient-to-r from-rose-500 via-indigo-600 to-indigo-700 hover:from-rose-600 hover:to-indigo-800 text-white font-black text-sm rounded-2xl shadow-lg shadow-indigo-500/25 flex items-center justify-center space-x-2 transition cursor-pointer"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  <span>{videoBlobUrl ? '다시 음성 포함 영상 변환하기' : '🎬 맞춤 자막 & 음성 포함 쇼츠 변환 시작'}</span>
-                </button>
+                <>
+                  <button
+                    onClick={startRendering}
+                    className="w-full py-3.5 px-4 bg-gradient-to-r from-rose-500 via-indigo-600 to-indigo-700 hover:from-rose-600 hover:to-indigo-800 text-white font-black text-sm rounded-2xl shadow-lg shadow-indigo-500/25 flex items-center justify-center space-x-2 transition cursor-pointer"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span>{videoBlobUrl ? '다시 음성 포함 영상 변환하기' : '🎬 맞춤 자막 & 음성 포함 쇼츠 변환 시작'}</span>
+                  </button>
+
+                  {!videoBlobUrl && onSaveProject && (
+                    <button
+                      type="button"
+                      onClick={handleSaveToVault}
+                      disabled={isSavingToVault || isRendering}
+                      className="w-full py-2.5 px-4 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold text-xs rounded-xl shadow-2xs flex items-center justify-center space-x-1.5 transition cursor-pointer disabled:opacity-50"
+                    >
+                      <span>💾</span>
+                      <span>{isSavingToVault ? '보관함에 저장 중...' : '현재 설정 보관함에 보관하기'}</span>
+                    </button>
+                  )}
+                </>
               ) : (
                 <div className="p-4 rounded-2xl bg-slate-900 text-white space-y-3">
                   <div className="flex items-center justify-between text-xs font-bold">
@@ -4135,25 +4298,26 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
               )}
 
               {videoBlobUrl && (
-                <div className="space-y-2">
-                  {typeof navigator !== 'undefined' && typeof navigator.share === 'function' && (
-                    <button
-                      type="button"
-                      onClick={handleShareToMobile}
-                      className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-600 hover:opacity-95 text-white font-black text-sm rounded-2xl shadow-lg shadow-indigo-500/20 flex items-center justify-center space-x-2 transition cursor-pointer active:scale-98"
-                    >
-                      <Share2 className="w-4 h-4" />
-                      <span>📲 카톡 / 갤러리 바로 공유 & 저장 (전체 {videoDuration}초 보장)</span>
-                    </button>
-                  )}
-
+                <div className="space-y-2.5">
                   <button
                     onClick={() => handleDownload()}
-                    className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm rounded-2xl shadow-md shadow-emerald-600/20 flex items-center justify-center space-x-2 transition cursor-pointer"
+                    className="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm rounded-2xl shadow-md shadow-emerald-600/20 flex items-center justify-center space-x-2 transition cursor-pointer active:scale-98"
                   >
                     <Download className="w-4 h-4" />
-                    <span>{resolution} 완성 영상 파일 다운로드 (전체 {videoDuration}초 메타데이터 포함)</span>
+                    <span>{resolution} 쇼츠 영상 파일 다운로드 (전체 {videoDuration}초 완벽 저장)</span>
                   </button>
+
+                  {onSaveProject && (
+                    <button
+                      type="button"
+                      onClick={handleSaveToVault}
+                      disabled={isSavingToVault}
+                      className="w-full py-2.5 px-4 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-black text-xs rounded-xl shadow-2xs flex items-center justify-center space-x-1.5 transition cursor-pointer disabled:opacity-50"
+                    >
+                      <span>💾</span>
+                      <span>{isSavingToVault ? '보관함에 저장 중...' : '현재 완성 프로젝트 보관함에 보관하기'}</span>
+                    </button>
+                  )}
                 </div>
               )}
 

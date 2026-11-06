@@ -20,6 +20,7 @@ const memSyncCodes: Map<string, { projects: any[]; expiresAt: number }> = global
 
 const TMP_FILE = path.join('/tmp', 'untold_projects_store.json');
 const TMP_DRAFT_FILE = path.join('/tmp', 'untold_draft_store.json');
+const TMP_SYNC_CODES_FILE = path.join('/tmp', 'untold_sync_codes_store.json');
 
 // Helper to load file persistence into memory
 function loadDiskStore() {
@@ -40,6 +41,20 @@ function loadDiskStore() {
   }
 
   try {
+    if (fs.existsSync(TMP_SYNC_CODES_FILE)) {
+      const content = fs.readFileSync(TMP_SYNC_CODES_FILE, 'utf8');
+      const obj = JSON.parse(content);
+      if (obj && typeof obj === 'object') {
+        for (const [k, v] of Object.entries(obj)) {
+          if (v && !memSyncCodes.has(k)) {
+            memSyncCodes.set(k, v as any);
+          }
+        }
+      }
+    }
+  } catch (e) {}
+
+  try {
     if (!globalStore.__untoldActiveDraft && fs.existsSync(TMP_DRAFT_FILE)) {
       const content = fs.readFileSync(TMP_DRAFT_FILE, 'utf8');
       globalStore.__untoldActiveDraft = JSON.parse(content);
@@ -51,6 +66,14 @@ function saveDiskStore() {
   try {
     const list = Array.from(memProjects.values());
     fs.writeFileSync(TMP_FILE, JSON.stringify(list), 'utf8');
+  } catch (e) {}
+
+  try {
+    const syncObj: Record<string, any> = {};
+    for (const [k, v] of memSyncCodes.entries()) {
+      syncObj[k] = v;
+    }
+    fs.writeFileSync(TMP_SYNC_CODES_FILE, JSON.stringify(syncObj), 'utf8');
   } catch (e) {}
 }
 
@@ -217,7 +240,7 @@ export async function POST(req: Request) {
       const rawCode = Math.floor(100000 + Math.random() * 900000).toString();
       memSyncCodes.set(rawCode, {
         projects: body.projects,
-        expiresAt: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+        expiresAt: Date.now() + 365 * 24 * 60 * 60 * 1000, // 365 days permanent sync
       });
       // Also register all these projects into memProjects
       for (const p of body.projects) {
@@ -263,6 +286,30 @@ export async function POST(req: Request) {
 
     // 1. Save in server-side memory & disk cache (guarantees cross-device sync even without DB)
     memProjects.set(projectId, enrichedProject);
+
+    // 1-b. If a persistent sync_code was provided, also update that device pair channel!
+    const activeSyncCode = body.sync_code || body.syncCode;
+    if (activeSyncCode) {
+      const codeKey = String(activeSyncCode).replace(/[^0-9]/g, '');
+      if (codeKey.length === 6) {
+        const entry = memSyncCodes.get(codeKey);
+        if (entry) {
+          const pIdx = entry.projects.findIndex((p: any) => p && p.id === projectId);
+          if (pIdx >= 0) {
+            entry.projects[pIdx] = enrichedProject;
+          } else {
+            entry.projects.unshift(enrichedProject);
+          }
+          entry.expiresAt = Date.now() + 365 * 24 * 60 * 60 * 1000;
+          memSyncCodes.set(codeKey, entry);
+        } else {
+          memSyncCodes.set(codeKey, {
+            projects: [enrichedProject],
+            expiresAt: Date.now() + 365 * 24 * 60 * 60 * 1000,
+          });
+        }
+      }
+    }
     saveDiskStore();
 
     // 2. Upsert to Supabase if credentials exist

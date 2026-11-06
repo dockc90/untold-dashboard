@@ -110,23 +110,63 @@ export default function App() {
       console.warn('Supabase initial fetch failed, using local cache:', err);
     });
 
-    // 4. Check for URL sync code parameter (?sync_code=123456)
+    // 4. Check for URL sync code parameter (?sync_code=123456) or persistently paired sync code
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
-      const code = params.get('sync_code');
-      if (code) {
-        fetchProjectsBySyncCode(code).then((imported) => {
-          if (imported && imported.length > 0) {
-            handleImportProjects(imported);
-            setCurrentTab('saved');
+      const urlCode = params.get('sync_code');
+      const savedCode = localStorage.getItem('untold_paired_sync_code');
+      const activeCode = urlCode || savedCode;
+
+      if (activeCode) {
+        const cleanCode = activeCode.replace(/[^0-9]/g, '');
+        if (cleanCode.length === 6) {
+          if (urlCode) {
+            localStorage.setItem('untold_paired_sync_code', cleanCode);
           }
-        }).catch(() => {});
+          fetchProjectsBySyncCode(cleanCode).then((imported) => {
+            if (imported && imported.length > 0) {
+              handleImportProjects(imported);
+            }
+          }).catch(() => {});
+        }
       }
+
+      // Auto-sync on window focus (when switching between PC and Phone tabs)
+      const onFocusSync = () => {
+        const paired = localStorage.getItem('untold_paired_sync_code');
+        if (paired) {
+          fetchProjectsBySyncCode(paired).then((imported) => {
+            if (imported && imported.length > 0) {
+              handleImportProjects(imported);
+            }
+          }).catch(() => {});
+        } else {
+          handleSyncRefresh();
+        }
+      };
+      window.addEventListener('focus', onFocusSync);
+      return () => {
+        window.removeEventListener('focus', onFocusSync);
+      };
     }
   }, []);
 
   const handleSyncRefresh = async () => {
     try {
+      // 1. If paired sync code exists, fetch from paired channel first
+      if (typeof window !== 'undefined') {
+        const paired = localStorage.getItem('untold_paired_sync_code');
+        if (paired) {
+          const clean = paired.replace(/[^0-9]/g, '');
+          const imported = await fetchProjectsBySyncCode(clean);
+          if (imported && imported.length > 0) {
+            handleImportProjects(imported);
+            return;
+          }
+        }
+      }
+
+      // 2. Fallback to Supabase cloud fetch
       const cloudProjects = await fetchProjectsFromSupabase();
       if (cloudProjects && cloudProjects.length > 0) {
         setSavedProjects((prev) => {
@@ -666,27 +706,28 @@ export default function App() {
             ) : studioStep === 'editor' ? (
               <div className="flex-1 flex flex-col min-h-0 space-y-4">
                 {/* Step 2 Header Navigation Bar (Responsive on Mobile & Desktop) */}
-                <div className="bg-white rounded-2xl border border-slate-200 p-2.5 sm:p-4 shadow-2xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
-                  <div className="flex items-center justify-between sm:justify-start space-x-2 sm:space-x-3">
+                <div className="bg-white rounded-2xl border border-slate-200 p-2 sm:p-4 shadow-2xs flex flex-col gap-2">
+                  <div className="flex items-center justify-between gap-1.5 min-w-0">
                     <button
                       type="button"
                       onClick={() => {
                         setStudioStep('trends');
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                       }}
-                      className="flex items-center space-x-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-black text-xs transition border border-slate-200 cursor-pointer shadow-2xs shrink-0"
+                      className="flex items-center space-x-1 px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-black text-xs transition border border-slate-200 cursor-pointer shadow-2xs shrink-0"
                     >
-                      <ArrowLeft className="w-3.5 h-3.5 text-indigo-600" />
-                      <span>인물 재선택</span>
+                      <ArrowLeft className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                      <span className="hidden xs:inline">인물 재선택</span>
+                      <span className="xs:hidden">인물 변경</span>
                     </button>
 
-                    <div className="flex items-center space-x-1.5 overflow-hidden">
-                      <span className="text-xs font-black text-slate-900 bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-xl border border-indigo-200 truncate">
+                    <div className="flex items-center space-x-1 min-w-0 overflow-hidden shrink">
+                      <span className="text-[11px] sm:text-xs font-black text-indigo-700 bg-indigo-50 px-2 py-1 rounded-xl border border-indigo-200 truncate">
                         {selectedFigure ? selectedFigure.name : '인물 미선택'}
                       </span>
                       {selectedFigure && (
-                        <span className="text-[11px] font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200 flex items-center gap-1 shrink-0">
-                          <Flame className="w-3 h-3 fill-rose-500 text-rose-500" />
+                        <span className="text-[10px] sm:text-[11px] font-black text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-full border border-rose-200 flex items-center gap-0.5 shrink-0">
+                          <Flame className="w-3 h-3 fill-rose-500 text-rose-500 shrink-0" />
                           <span>{selectedFigure.viralityScore}점</span>
                         </span>
                       )}
@@ -701,25 +742,32 @@ export default function App() {
                           window.scrollTo({ top: 0, behavior: 'smooth' });
                         }
                       }}
-                      className="sm:hidden px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-rose-500 via-indigo-600 to-indigo-700 text-white font-black text-[11px] shadow-xs shrink-0"
+                      className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-rose-500 via-indigo-600 to-indigo-700 hover:from-rose-600 hover:to-indigo-800 text-white font-black text-[11px] sm:text-xs shadow-xs shrink-0 flex items-center space-x-1 cursor-pointer"
                     >
-                      영상 제작 ➔
+                      <span>영상 제작</span>
+                      <span>➔</span>
                     </button>
                   </div>
 
-                  <div className="hidden sm:flex items-center space-x-2 text-xs font-bold text-slate-500">
+                  {/* Step Progress Indicators (Optimized for Mobile & Desktop) */}
+                  <div className="flex items-center justify-between sm:justify-start space-x-1.5 sm:space-x-2 text-[11px] sm:text-xs font-bold text-slate-500 bg-slate-50 sm:bg-transparent p-1.5 sm:p-0 rounded-xl sm:rounded-none border border-slate-200 sm:border-0">
                     <button
                       type="button"
-                      onClick={() => setStudioStep('trends')}
-                      className="text-slate-400 hover:text-indigo-600 transition cursor-pointer"
+                      onClick={() => {
+                        setStudioStep('trends');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className="text-slate-500 hover:text-indigo-600 transition cursor-pointer"
                     >
-                      1단계: 인물 선택
+                      <span className="sm:hidden">1. 인물</span>
+                      <span className="hidden sm:inline">1단계: 인물 선택</span>
                     </button>
-                    <span>➔</span>
-                    <span className="text-indigo-600 font-black bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200">
-                      2단계: 쇼츠 대본 스튜디오
+                    <span className="text-slate-300">➔</span>
+                    <span className="text-indigo-600 font-black bg-indigo-50 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg border border-indigo-200">
+                      <span className="sm:hidden">2. 대본</span>
+                      <span className="hidden sm:inline">2단계: 쇼츠 대본 스튜디오</span>
                     </span>
-                    <span>➔</span>
+                    <span className="text-slate-300">➔</span>
                     <button
                       type="button"
                       onClick={() => {
@@ -729,9 +777,10 @@ export default function App() {
                           window.scrollTo({ top: 0, behavior: 'smooth' });
                         }
                       }}
-                      className="text-slate-400 hover:text-indigo-600 transition cursor-pointer"
+                      className="text-slate-500 hover:text-indigo-600 transition cursor-pointer"
                     >
-                      3단계: 영상 변환 & 저장
+                      <span className="sm:hidden">3. 영상</span>
+                      <span className="hidden sm:inline">3단계: 영상 변환 & 저장</span>
                     </button>
                   </div>
                 </div>
@@ -780,6 +829,7 @@ export default function App() {
                     setCurrentProject(updated);
                     setRenderingProject(updated);
                   }}
+                  onSaveProject={handleSaveProject}
                 />
               </div>
             )}
@@ -921,6 +971,7 @@ export default function App() {
               setCurrentProject(updated);
               setRenderingProject(updated);
             }}
+            onSaveProject={handleSaveProject}
           />
         </ErrorBoundary>
       )}

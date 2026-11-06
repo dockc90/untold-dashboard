@@ -1256,50 +1256,51 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
 
       {/* Bottom Export & Video Renderer Toolbar */}
       {currentProject && (
-        <div className="p-3 bg-white border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 shadow-xs">
-          <div className="flex items-center space-x-2">
+        <div className="p-2.5 sm:p-3 bg-white border-t border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 shadow-xs">
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-1.5 sm:gap-2">
             {/* Primary Video Render Button */}
             <button
               onClick={() => onOpenVideoRenderer(getUpdatedProject())}
-              className="flex items-center space-x-1.5 px-4 py-2 bg-gradient-to-r from-rose-500 via-indigo-600 to-indigo-700 hover:from-rose-600 hover:to-indigo-800 text-white font-black text-xs rounded-xl transition shadow-md shadow-indigo-500/20"
+              className="flex-1 sm:flex-initial flex items-center justify-center space-x-1.5 px-3.5 py-2 bg-gradient-to-r from-rose-500 via-indigo-600 to-indigo-700 hover:from-rose-600 hover:to-indigo-800 text-white font-black text-xs rounded-xl transition shadow-md shadow-indigo-500/20 active:scale-95"
             >
               <Video className="w-4 h-4" />
-              <span>🎬 1080p/720p 쇼츠 영상 변환 & 저장</span>
+              <span>🎬 영상 변환 & 저장</span>
             </button>
 
             {onOpenViralStudio && (
               <button
                 onClick={() => onOpenViralStudio(selectedFigure?.name || currentProject.figureName)}
-                className="flex items-center space-x-1.5 px-3.5 py-2 bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white font-black text-xs rounded-xl transition shadow-sm cursor-pointer"
+                className="flex items-center space-x-1 px-3 py-2 bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white font-black text-xs rounded-xl transition shadow-xs cursor-pointer"
               >
                 <Sparkles className="w-3.5 h-3.5 text-amber-200" />
-                <span>🔥 SNS 떡상 에셋(캐러셀·썸네일) 제작</span>
+                <span className="hidden sm:inline">🔥 SNS 떡상 에셋 제작</span>
+                <span className="sm:hidden">SNS 에셋</span>
               </button>
             )}
 
             <button
               onClick={() => handleCopy(generateCapCutVrewFormat(), 'capcut-bar')}
-              className="flex items-center space-x-1 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition"
+              className="flex items-center space-x-1 px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition"
             >
               {copiedKey === 'capcut-bar' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>CapCut / Vrew 복사</span>
+              <span className="hidden xs:inline">CapCut/Vrew 복사</span>
+              <span className="xs:hidden">복사</span>
             </button>
 
             <button
               onClick={handleDownloadTxt}
-              className="flex items-center space-x-1 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition"
+              className="flex items-center space-x-1 px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition"
             >
               <Download className="w-3.5 h-3.5" />
-              <span>대본 TXT</span>
+              <span>TXT</span>
             </button>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center justify-between sm:justify-end space-x-2 pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-100">
             {lastAutoSaveTime && (
-              <span className="inline-flex items-center space-x-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1.5 rounded-xl border border-emerald-200">
+              <span className="inline-flex items-center space-x-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1.5 rounded-xl border border-emerald-200">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span className="hidden sm:inline">실시간 자동저장됨 ({lastAutoSaveTime})</span>
-                <span className="sm:hidden">자동저장 ({lastAutoSaveTime})</span>
+                <span>자동저장 ({lastAutoSaveTime})</span>
               </span>
             )}
 

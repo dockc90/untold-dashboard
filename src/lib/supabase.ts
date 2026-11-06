@@ -126,13 +126,17 @@ export async function fetchProjectsFromSupabase(): Promise<ShortsProject[] | nul
 }
 
 // 2. Save/Sync project to Supabase
-export async function saveProjectToSupabase(project: ShortsProject): Promise<boolean> {
+export async function saveProjectToSupabase(project: ShortsProject, syncCodeOverride?: string): Promise<boolean> {
   // First try backend API endpoint
   try {
+    const activeSyncCode = syncCodeOverride || (typeof window !== 'undefined' ? localStorage.getItem('untold_paired_sync_code') : null);
     const res = await fetch('/api/projects', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(project),
+      body: JSON.stringify({
+        ...project,
+        sync_code: activeSyncCode || undefined,
+      }),
     });
     if (res.ok) {
       const data = await res.json();
