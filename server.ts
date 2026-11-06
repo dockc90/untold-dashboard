@@ -1102,6 +1102,7 @@ app.all('/api/tts', async (req, res) => {
     const similarityBoost = parseFloat((req.method === 'POST' ? req.body?.similarity_boost : req.query.similarity_boost) ?? 0.75);
     const style = parseFloat((req.method === 'POST' ? req.body?.style : req.query.style) ?? 0.15);
     const useSpeakerBoost = (req.method === 'POST' ? req.body?.use_speaker_boost : req.query.use_speaker_boost) !== false && (req.method === 'POST' ? req.body?.use_speaker_boost : req.query.use_speaker_boost) !== 'false';
+    const withTimestamps = (req.method === 'POST' ? req.body?.with_timestamps : req.query.with_timestamps) === true || (req.query.with_timestamps === 'true');
 
     if (!cleanText) {
       return res.status(400).json({ error: 'Text is required' });
@@ -1111,7 +1112,8 @@ app.all('/api/tts', async (req, res) => {
     const elevenApiKey = process.env.ELEVENLABS_API_KEY || (req.headers['xi-api-key'] as string);
     if (elevenApiKey) {
       try {
-        const elevenUrl = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`;
+        const endpoint = withTimestamps ? '/with-timestamps' : '';
+        const elevenUrl = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}${endpoint}?output_format=mp3_44100_128`;
         const elevenRes = await fetch(elevenUrl, {
           method: 'POST',
           headers: {

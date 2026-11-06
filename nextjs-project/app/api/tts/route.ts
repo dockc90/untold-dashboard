@@ -35,6 +35,7 @@ export async function GET(request: Request) {
     const similarityBoost = parseFloat(searchParams.get('similarity_boost') || '0.75');
     const style = parseFloat(searchParams.get('style') || '0.15');
     const useSpeakerBoost = searchParams.get('use_speaker_boost') !== 'false';
+    const withTimestamps = searchParams.get('with_timestamps') === 'true';
 
     if (!cleanText) {
       return NextResponse.json({ error: 'Text is required' }, { status: 400 });
@@ -44,7 +45,8 @@ export async function GET(request: Request) {
     const elevenApiKey = process.env.ELEVENLABS_API_KEY;
     if (elevenApiKey) {
       try {
-        const elevenUrl = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`;
+        const endpoint = withTimestamps ? '/with-timestamps' : '';
+        const elevenUrl = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}${endpoint}?output_format=mp3_44100_128`;
         const elevenRes = await fetch(elevenUrl, {
           method: 'POST',
           headers: {
@@ -64,6 +66,15 @@ export async function GET(request: Request) {
         });
 
         if (elevenRes.ok) {
+          if (withTimestamps) {
+            const data = await elevenRes.json();
+            return NextResponse.json(data, {
+              headers: {
+                'Cache-Control': 'public, max-age=86400',
+                'X-TTS-Engine': `ElevenLabs-${modelId}-Timestamps`,
+              },
+            });
+          }
           const arrayBuffer = await elevenRes.arrayBuffer();
           return new Response(arrayBuffer, {
             status: 200,
@@ -97,6 +108,19 @@ export async function GET(request: Request) {
     }
 
     const arrayBuffer = await response.arrayBuffer();
+    if (withTimestamps) {
+      const base64Audio = Buffer.from(arrayBuffer).toString('base64');
+      return NextResponse.json({
+        audio_base64: base64Audio,
+        alignment: null,
+      }, {
+        headers: {
+          'Cache-Control': 'public, max-age=86400',
+          'X-TTS-Engine': 'System-Fallback',
+        },
+      });
+    }
+
     return new Response(arrayBuffer, {
       status: 200,
       headers: {
@@ -121,6 +145,7 @@ export async function POST(request: Request) {
     const similarityBoost = typeof body.similarity_boost === 'number' ? body.similarity_boost : 0.75;
     const style = typeof body.style === 'number' ? body.style : 0.15;
     const useSpeakerBoost = body.use_speaker_boost !== false;
+    const withTimestamps = body.with_timestamps === true;
 
     if (!cleanText) {
       return NextResponse.json({ error: 'Text is required' }, { status: 400 });
@@ -130,7 +155,8 @@ export async function POST(request: Request) {
     const elevenApiKey = process.env.ELEVENLABS_API_KEY;
     if (elevenApiKey) {
       try {
-        const elevenUrl = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`;
+        const endpoint = withTimestamps ? '/with-timestamps' : '';
+        const elevenUrl = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}${endpoint}?output_format=mp3_44100_128`;
         const elevenRes = await fetch(elevenUrl, {
           method: 'POST',
           headers: {
@@ -150,6 +176,15 @@ export async function POST(request: Request) {
         });
 
         if (elevenRes.ok) {
+          if (withTimestamps) {
+            const data = await elevenRes.json();
+            return NextResponse.json(data, {
+              headers: {
+                'Cache-Control': 'public, max-age=86400',
+                'X-TTS-Engine': `ElevenLabs-${modelId}-Timestamps`,
+              },
+            });
+          }
           const arrayBuffer = await elevenRes.arrayBuffer();
           return new Response(arrayBuffer, {
             status: 200,
@@ -183,6 +218,19 @@ export async function POST(request: Request) {
     }
 
     const arrayBuffer = await response.arrayBuffer();
+    if (withTimestamps) {
+      const base64Audio = Buffer.from(arrayBuffer).toString('base64');
+      return NextResponse.json({
+        audio_base64: base64Audio,
+        alignment: null,
+      }, {
+        headers: {
+          'Cache-Control': 'public, max-age=86400',
+          'X-TTS-Engine': 'System-Fallback',
+        },
+      });
+    }
+
     return new Response(arrayBuffer, {
       status: 200,
       headers: {

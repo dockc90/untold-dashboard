@@ -240,6 +240,151 @@ export const getSubtitleChunks = (
 };
 
 // Helper: Shortens and formats long YouTube titles into punchy 2-line viral reels headlines
+export interface SubtitleChunkTiming {
+  text: string;
+  startSec: number;
+  endSec: number;
+}
+
+export interface ElevenLabsAlignment {
+  characters: string[];
+  character_start_times_seconds: number[];
+  character_end_times_seconds: number[];
+}
+
+export const base64ToArrayBuffer = (base64: string): ArrayBuffer => {
+  const binaryString = window.atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
+};
+
+export const detectAudioLeadingSilence = (audioBuffer: AudioBuffer): number => {
+  try {
+    const data = audioBuffer.getChannelData(0);
+    const sampleRate = audioBuffer.sampleRate;
+    const maxSearchSamples = Math.min(data.length, Math.floor(sampleRate * 0.4));
+    const threshold = 0.012;
+
+    for (let i = 0; i < maxSearchSamples; i++) {
+      if (Math.abs(data[i]) > threshold) {
+        return Math.max(0, (i / sampleRate) - 0.02);
+      }
+    }
+    return 0;
+  } catch {
+    return 0;
+  }
+};
+
+export const computeAlignedSubtitleChunks = (
+  narration: string,
+  tempo: SubtitleTempo = 'fast',
+  alignment: ElevenLabsAlignment | null | undefined,
+  totalSpokenDuration: number,
+  playbackRate: number = 1.0,
+  leadingSilenceSec: number = 0
+): SubtitleChunkTiming[] => {
+  const chunks = getSubtitleChunks(narration, tempo);
+  if (chunks.length === 0) return [];
+  if (chunks.length === 1) {
+    return [{ text: chunks[0], startSec: 0, endSec: Math.max(0.5, totalSpokenDuration) }];
+  }
+
+  // 1. Exact ElevenLabs Character Timestamps Alignment (Millisecond phonetic accuracy)
+  if (alignment && Array.isArray(alignment.characters) && alignment.characters.length > 0) {
+    const chars = alignment.characters;
+    const starts = alignment.character_start_times_seconds || [];
+    const ends = alignment.character_end_times_seconds || [];
+
+    const timings: SubtitleChunkTiming[] = [];
+    let searchCharIndex = 0;
+
+    for (let c = 0; c < chunks.length; c++) {
+      const chunkText = chunks[c].trim();
+      const firstSignificantChar = chunkText.replace(/^["'“‘s]+/, '')[0] || chunkText[0];
+
+      let charIdx = -1;
+      for (let j = searchCharIndex; j < chars.length; j++) {
+        if (chars[j] === firstSignificantChar) {
+          charIdx = j;
+          break;
+        }
+      }
+
+      let rawStart = charIdx !== -1 && starts[charIdx] !== undefined ? starts[charIdx] : 0;
+      if (c === 0) {
+        rawStart = Math.max(0, leadingSilenceSec);
+      } else if (timings.length > 0 && rawStart < timings[c - 1].startSec * playbackRate) {
+        rawStart = timings[c - 1].endSec * playbackRate;
+      }
+
+      const chunkCharCount = chunkText.replace(/\s+/g, '').length;
+      const endCharIdx = charIdx !== -1 ? Math.min(chars.length - 1, charIdx + chunkCharCount - 1) : charIdx;
+      let rawEnd = endCharIdx !== -1 && ends[endCharIdx] !== undefined ? ends[endCharIdx] : rawStart + 0.8;
+
+      const startSec = Math.max(0, rawStart / playbackRate);
+      let endSec = Math.max(startSec + 0.35, rawEnd / playbackRate);
+
+      if (c > 0 && startSec < timings[c - 1].endSec) {
+        timings[c - 1].endSec = startSec;
+      }
+
+      timings.push({
+        text: chunks[c],
+        startSec,
+        endSec,
+      });
+
+      if (endCharIdx !== -1) {
+        searchCharIndex = Math.min(chars.length - 1, endCharIdx + 1);
+      }
+    }
+
+    for (let i = 0; i < timings.length - 1; i++) {
+      timings[i].endSec = timings[i + 1].startSec;
+    }
+    timings[timings.length - 1].endSec = Math.max(
+      timings[timings.length - 1].startSec + 0.5,
+      totalSpokenDuration
+    );
+
+    return timings;
+  }
+
+  // 2. High-precision Syllable & Punctuation Fallback Alignment
+  const timings: SubtitleChunkTiming[] = [];
+  const activeDur = Math.max(0.5, totalSpokenDuration - leadingSilenceSec);
+
+  const weights = chunks.map((chunk) => {
+    const rawSyllables = chunk.replace(/[^가-힣a-zA-Z0-9]/g, '').length;
+    let pauseBonus = 0;
+    if (chunk.match(/[,~]/)) pauseBonus += 1.5;
+    if (chunk.match(/[.!?]/)) pauseBonus += 2.5;
+    return Math.max(2, rawSyllables + pauseBonus);
+  });
+
+  const totalWeight = weights.reduce((a, b) => a + b, 0);
+  let curSec = leadingSilenceSec;
+
+  for (let i = 0; i < chunks.length; i++) {
+    const dur = (weights[i] / totalWeight) * activeDur;
+    const startSec = curSec;
+    const endSec = (i === chunks.length - 1) ? Math.max(startSec + 0.4, totalSpokenDuration) : startSec + dur;
+    timings.push({
+      text: chunks[i],
+      startSec,
+      endSec,
+    });
+    curSec = endSec;
+  }
+
+  return timings;
+};
+
 export const summarizeToShortHeadline = (title: string, figureName?: string): string => {
   const fig = (figureName || '').trim();
   const raw = (title || fig || '화제의 인물 이야기').trim();
@@ -505,6 +650,12 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   const [videoDuration, setVideoDuration] = useState(0);
   const [previewViewMode, setPreviewViewMode] = useState<'live' | 'video'>('live');
   const [previewSceneIndex, setPreviewSceneIndex] = useState(0);
+
+  // Scene Live Audio & Subtitle Sync Preview States
+  const [isPlayingSceneSync, setIsPlayingSceneSync] = useState(false);
+  const [isLoadingSceneAudio, setIsLoadingSceneAudio] = useState(false);
+  const sceneAudioSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const scenePreviewAnimRef = useRef<number | null>(null);
 
   // Active custom tab on left ('tone' | 'ratio' | 'overlay' | 'subtitle' | 'voice' | 'output')
   const [activeSettingsSection, setActiveSettingsSection] = useState<'tone' | 'ratio' | 'overlay' | 'subtitle' | 'voice' | 'output'>('tone');
@@ -1483,6 +1634,149 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   };
 
   // Main Render Process
+  const stopSceneLiveSync = () => {
+    if (sceneAudioSourceRef.current) {
+      try {
+        sceneAudioSourceRef.current.stop();
+      } catch {}
+      sceneAudioSourceRef.current = null;
+    }
+    if (scenePreviewAnimRef.current) {
+      cancelAnimationFrame(scenePreviewAnimRef.current);
+      scenePreviewAnimRef.current = null;
+    }
+    setIsPlayingSceneSync(false);
+    setIsLoadingSceneAudio(false);
+  };
+
+  const handleToggleSceneLiveSyncPlay = async () => {
+    if (isPlayingSceneSync) {
+      stopSceneLiveSync();
+      return;
+    }
+
+    const activeScene = scenes[previewSceneIndex] || scenes[0];
+    if (!activeScene || !canvasRef.current) return;
+
+    stopSceneLiveSync();
+    setIsLoadingSceneAudio(true);
+
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      const audioCtx = audioContextRef.current || new AudioCtx();
+      audioContextRef.current = audioCtx;
+      if (audioCtx.state === 'suspended') {
+        await audioCtx.resume();
+      }
+
+      const query = new URLSearchParams({
+        text: activeScene.narration,
+        voice_id: selectedVoice.id,
+        model_id: elevenLabsModel,
+        stability: elevenLabsStability.toString(),
+        similarity_boost: elevenLabsSimilarity.toString(),
+        style: elevenLabsStyle.toString(),
+        use_speaker_boost: elevenLabsSpeakerBoost ? 'true' : 'false',
+        with_timestamps: 'true',
+      });
+
+      const res = await fetch(`/api/tts?${query.toString()}`);
+      let decodedBuffer: AudioBuffer | null = null;
+      let alignmentData: ElevenLabsAlignment | null = null;
+
+      if (res.ok) {
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const data = await res.json();
+          if (data.audio_base64) {
+            decodedBuffer = await audioCtx.decodeAudioData(base64ToArrayBuffer(data.audio_base64));
+            alignmentData = data.alignment || null;
+          }
+        } else {
+          const ab = await res.arrayBuffer();
+          decodedBuffer = await audioCtx.decodeAudioData(ab);
+        }
+      }
+
+      if (!decodedBuffer) {
+        throw new Error('TTS audio load failed');
+      }
+
+      const silenceSec = detectAudioLeadingSilence(decodedBuffer);
+      const effectivePlaybackRate = Math.max(0.7, Math.min(1.6, voiceSpeedMultiplier * (selectedVoice.rate || 1.0)));
+      const spokenDur = decodedBuffer.duration / effectivePlaybackRate;
+
+      const chunkTimings = computeAlignedSubtitleChunks(
+        activeScene.narration,
+        subtitleTempo,
+        alignmentData,
+        spokenDur,
+        effectivePlaybackRate,
+        silenceSec
+      );
+
+      const previewImgUrl =
+        activeScene.uploadedImageUrl ||
+        getSceneFallbackImage(project.figureName, project.category, previewSceneIndex);
+      const img = await loadImage(previewImgUrl);
+
+      const src = audioCtx.createBufferSource();
+      src.buffer = decodedBuffer;
+      src.playbackRate.value = effectivePlaybackRate;
+      src.connect(audioCtx.destination);
+      sceneAudioSourceRef.current = src;
+
+      const startAudioTime = audioCtx.currentTime + 0.05;
+      src.start(startAudioTime);
+
+      setIsLoadingSceneAudio(false);
+      setIsPlayingSceneSync(true);
+
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const syncLoop = () => {
+        const elapsedSec = audioCtx.currentTime - startAudioTime;
+        if (elapsedSec > spokenDur + 0.3) {
+          stopSceneLiveSync();
+          return;
+        }
+
+        const clamped = Math.max(0, elapsedSec);
+        const progressInScene = Math.min(0.999, clamped / (spokenDur + 0.3));
+
+        drawSceneImage(ctx, img, width, height, progressInScene, activeScene.motionEffect || 'zoom_in');
+        renderChannelLogo(ctx, width, height, previewSceneIndex, logoImageRef.current);
+        renderCustomTextOverlays(ctx, width, height, previewSceneIndex);
+
+        let activeText = chunkTimings[0]?.text || '';
+        const found = chunkTimings.find((c) => clamped >= c.startSec && clamped < c.endSec);
+        if (found) {
+          activeText = found.text;
+        } else if (clamped >= chunkTimings[chunkTimings.length - 1]?.endSec) {
+          activeText = chunkTimings[chunkTimings.length - 1]?.text;
+        }
+        drawSubtitles(ctx, activeText, width, height);
+
+        scenePreviewAnimRef.current = requestAnimationFrame(syncLoop);
+      };
+
+      src.onended = () => {
+        stopSceneLiveSync();
+      };
+
+      scenePreviewAnimRef.current = requestAnimationFrame(syncLoop);
+    } catch (e) {
+      console.warn('Scene live sync preview error:', e);
+      stopSceneLiveSync();
+    }
+  };
+
+  useEffect(() => {
+    stopSceneLiveSync();
+  }, [previewSceneIndex, isOpen, previewViewMode]);
+
   const startRendering = async () => {
     if (!canvasRef.current || scenes.length === 0) return;
     setIsRendering(true);
@@ -1525,11 +1819,18 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       return buf;
     };
 
-    // 2. Preload & Decode voice TTS for all scenes (Guaranteed 100% audio presence)
+    // 2. Preload & Decode voice TTS with exact millisecond timestamps for all scenes
     const audioBuffers: AudioBuffer[] = [];
+    const sceneChunkTimings: SubtitleChunkTiming[][] = [];
+    const effectivePlaybackRate = Math.max(0.7, Math.min(1.6, voiceSpeedMultiplier * (selectedVoice.rate || 1.0)));
+
     for (let i = 0; i < scenes.length; i++) {
-      setStatusMessage(`내레이션 음성 합성 중... (${i + 1}/${scenes.length})`);
+      setStatusMessage(`내레이션 음성 합성 및 정밀 자막 동기화 중... (${i + 1}/${scenes.length})`);
       setRenderProgress(Math.round(((i + 1) / (scenes.length * 2)) * 30));
+
+      let decodedBuffer: AudioBuffer | null = null;
+      let alignmentData: ElevenLabsAlignment | null = null;
+
       try {
         const query = new URLSearchParams({
           text: scenes[i].narration,
@@ -1539,19 +1840,48 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
           similarity_boost: elevenLabsSimilarity.toString(),
           style: elevenLabsStyle.toString(),
           use_speaker_boost: elevenLabsSpeakerBoost ? 'true' : 'false',
+          with_timestamps: 'true',
         });
+
         const res = await fetch(`/api/tts?${query.toString()}`);
         if (res.ok) {
-          const ab = await res.arrayBuffer();
-          const decoded = await audioCtx.decodeAudioData(ab);
-          audioBuffers.push(decoded);
-        } else {
-          audioBuffers.push(createFallbackSpeechBuffer(audioCtx, scenes[i].narration, selectedVoice.gender));
+          const contentType = res.headers.get('content-type') || '';
+          if (contentType.includes('application/json')) {
+            const data = await res.json();
+            if (data.audio_base64) {
+              const ab = base64ToArrayBuffer(data.audio_base64);
+              decodedBuffer = await audioCtx.decodeAudioData(ab);
+              alignmentData = data.alignment || null;
+            }
+          } else {
+            const ab = await res.arrayBuffer();
+            decodedBuffer = await audioCtx.decodeAudioData(ab);
+          }
         }
       } catch (e) {
-        console.warn('TTS fallback synthesized for scene:', i, e);
-        audioBuffers.push(createFallbackSpeechBuffer(audioCtx, scenes[i].narration, selectedVoice.gender));
+        console.warn('TTS fetch failed for scene, falling back:', i, e);
       }
+
+      if (!decodedBuffer) {
+        decodedBuffer = createFallbackSpeechBuffer(audioCtx, scenes[i].narration, selectedVoice.gender);
+      }
+
+      audioBuffers.push(decodedBuffer);
+
+      // Detect leading silence from audio encoder
+      const silenceSec = detectAudioLeadingSilence(decodedBuffer);
+      const spokenDur = decodedBuffer.duration / effectivePlaybackRate;
+
+      // Compute frame-perfect millisecond chunk timings
+      const chunkTimings = computeAlignedSubtitleChunks(
+        scenes[i].narration,
+        subtitleTempo,
+        alignmentData,
+        spokenDur,
+        effectivePlaybackRate,
+        silenceSec
+      );
+      sceneChunkTimings.push(chunkTimings);
     }
 
     // 3. Preload images and precompute ambient backdrops for all scenes (0ms render during recording)
@@ -1581,18 +1911,14 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     }
 
     // 4. Calculate dynamic scene durations based on audio length & speed multiplier
-    // Unified exact voice playback rate ensuring 100% audio-to-duration match
-    const effectivePlaybackRate = Math.max(0.7, Math.min(1.6, voiceSpeedMultiplier * (selectedVoice.rate || 1.0)));
     const sceneSpokenDurationsSec: number[] = [];
     const sceneDurationsSec: number[] = [];
     const sceneStartTimesSec: number[] = [];
-    let curTime = 0.05;
+    let curTime = 0.0;
 
     for (let i = 0; i < scenes.length; i++) {
       const buffer = audioBuffers[i];
-      const spokenDur = buffer
-        ? (buffer.duration / effectivePlaybackRate)
-        : Math.max(2.2, (scenes[i].narration.replace(/\s+/g, '').length * 0.15) / voiceSpeedMultiplier);
+      const spokenDur = buffer.duration / effectivePlaybackRate;
 
       sceneSpokenDurationsSec.push(spokenDur);
       sceneStartTimesSec.push(curTime);
@@ -1603,41 +1929,11 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     const totalVideoSec = curTime;
     setVideoDuration(Math.round(totalVideoSec));
 
-    // 5. Connect and schedule clean voice audio into recording stream (No mechanical humming drone)
-    // Schedule each scene's voice audio buffer at its exact scene start time
-    for (let i = 0; i < scenes.length; i++) {
-      const buf = audioBuffers[i];
-      if (buf) {
-        try {
-          const src = audioCtx.createBufferSource();
-          src.buffer = buf;
-          src.playbackRate.value = effectivePlaybackRate; // Guaranteed exact rate match!
-
-          const filter = audioCtx.createBiquadFilter();
-          if (selectedVoice.gender === 'male') {
-            filter.type = 'lowshelf';
-            filter.frequency.value = 250;
-            filter.gain.value = 4.0; // Warm resonant male presence
-          } else {
-            filter.type = 'highshelf';
-            filter.frequency.value = 2800;
-            filter.gain.value = 3.5; // Bright clear female presence
-          }
-
-          const voiceGain = audioCtx.createGain();
-          voiceGain.gain.setValueAtTime(0.95, audioCtx.currentTime);
-
-          src.connect(filter);
-          filter.connect(voiceGain);
-          voiceGain.connect(audioDest);
-
-          // Guaranteed synchronization: audio begins at exact scene timestamp
-          src.start(audioCtx.currentTime + sceneStartTimesSec[i]);
-        } catch (e) {
-          console.warn('Audio scheduling error for scene', i, e);
-        }
-      }
-    }
+    // 5. Pre-draw initial frame (Scene 0 Frame 0) so recording stream has pristine content immediately
+    drawSceneImage(ctx, loadedImages[0], width, height, 0, scenes[0].motionEffect || 'zoom_in', precomputedBackdrops[0]);
+    renderChannelLogo(ctx, width, height, 0, loadedLogoImg);
+    renderCustomTextOverlays(ctx, width, height, 0);
+    drawSubtitles(ctx, sceneChunkTimings[0]?.[0]?.text || '', width, height);
 
     // 6. Setup MediaRecorder with standard MP4 format priority
     let combinedStream = new MediaStream([
@@ -1690,17 +1986,60 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       setRenderProgress(100);
     };
 
-    mediaRecorder.start(200);
+    // Start recorder FIRST with 100ms chunking for responsive stream capture
+    mediaRecorder.start(100);
 
-    // 7. Video Rendering Frame Loop (Rock-solid 60fps / 0ms backdrop stall)
-    const renderStartTime = performance.now();
+    // 7. Master Audio Clock Anchoring (Zero drift, 100% hardware-locked sync)
+    // 250ms deterministic warmup buffer ensures MediaRecorder encoder pipeline is fully active
+    const WARMUP_DELAY_SEC = 0.25;
+    const masterStartAudioTime = audioCtx.currentTime + WARMUP_DELAY_SEC;
+
+    // Schedule all scene audio buffers strictly anchored to masterStartAudioTime
+    for (let i = 0; i < scenes.length; i++) {
+      const buf = audioBuffers[i];
+      if (buf) {
+        try {
+          const src = audioCtx.createBufferSource();
+          src.buffer = buf;
+          src.playbackRate.value = effectivePlaybackRate;
+
+          const filter = audioCtx.createBiquadFilter();
+          if (selectedVoice.gender === 'male') {
+            filter.type = 'lowshelf';
+            filter.frequency.value = 250;
+            filter.gain.value = 4.0;
+          } else {
+            filter.type = 'highshelf';
+            filter.frequency.value = 2800;
+            filter.gain.value = 3.5;
+          }
+
+          const voiceGain = audioCtx.createGain();
+          voiceGain.gain.setValueAtTime(0.95, audioCtx.currentTime);
+
+          src.connect(filter);
+          filter.connect(voiceGain);
+          voiceGain.connect(audioDest);
+
+          // Audio begins at exact hardware clock timestamp
+          src.start(masterStartAudioTime + sceneStartTimesSec[i]);
+        } catch (e) {
+          console.warn('Audio scheduling error for scene', i, e);
+        }
+      }
+    }
+
+    // 8. Video Rendering Frame Loop SLAVED TO audioCtx.currentTime
     let lastProgressUpdateTime = 0;
 
     const renderFrame = () => {
-      const now = performance.now();
-      const elapsedSec = (now - renderStartTime) / 1000;
+      // MASTER CLOCK: exact hardware audio seconds elapsed since audio playback began
+      const elapsedSec = audioCtx.currentTime - masterStartAudioTime;
 
-      if (elapsedSec >= totalVideoSec) {
+      // During 250ms pre-roll warmup, display scene 0 frame 0 cleanly
+      const clampedElapsed = Math.max(0, elapsedSec);
+
+      if (clampedElapsed >= totalVideoSec) {
         setTimeout(() => {
           if (mediaRecorder.state !== 'inactive') {
             mediaRecorder.stop();
@@ -1709,10 +2048,10 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         return;
       }
 
-      // Determine active scene strictly by real-time elapsed seconds
+      // Determine active scene strictly by AudioContext elapsed seconds
       let activeIdx = 0;
       for (let i = scenes.length - 1; i >= 0; i--) {
-        if (elapsedSec >= sceneStartTimesSec[i]) {
+        if (clampedElapsed >= sceneStartTimesSec[i]) {
           activeIdx = i;
           break;
         }
@@ -1722,7 +2061,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       const img = loadedImages[activeIdx];
       const sceneStartTime = sceneStartTimesSec[activeIdx];
       const sceneDuration = sceneDurationsSec[activeIdx];
-      const timeInScene = Math.max(0, elapsedSec - sceneStartTime);
+      const timeInScene = Math.max(0, clampedElapsed - sceneStartTime);
       const progressInScene = Math.min(0.999, Math.max(0, timeInScene / sceneDuration));
 
       const motion: MotionEffectType = scene.motionEffect || 'zoom_in';
@@ -1730,10 +2069,9 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       // Draw scene photo with user-selected aspect ratio, precomputed backdrop (0ms CPU cost), and motion
       drawSceneImage(ctx, img, width, height, progressInScene, motion, precomputedBackdrops[activeIdx]);
 
-      // Adaptive vignette based on subtitle position (skip if card_white or card_black)
+      // Adaptive vignette based on subtitle position
       if (backdropStyle !== 'card_white' && backdropStyle !== 'card_black') {
         if (subtitleYPercent > 60) {
-          // Bottom vignette
           const bottomGrad = ctx.createLinearGradient(0, height * 0.62, 0, height);
           bottomGrad.addColorStop(0, 'rgba(0,0,0,0)');
           bottomGrad.addColorStop(0.5, 'rgba(0,0,0,0.65)');
@@ -1741,7 +2079,6 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
           ctx.fillStyle = bottomGrad;
           ctx.fillRect(0, height * 0.62, width, height * 0.38);
         } else if (subtitleYPercent < 35) {
-          // Top vignette only when subtitles are positioned at top
           const topGrad = ctx.createLinearGradient(0, 0, 0, height * 0.38);
           topGrad.addColorStop(0, 'rgba(0,0,0,0.85)');
           topGrad.addColorStop(0.5, 'rgba(0,0,0,0.65)');
@@ -1757,35 +2094,32 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       // Draw CapCut-style Custom Text Overlays (상단 헤드라인 및 커스텀 자막들)
       renderCustomTextOverlays(ctx, width, height, activeIdx);
 
-      // Subtitle Chunking: Exact Voice-Subtitle character-weighted sync (CapCut style)
-      const chunks = getSubtitleChunks(scene.narration, subtitleTempo);
-      const spokenDur = sceneSpokenDurationsSec[activeIdx] || Math.max(0.1, sceneDuration - 0.30);
-      // Progress across spoken duration (0.0 to 1.0 while voice speaks; remains 1.0 during post-speech pause)
-      const speechProgress = Math.min(1.0, Math.max(0, timeInScene / Math.max(0.1, spokenDur)));
-
-      // Weight each chunk by clean character length so pacing matches speech syllables
-      const charWeights = chunks.map((c) => Math.max(1, c.replace(/\s+/g, '').length));
-      const totalChars = charWeights.reduce((a, b) => a + b, 0);
-      let cumulative = 0;
-      let activeChunkIdx = chunks.length - 1;
-      for (let c = 0; c < chunks.length; c++) {
-        cumulative += charWeights[c];
-        if (speechProgress <= cumulative / totalChars) {
-          activeChunkIdx = c;
-          break;
+      // Frame-perfect Subtitle from precalculated alignment timings!
+      const currentTimings = sceneChunkTimings[activeIdx] || [];
+      let activeSubtitleText = '';
+      if (currentTimings.length > 0) {
+        const found = currentTimings.find(
+          (c) => timeInScene >= c.startSec && timeInScene < c.endSec
+        );
+        if (found) {
+          activeSubtitleText = found.text;
+        } else if (timeInScene >= currentTimings[currentTimings.length - 1].endSec) {
+          activeSubtitleText = currentTimings[currentTimings.length - 1].text;
+        } else {
+          activeSubtitleText = currentTimings[0].text;
         }
+      } else {
+        activeSubtitleText = scene.narration;
       }
-
-      const activeSubtitleText = chunks[activeChunkIdx];
 
       // Draw custom subtitles for current chunk
       drawSubtitles(ctx, activeSubtitleText, width, height);
 
-      // Throttle React state updates to every 250ms so event loop is completely free
+      // Throttle React state updates to every 250ms
       const nowMs = performance.now();
       if (nowMs - lastProgressUpdateTime > 250) {
         lastProgressUpdateTime = nowMs;
-        const currentPct = Math.min(99, 45 + Math.round((elapsedSec / totalVideoSec) * 55));
+        const currentPct = Math.min(99, 45 + Math.round((clampedElapsed / totalVideoSec) * 55));
         setRenderProgress(currentPct);
         setStatusMessage(`Scene ${activeIdx + 1}/${scenes.length} 실시간 렌더링 중 (${currentPct}%)`);
         setCurrentRenderingScene(activeIdx + 1);
@@ -3642,6 +3976,38 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                 >
                   <Play className="w-3.5 h-3.5 fill-current" />
                   <span>완성된 MP4 영상 보기</span>
+                </button>
+              </div>
+            )}
+
+            {/* Live Sync Preview Player Controls */}
+            {!isRendering && previewViewMode === 'live' && (
+              <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-200/60">
+                <div className="flex items-center space-x-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-xs font-black text-slate-800">
+                    {previewSceneIndex + 1}씬 실시간 음성-자막 싱크
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleToggleSceneLiveSyncPlay}
+                  disabled={isLoadingSceneAudio}
+                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-700 to-rose-600 hover:from-indigo-500 hover:to-rose-500 text-white font-black text-xs shadow-md shadow-indigo-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50"
+                  title="현재 씬의 일레븐랩스 음성과 캔버스 자막이 100% 일치하는지 실시간 재생하여 확인합니다"
+                >
+                  {isPlayingSceneSync ? (
+                    <>
+                      <Square className="w-3.5 h-3.5 fill-current text-rose-200" />
+                      <span>미리듣기 정지</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-3.5 h-3.5 fill-current text-amber-300" />
+                      <span>{isLoadingSceneAudio ? '음성 분석 중...' : '▶ 씬 음성+자막 실시간 싱크 미리듣기'}</span>
+                    </>
+                  )}
                 </button>
               </div>
             )}
