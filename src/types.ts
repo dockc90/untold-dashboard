@@ -142,6 +142,8 @@ export interface CustomTextOverlay {
   endScene: number; // 종료 씬 번호 (원하는 지점까지 연장)
   positionYPercent: number; // Y 위치 (예: 상단 14%, 중상단 26%, 중앙 50%, 하단 80%)
   positionX: 'center' | 'left' | 'right';
+  positionXPercent?: number; // 0 ~ 100%, 기본 50%
+  rotationDeg?: number; // -180 ~ 180도, 기본 0도
   fontSizeScale: number; // 0.8 ~ 1.8
   fontFamily: SubtitleFontFamily;
   textColor: string; // e.g. '#000000', '#ffffff', '#facc15'
@@ -207,6 +209,9 @@ export interface ShortsProject {
   customTextOverlays?: CustomTextOverlay[]; // 캡컷 스타일 커스텀 자막 레이어 목록
   channelLogoOverlay?: ChannelLogoOverlay; // 채널 로고 & 워터마크 오버레이
   subtitleTempo?: SubtitleTempo; // 캡컷식 자막 분할 속도 템포 (fast, standard, relaxed)
+  subtitleXPercent?: number; // 메인 자막 X축 (기본 50%)
+  subtitleYPercent?: number; // 메인 자막 Y축 (기본 83%)
+  subtitleRotationDeg?: number; // 메인 자막 회전 각도 (기본 0도)
   // 2026 알고리즘 치트키 필드
   firstTwoLinesSeo?: string;
   timestamps?: { time: string; label: string }[];

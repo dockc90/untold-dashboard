@@ -727,8 +727,10 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         text: initialHeadline,
         startScene: 1,
         endScene: project.scenes.length || 12,
-        positionYPercent: 14,
+        positionYPercent: 17, // 상단자막 17% 기본값
         positionX: 'center',
+        positionXPercent: 50,
+        rotationDeg: 0,
         fontSizeScale: 1.25,
         fontFamily: 'Pretendard',
         textColor: '#000000',
@@ -773,10 +775,13 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
   // Subtitle Customizations (화이트 카드뉴스 프레임 기본값: 86% 최하단, 프리텐다드)
   const [subtitleFont, setSubtitleFont] = useState<SubtitleFontFamily>(project.subtitleFont || 'Pretendard');
+  const [subtitleXPercent, setSubtitleXPercent] = useState<number>(project.subtitleXPercent ?? 50);
   const [subtitleYPercent, setSubtitleYPercent] = useState<number>(() => {
     if (project.subtitleYPercent !== undefined) return project.subtitleYPercent;
     return 83; // 하단자막 83% 모든 프레임의 기본값
   });
+  const [subtitleRotationDeg, setSubtitleRotationDeg] = useState<number>(project.subtitleRotationDeg ?? 0);
+  const [activeDragSubtitle, setActiveDragSubtitle] = useState<'main' | string | null>(null);
   const [subtitleSizeScale, setSubtitleSizeScale] = useState<number>(1.1); // 0.8 to 1.4
   const [subtitleStyle, setSubtitleStyle] = useState<SubtitleEffectStyle>('yellow_box');
   const [subtitleTempo, setSubtitleTempo] = useState<SubtitleTempo>(project.subtitleTempo || 'fast');
@@ -807,6 +812,9 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         ...project,
         customTextOverlays,
         channelLogoOverlay: channelLogo,
+        subtitleXPercent,
+        subtitleYPercent,
+        subtitleRotationDeg,
         backdropStyle,
         photoAspectRatio,
         videoTone,
@@ -1074,8 +1082,10 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       text: '새 자막 내용 입력',
       startScene: 1,
       endScene: scenes.length || 12,
-      positionYPercent: 50,
+      positionYPercent: 17,
       positionX: 'center',
+      positionXPercent: 50,
+      rotationDeg: 0,
       fontSizeScale: 1.0,
       fontFamily: 'Pretendard',
       textColor: '#ffffff',
@@ -1412,6 +1422,14 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     const fontSize = Math.round(baseSize * subtitleSizeScale);
 
     ctx.save();
+    const centerX = w * ((subtitleXPercent ?? 50) / 100);
+    const centerY = h * (subtitleYPercent / 100);
+
+    ctx.translate(centerX, centerY);
+    if (subtitleRotationDeg) {
+      ctx.rotate((subtitleRotationDeg * Math.PI) / 180);
+    }
+
     ctx.font = `bold ${fontSize}px "${subtitleFont}", "Pretendard", -apple-system, BlinkMacSystemFont, "Noto Sans KR", sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -1435,9 +1453,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
     const lineHeight = fontSize * 1.35;
     const totalTextHeight = lines.length * lineHeight;
-    
-    // Y-Position calculation based on user selection percentage
-    const startY = h * (subtitleYPercent / 100) - totalTextHeight / 2;
+    const startY = -totalTextHeight / 2 + lineHeight / 2;
 
     lines.forEach((line, index) => {
       const y = startY + index * lineHeight;
@@ -1450,28 +1466,28 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         ctx.fillStyle = '#facc15';
         ctx.beginPath();
         if (ctx.roundRect) {
-          ctx.roundRect(w / 2 - textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY, 12);
+          ctx.roundRect(-textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY, 12);
         } else {
-          ctx.rect(w / 2 - textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY);
+          ctx.rect(-textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY);
         }
         ctx.fill();
 
         ctx.fillStyle = '#020617';
-        ctx.fillText(line, w / 2, y);
+        ctx.fillText(line, 0, y);
       } else if (subtitleStyle === 'black_capsule') {
         const paddingX = fontSize * 0.5;
         const paddingY = fontSize * 0.22;
         ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
         ctx.beginPath();
         if (ctx.roundRect) {
-          ctx.roundRect(w / 2 - textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY, 14);
+          ctx.roundRect(-textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY, 14);
         } else {
-          ctx.rect(w / 2 - textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY);
+          ctx.rect(-textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY);
         }
         ctx.fill();
 
         ctx.fillStyle = '#ffffff';
-        ctx.fillText(line, w / 2, y);
+        ctx.fillText(line, 0, y);
       } else if (subtitleStyle === 'neon_cyan') {
         const paddingX = fontSize * 0.5;
         const paddingY = fontSize * 0.22;
@@ -1480,9 +1496,9 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         ctx.lineWidth = 4;
         ctx.beginPath();
         if (ctx.roundRect) {
-          ctx.roundRect(w / 2 - textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY, 16);
+          ctx.roundRect(-textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY, 16);
         } else {
-          ctx.rect(w / 2 - textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY);
+          ctx.rect(-textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY);
         }
         ctx.fill();
         ctx.stroke();
@@ -1490,37 +1506,37 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         ctx.shadowColor = '#06b6d4';
         ctx.shadowBlur = 15;
         ctx.fillStyle = '#e0f2fe';
-        ctx.fillText(line, w / 2, y);
+        ctx.fillText(line, 0, y);
       } else if (subtitleStyle === 'netflix_red') {
         const paddingX = fontSize * 0.5;
         const paddingY = fontSize * 0.22;
         ctx.fillStyle = '#e11d48';
         ctx.beginPath();
         if (ctx.roundRect) {
-          ctx.roundRect(w / 2 - textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY, 14);
+          ctx.roundRect(-textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY, 14);
         } else {
-          ctx.rect(w / 2 - textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY);
+          ctx.rect(-textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY);
         }
         ctx.fill();
 
         ctx.fillStyle = '#ffffff';
-        ctx.fillText(line, w / 2, y);
+        ctx.fillText(line, 0, y);
       } else if (subtitleStyle === 'shadow_drop') {
         ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
         ctx.shadowOffsetX = 5;
         ctx.shadowOffsetY = 5;
         ctx.shadowBlur = 10;
         ctx.fillStyle = '#ffffff';
-        ctx.fillText(line, w / 2, y);
+        ctx.fillText(line, 0, y);
       } else {
         // white_outline
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = fontSize * 0.22;
         ctx.lineJoin = 'round';
-        ctx.strokeText(line, w / 2, y);
+        ctx.strokeText(line, 0, y);
 
         ctx.fillStyle = '#ffffff';
-        ctx.fillText(line, w / 2, y);
+        ctx.fillText(line, 0, y);
       }
     });
 
@@ -1651,8 +1667,20 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       const baseFontSize = resolution === '1080p' ? 50 : 34;
       const fontSize = Math.round(baseFontSize * (ov.fontSizeScale || 1.0));
       const fontWeight = ov.isBold ? '900' : 'bold';
+
+      const centerX = ov.positionXPercent !== undefined 
+        ? w * (ov.positionXPercent / 100) 
+        : (ov.positionX === 'left' ? w * 0.25 : ov.positionX === 'right' ? w * 0.75 : w / 2);
+      const centerY = h * (ov.positionYPercent / 100);
+      const rotationDeg = ov.rotationDeg || 0;
+
+      ctx.translate(centerX, centerY);
+      if (rotationDeg !== 0) {
+        ctx.rotate((rotationDeg * Math.PI) / 180);
+      }
+
       ctx.font = `${fontWeight} ${fontSize}px "${ov.fontFamily || 'Pretendard'}", "Pretendard", -apple-system, BlinkMacSystemFont, "Noto Sans KR", sans-serif`;
-      ctx.textAlign = ov.positionX || 'center';
+      ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
       // Lines parsing (support \n and auto-wrap)
@@ -1677,10 +1705,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
       const lineHeight = fontSize * 1.34;
       const totalHeight = lines.length * lineHeight;
-      const targetY = h * (ov.positionYPercent / 100);
-      const startY = targetY - totalHeight / 2 + lineHeight / 2;
-
-      const posX = ov.positionX === 'left' ? w * 0.08 : ov.positionX === 'right' ? w * 0.92 : w / 2;
+      const startY = -totalHeight / 2 + lineHeight / 2;
 
       // Draw background box if present
       if (ov.backgroundColor && ov.backgroundColor !== 'transparent') {
@@ -1691,16 +1716,12 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
           const padX = fontSize * 0.45;
           const padY = fontSize * 0.22;
 
-          let boxX = posX - lineW / 2 - padX;
-          if (ov.positionX === 'left') boxX = posX - padX;
-          if (ov.positionX === 'right') boxX = posX - lineW - padX;
-
           ctx.fillStyle = ov.backgroundColor;
           ctx.beginPath();
           if (ctx.roundRect) {
-            ctx.roundRect(boxX, lineY - lineHeight / 2 - padY / 2, lineW + padX * 2, lineHeight + padY, 10);
+            ctx.roundRect(-lineW / 2 - padX, lineY - lineHeight / 2 - padY / 2, lineW + padX * 2, lineHeight + padY, 10);
           } else {
-            ctx.rect(boxX, lineY - lineHeight / 2 - padY / 2, lineW + padX * 2, lineHeight + padY);
+            ctx.rect(-lineW / 2 - padX, lineY - lineHeight / 2 - padY / 2, lineW + padX * 2, lineHeight + padY);
           }
           ctx.fill();
         });
@@ -1715,12 +1736,12 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
             ctx.strokeStyle = 'rgba(0, 0, 0, 0.95)';
             ctx.lineWidth = Math.max(3, fontSize * 0.16);
             ctx.lineJoin = 'round';
-            ctx.strokeText(line, posX, lineY);
+            ctx.strokeText(line, 0, lineY);
           }
         }
 
         ctx.fillStyle = ov.textColor || '#000000';
-        ctx.fillText(line, posX, lineY);
+        ctx.fillText(line, 0, lineY);
       });
 
       ctx.restore();
@@ -2030,6 +2051,111 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   useEffect(() => {
     stopSceneLiveSync();
   }, [previewSceneIndex, isOpen, previewViewMode]);
+
+  // Interactive Canvas Mouse Drag & Wheel Rotation for ALL subtitles
+  const canvasDragRef = useRef<{
+    startX: number;
+    startY: number;
+    targetId: 'main' | string;
+    initX: number;
+    initY: number;
+    initRot: number;
+  } | null>(null);
+
+  const handleCanvasPointerDown = (clientX: number, clientY: number) => {
+    if (isRendering || previewViewMode === 'video') return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const clickXPercent = ((clientX - rect.left) / rect.width) * 100;
+    const clickYPercent = ((clientY - rect.top) / rect.height) * 100;
+
+    // Check custom text overlays on current scene
+    const currentSceneNum = previewSceneIndex + 1;
+    const activeOverlays = customTextOverlays.filter(
+      (ov) => currentSceneNum >= ov.startScene && currentSceneNum <= ov.endScene
+    );
+
+    for (const ov of activeOverlays) {
+      const ovX = ov.positionXPercent ?? 50;
+      const ovY = ov.positionYPercent;
+      if (Math.abs(clickYPercent - ovY) < 10 && Math.abs(clickXPercent - ovX) < 42) {
+        setActiveDragSubtitle(ov.id);
+        canvasDragRef.current = {
+          startX: clientX,
+          startY: clientY,
+          targetId: ov.id,
+          initX: ovX,
+          initY: ovY,
+          initRot: ov.rotationDeg || 0,
+        };
+        return;
+      }
+    }
+
+    // Check main narration subtitle (bottom)
+    if (Math.abs(clickYPercent - subtitleYPercent) < 12 && Math.abs(clickXPercent - (subtitleXPercent ?? 50)) < 45) {
+      setActiveDragSubtitle('main');
+      canvasDragRef.current = {
+        startX: clientX,
+        startY: clientY,
+        targetId: 'main',
+        initX: subtitleXPercent ?? 50,
+        initY: subtitleYPercent,
+        initRot: subtitleRotationDeg ?? 0,
+      };
+      return;
+    }
+
+    setActiveDragSubtitle(null);
+    canvasDragRef.current = null;
+  };
+
+  const handleCanvasPointerMove = (clientX: number, clientY: number) => {
+    if (!canvasDragRef.current) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const dxPercent = ((clientX - canvasDragRef.current.startX) / rect.width) * 100;
+    const dyPercent = ((clientY - canvasDragRef.current.startY) / rect.height) * 100;
+
+    if (canvasDragRef.current.targetId === 'main') {
+      const newX = Math.round(Math.max(10, Math.min(90, canvasDragRef.current.initX + dxPercent)));
+      const newY = Math.round(Math.max(10, Math.min(92, canvasDragRef.current.initY + dyPercent)));
+      setSubtitleXPercent(newX);
+      setSubtitleYPercent(newY);
+    } else {
+      const targetId = canvasDragRef.current.targetId;
+      const newX = Math.round(Math.max(10, Math.min(90, canvasDragRef.current.initX + dxPercent)));
+      const newY = Math.round(Math.max(5, Math.min(95, canvasDragRef.current.initY + dyPercent)));
+      handleUpdateCustomTextOverlay(targetId, {
+        positionXPercent: newX,
+        positionYPercent: newY,
+      });
+    }
+  };
+
+  const handleCanvasPointerUp = () => {
+    canvasDragRef.current = null;
+  };
+
+  const handleCanvasWheel = (e: React.WheelEvent) => {
+    if (isRendering || previewViewMode === 'video') return;
+    const target = activeDragSubtitle || 'main';
+    const delta = e.deltaY < 0 ? 2 : -2;
+
+    if (target === 'main') {
+      setSubtitleRotationDeg((prev) => Math.max(-45, Math.min(45, (prev ?? 0) + delta)));
+    } else {
+      const ov = customTextOverlays.find((o) => o.id === target);
+      if (ov) {
+        const curRot = ov.rotationDeg || 0;
+        handleUpdateCustomTextOverlay(target, {
+          rotationDeg: Math.max(-45, Math.min(45, curRot + delta)),
+        });
+      }
+    }
+  };
 
   const startRendering = async () => {
     if (!canvasRef.current || scenes.length === 0) return;
@@ -3385,10 +3511,10 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                               </div>
                               <div className="grid grid-cols-4 gap-1">
                                 {[
-                                  { label: '상단 릴스 (14%)', y: 14 },
-                                  { label: '상단 (20%)', y: 20 },
+                                  { label: '상단 (17% 기본)', y: 17 },
+                                  { label: '중상단 (26%)', y: 26 },
                                   { label: '중앙 (50%)', y: 50 },
-                                  { label: '하단 (82%)', y: 82 },
+                                  { label: '하단 (83%)', y: 83 },
                                 ].map((pos) => (
                                   <button
                                     key={pos.label}
@@ -3412,6 +3538,56 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                                 onChange={(e) => handleUpdateCustomTextOverlay(overlay.id, { positionYPercent: Number(e.target.value) })}
                                 className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                               />
+
+                              {/* Interactive X-Axis & Rotation Controls for Custom Text Overlay */}
+                              <div className="grid grid-cols-2 gap-2 pt-1.5 border-t border-slate-200/80">
+                                <div>
+                                  <div className="flex items-center justify-between text-[10px] font-bold text-slate-600 mb-1">
+                                    <span>가로 위치 (X축)</span>
+                                    <span>{overlay.positionXPercent ?? 50}%</span>
+                                  </div>
+                                  <input
+                                    type="range"
+                                    min={15}
+                                    max={85}
+                                    value={overlay.positionXPercent ?? 50}
+                                    onChange={(e) => handleUpdateCustomTextOverlay(overlay.id, { positionXPercent: Number(e.target.value) })}
+                                    className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                                  />
+                                </div>
+
+                                <div>
+                                  <div className="flex items-center justify-between text-[10px] font-bold text-slate-600 mb-1">
+                                    <span className="flex items-center gap-1">
+                                      <RotateCw className="w-2.5 h-2.5 text-indigo-600" />
+                                      자막 회전 (각도)
+                                    </span>
+                                    <span className={`font-mono ${(overlay.rotationDeg || 0) !== 0 ? 'text-indigo-600 font-extrabold' : ''}`}>
+                                      {overlay.rotationDeg || 0}°
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center space-x-1">
+                                    <input
+                                      type="range"
+                                      min={-45}
+                                      max={45}
+                                      value={overlay.rotationDeg || 0}
+                                      onChange={(e) => handleUpdateCustomTextOverlay(overlay.id, { rotationDeg: Number(e.target.value) })}
+                                      className="flex-1 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                                    />
+                                    {(overlay.rotationDeg || 0) !== 0 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleUpdateCustomTextOverlay(overlay.id, { rotationDeg: 0 })}
+                                        className="text-[9px] px-1 py-0.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700"
+                                        title="0도로 초기화"
+                                      >
+                                        0°
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
                             </div>
 
                             {/* Font, Size, Color & Box Styling */}
@@ -3708,6 +3884,58 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                       className="flex-1 accent-indigo-600 cursor-pointer"
                     />
                     <span className="text-[10px] text-slate-400 font-bold">하단 (88%)</span>
+                  </div>
+
+                  {/* Main Subtitle X-Axis and Rotation Controls */}
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200">
+                    <div>
+                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 mb-1">
+                        <span>가로 위치 (X축)</span>
+                        <span className="text-indigo-600 font-mono text-[10px]">{subtitleXPercent ?? 50}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={15}
+                        max={85}
+                        value={subtitleXPercent ?? 50}
+                        onChange={(e) => setSubtitleXPercent(parseInt(e.target.value, 10))}
+                        disabled={isRendering}
+                        className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 mb-1">
+                        <span className="flex items-center gap-1">
+                          <RotateCw className="w-3 h-3 text-indigo-600" />
+                          자막 회전 (각도)
+                        </span>
+                        <span className={`font-mono text-[10px] ${(subtitleRotationDeg ?? 0) !== 0 ? 'text-indigo-600 font-extrabold' : 'text-slate-500'}`}>
+                          {subtitleRotationDeg ?? 0}°
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <input
+                          type="range"
+                          min={-45}
+                          max={45}
+                          value={subtitleRotationDeg ?? 0}
+                          onChange={(e) => setSubtitleRotationDeg(parseInt(e.target.value, 10))}
+                          disabled={isRendering}
+                          className="flex-1 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                        />
+                        {(subtitleRotationDeg ?? 0) !== 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setSubtitleRotationDeg(0)}
+                            className="text-[9px] px-1.5 py-0.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold"
+                            title="0도로 초기화"
+                          >
+                            0°
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -4560,7 +4788,27 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
             <div className="w-[280px] sm:w-[310px] aspect-[9/16] bg-slate-950 rounded-3xl overflow-hidden shadow-2xl border-4 border-slate-900 relative flex items-center justify-center">
               <canvas
                 ref={canvasRef}
-                className={`w-full h-full object-cover ${previewViewMode === 'video' && videoBlobUrl ? 'hidden' : 'block'}`}
+                onPointerDown={(e) => {
+                  try { (e.target as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+                  handleCanvasPointerDown(e.clientX, e.clientY);
+                }}
+                onPointerMove={(e) => {
+                  if (canvasDragRef.current) {
+                    e.preventDefault();
+                    handleCanvasPointerMove(e.clientX, e.clientY);
+                  }
+                }}
+                onPointerUp={(e) => {
+                  try { (e.target as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+                  handleCanvasPointerUp();
+                }}
+                onPointerCancel={() => handleCanvasPointerUp()}
+                onWheel={handleCanvasWheel}
+                className={`w-full h-full object-cover touch-none select-none ${
+                  previewViewMode === 'video' && videoBlobUrl
+                    ? 'hidden'
+                    : 'block cursor-grab active:cursor-grabbing'
+                }`}
               />
 
               {previewViewMode === 'video' && videoBlobUrl ? (
@@ -4599,6 +4847,14 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                 authorName={project.figureName || 'Untold Story'}
               />
             </div>
+
+            {/* Drag & Rotate Hint */}
+            {!isRendering && previewViewMode === 'live' && (
+              <div className="mt-1.5 flex items-center justify-center space-x-1.5 text-[10px] text-slate-500 font-bold bg-slate-100/90 py-1 px-3 rounded-full border border-slate-200 shadow-2xs">
+                <span>🖱️</span>
+                <span>모든 자막은 화면에서 <strong>마우스 드래그로 이동</strong> 및 <strong>휠 스크롤로 회전</strong>할 수 있습니다.</span>
+              </div>
+            )}
 
             {/* Quick Actions below canvas */}
             {!isRendering && (
