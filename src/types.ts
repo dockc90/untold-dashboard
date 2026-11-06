@@ -232,6 +232,10 @@ export interface CarouselSlide {
   imageSearchKeyword?: string;
   badgeText?: string;
   imageUrl?: string;
+  subDetailFont?: string;
+  subDetailColor?: string;
+  subDetailFontSize?: 'sm' | 'md' | 'lg' | 'xl';
+  subDetailBgStyle?: 'none' | 'capsule' | 'box';
 }
 
 export interface CarouselData {

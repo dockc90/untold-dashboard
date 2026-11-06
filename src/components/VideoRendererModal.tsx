@@ -33,7 +33,7 @@ import {
   Eye,
   Share2
 } from 'lucide-react';
-import fixWebmDuration from 'fix-webm-duration';
+import { fixWebmBlob, patchWebmBinaryDurationAndCues } from '../utils/webmFixer';
 import { 
   ShortsProject, 
   SceneItem, 
@@ -283,105 +283,9 @@ export const getSubtitleChunks = (
   return finalChunks.length > 0 ? finalChunks : [clean];
 };
 
-// Direct WebM EBML binary duration & Segment patcher
-// Fixes Android Stagefright / Samsung Gallery / KakaoTalk "00:12 / 00:03" metadata bug by:
-// 1. Overwriting Duration float (Float64 or Float32) with true target duration in milliseconds
-// 2. Patching unknown Segment size (0x01FFFFFFFFFFFFFF) with exact byte length so Android MatroskaExtractor can seek to all clusters
-export const patchWebmBinaryDuration = (bytes: Uint8Array, targetDurationMs: number): Uint8Array => {
-  try {
-    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-    let patchedDuration = false;
-
-    // 1. Search and patch EBML ID 0x4489 (Duration)
-    for (let i = 0; i < bytes.length - 12; i++) {
-      if (bytes[i] === 0x44 && bytes[i + 1] === 0x89) {
-        const sizeByte = bytes[i + 2];
-        if (sizeByte === 0x84) { // 4-byte float (Float32)
-          view.setFloat32(i + 3, targetDurationMs);
-          patchedDuration = true;
-        } else if (sizeByte === 0x88) { // 8-byte float (Float64)
-          view.setFloat64(i + 3, targetDurationMs);
-          patchedDuration = true;
-        } else if (sizeByte === 0x40 && bytes[i + 3] === 0x08) { // 2-byte VINT Float64
-          view.setFloat64(i + 4, targetDurationMs);
-          patchedDuration = true;
-        } else if (sizeByte === 0x40 && bytes[i + 3] === 0x04) { // 2-byte VINT Float32
-          view.setFloat32(i + 4, targetDurationMs);
-          patchedDuration = true;
-        }
-      }
-    }
-
-    // 2. Search Segment header (0x18 0x53 0x80 0x67) and patch Unknown size to exact length
-    for (let i = 0; i < Math.min(bytes.length - 12, 500); i++) {
-      if (bytes[i] === 0x18 && bytes[i + 1] === 0x53 && bytes[i + 2] === 0x80 && bytes[i + 3] === 0x67) {
-        // Check if Segment length is 8-byte unknown VINT: 0x01 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF
-        if (bytes[i + 4] === 0x01 && bytes[i + 5] === 0xFF && bytes[i + 6] === 0xFF && bytes[i + 7] === 0xFF) {
-          const actualSegDataSize = bytes.length - (i + 12);
-          if (actualSegDataSize > 0) {
-            // Write 8-byte VINT with high bit marker 0x01
-            try {
-              const highPart = (0x01 << 24) | Math.floor(actualSegDataSize / 0x100000000);
-              const lowPart = actualSegDataSize >>> 0;
-              view.setUint32(i + 4, highPart);
-              view.setUint32(i + 8, lowPart);
-            } catch (e) {}
-          }
-        }
-        break;
-      }
-    }
-
-    // 3. If Duration was NOT found at all, inject Duration (0x4489 + 8-byte float) directly into Info container (0x1549A966)
-    if (!patchedDuration) {
-      let infoOffset = -1;
-      for (let i = 0; i < Math.min(bytes.length - 16, 2048); i++) {
-        if (bytes[i] === 0x15 && bytes[i + 1] === 0x49 && bytes[i + 2] === 0xA9 && bytes[i + 3] === 0x66) {
-          infoOffset = i;
-          break;
-        }
-      }
-
-      if (infoOffset !== -1) {
-        // Read Info container VINT size
-        let infoSizeLen = 1;
-        const b = bytes[infoOffset + 4];
-        if (b & 0x80) infoSizeLen = 1;
-        else if (b & 0x40) infoSizeLen = 2;
-        else if (b & 0x20) infoSizeLen = 3;
-        else if (b & 0x10) infoSizeLen = 4;
-
-        const infoContentStart = infoOffset + 4 + infoSizeLen;
-        // Build 11-byte Duration element: [0x44, 0x89, 0x88, 8-byte Float64]
-        const durTag = new Uint8Array(11);
-        durTag[0] = 0x44;
-        durTag[1] = 0x89;
-        durTag[2] = 0x88; // 8-byte Float64
-        new DataView(durTag.buffer).setFloat64(3, targetDurationMs);
-
-        // Splice durTag right at the start of Info container content
-        const newBytes = new Uint8Array(bytes.length + 11);
-        newBytes.set(bytes.subarray(0, infoContentStart), 0);
-        newBytes.set(durTag, infoContentStart);
-        newBytes.set(bytes.subarray(infoContentStart), infoContentStart + 11);
-
-        // Update Info container size in newBytes
-        if (infoSizeLen === 1 && (b & 0x80)) {
-          const oldSize = b & 0x7F;
-          if (oldSize + 11 < 0x7F) {
-            newBytes[infoOffset + 4] = 0x80 | (oldSize + 11);
-          }
-        }
-        return newBytes;
-      }
-    }
-
-    return bytes;
-  } catch (err) {
-    console.warn('patchWebmBinaryDuration error:', err);
-    return bytes;
-  }
-};
+// Industrial-grade WebM EBML duration & Cues seek index patcher
+// Fixes Android Stagefright / Samsung Gallery / KakaoTalk "00:12 / 00:03" metadata bug:
+export const patchWebmBinaryDuration = patchWebmBinaryDurationAndCues;
 
 // Helper: Shortens and formats long YouTube titles into punchy 2-line viral reels headlines
 export const fixMp4Duration = async (blob: Blob, durationSec: number): Promise<Blob> => {
@@ -785,9 +689,13 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     }
   }, [channelLogo.imageUrl]);
 
-  // Subtitle Customizations (화이트 카드뉴스 프레임 및 쇼츠 기본값: 프리텐다드)
+  // Subtitle Customizations (화이트 카드뉴스 프레임 기본값: 86% 최하단, 프리텐다드)
   const [subtitleFont, setSubtitleFont] = useState<SubtitleFontFamily>(project.subtitleFont || 'Pretendard');
-  const [subtitleYPercent, setSubtitleYPercent] = useState<number>(78); // 15 to 90
+  const [subtitleYPercent, setSubtitleYPercent] = useState<number>(() => {
+    if (project.subtitleYPercent !== undefined) return project.subtitleYPercent;
+    if ((project.backdropStyle || 'card_white') === 'card_white') return 86;
+    return 78;
+  });
   const [subtitleSizeScale, setSubtitleSizeScale] = useState<number>(1.1); // 0.8 to 1.4
   const [subtitleStyle, setSubtitleStyle] = useState<SubtitleEffectStyle>('yellow_box');
   const [subtitleTempo, setSubtitleTempo] = useState<SubtitleTempo>(project.subtitleTempo || 'fast');
@@ -1007,6 +915,14 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   }, [isOpen, isRendering, onClose]);
 
   // Quick preset helper to apply optimal viral shorts settings
+  const handleSelectBackdrop = (bgId: BackdropStyle) => {
+    setBackdropStyle(bgId);
+    if (bgId === 'card_white') {
+      setSubtitleYPercent(86);
+    }
+    setPreviewViewMode('live');
+  };
+
   const handleApplyRecommendedSettings = () => {
     setPhotoAspectRatio('1:1');
     setBackdropStyle('blur');
@@ -1022,9 +938,9 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   const handleApplySampleReelsPreset = () => {
     setBackdropStyle('card_white');
     setPhotoAspectRatio('1:1');
-    setSubtitleFont('Do Hyeon');
+    setSubtitleFont('Pretendard');
     setSubtitleStyle('yellow_box');
-    setSubtitleYPercent(82);
+    setSubtitleYPercent(86);
     setSubtitleSizeScale(1.15);
     setResolution('1080p');
     setChannelLogo((prev) => ({
@@ -2263,20 +2179,10 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       let blob = new Blob(recordedChunksRef.current, { type: finalBlobType });
       const durationMs = totalVideoSec * 1000;
 
-      // Patch duration metadata so Gallery, KakaoTalk, and Instagram read the full video length (never 3s!)
+      // Patch duration metadata and inject EBML Cues so Samsung Gallery, KakaoTalk, and Instagram read the full video length (never 3s!)
       try {
         if (finalBlobType.includes('webm')) {
-          // 1. Run fixWebmDuration library
-          try {
-            blob = await fixWebmDuration(blob, durationMs);
-          } catch (e) {
-            console.warn('fixWebmDuration lib error:', e);
-          }
-          // 2. ALWAYS force-patch WebM binary Duration float and Segment size
-          const arrayBuffer = await blob.arrayBuffer();
-          const bytes = new Uint8Array(arrayBuffer);
-          const patchedBytes = patchWebmBinaryDuration(bytes, durationMs);
-          blob = new Blob([patchedBytes], { type: finalBlobType });
+          blob = await fixWebmBlob(blob, durationMs);
         } else {
           blob = await fixMp4Duration(blob, totalVideoSec);
         }
@@ -2292,6 +2198,13 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       setIsRendering(false);
       setStatusMessage(`쇼츠 영상 제작 완료! (총 ${Math.round(totalVideoSec)}초 - 갤러리 및 카카오톡 전송 시 전체 길이 완벽 유지)`);
       setRenderProgress(100);
+
+      // [Request 1] 영상 제작 완료 시 자동으로 보관함에 즉시 안전 보관
+      try {
+        await handleSaveToVault();
+      } catch (vaultErr) {
+        console.warn('Auto save to vault error on render complete:', vaultErr);
+      }
     };
 
     // Start recorder FIRST with 100ms chunking for responsive stream capture
@@ -2301,6 +2214,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     // 250ms deterministic warmup buffer ensures MediaRecorder encoder pipeline is fully active
     const WARMUP_DELAY_SEC = 0.25;
     const masterStartAudioTime = audioCtx.currentTime + WARMUP_DELAY_SEC;
+    const masterStartPerfTime = performance.now() + (WARMUP_DELAY_SEC * 1000);
 
     // Schedule all scene audio buffers strictly anchored to masterStartAudioTime
     for (let i = 0; i < scenes.length; i++) {
@@ -2337,13 +2251,13 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       }
     }
 
-    // 8. Video Rendering Frame Loop SLAVED TO audioCtx.currentTime
+    // 8. Video Rendering Frame Loop SLAVED TO high-precision performance clock
     let lastProgressUpdateTime = 0;
     let renderIntervalId: any = null;
 
     const renderFrame = () => {
-      // MASTER CLOCK: exact hardware audio seconds elapsed since audio playback began
-      const elapsedSec = audioCtx.currentTime - masterStartAudioTime;
+      // High-precision continuous clock: microsecond continuous animation without Windows WASAPI audio quantum stuttering (PC 사진 움직임 끊김 완벽 해결)
+      const elapsedSec = (performance.now() - masterStartPerfTime) / 1000;
 
       // During 250ms pre-roll warmup, display scene 0 frame 0 cleanly
       const clampedElapsed = Math.max(0, elapsedSec);
@@ -2866,8 +2780,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                               key={bg.id}
                               type="button"
                               onClick={() => {
-                                setBackdropStyle(bg.id);
-                                setPreviewViewMode('live');
+                                handleSelectBackdrop(bg.id);
                               }}
                               disabled={isRendering}
                               className={`p-2.5 rounded-xl border text-center transition flex flex-col items-center justify-between space-y-1.5 cursor-pointer ${
@@ -2911,8 +2824,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                             type="button"
                             onClick={() => {
                               setPhotoAspectRatio('1:1');
-                              setBackdropStyle(bg.id);
-                              setPreviewViewMode('live');
+                              handleSelectBackdrop(bg.id);
                             }}
                             className="p-2 rounded-xl bg-white hover:bg-amber-100/70 border border-amber-300 text-center text-slate-800 font-bold text-xs transition cursor-pointer shadow-2xs"
                           >

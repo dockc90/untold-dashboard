@@ -710,7 +710,7 @@ app.post('/api/gemini/generate-viral-assets', async (req, res) => {
                         properties: {
                           slideNumber: { type: Type.INTEGER },
                           type: { type: Type.STRING, description: 'cover | hook | insight | body | cta' },
-                          mainHook: { type: Type.STRING, description: '슬라이드 핵심 텍스트 (큰 글씨)' },
+                          mainHook: { type: Type.STRING, description: '슬라이드 핵심 텍스트 (1~2줄 압축 펀치라인, 15자 내외 권장)' },
                           subDetail: { type: Type.STRING, description: '보조 설명 텍스트 (작은 글씨)' },
                           visualGuide: { type: Type.STRING, description: '배경 이미지 또는 그래픽 가이드' },
                           imageSearchKeyword: { type: Type.STRING, description: '구글 이미지 검색에 가장 적합한 키워드 (예: 안성재 미군 정비병 시절)' },

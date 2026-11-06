@@ -65,6 +65,78 @@ const FONT_SIZE_PRESETS = [
   { id: 'lg', label: '특대 (강한 후킹)', titleClass: 'text-3xl sm:text-4xl', descClass: 'text-base sm:text-lg', titlePx: 66, descPx: 36 },
 ];
 
+export const SUB_DETAIL_FONT_OPTIONS = [
+  { id: 'Pretendard', name: '프리텐다드', family: "'Pretendard', -apple-system, sans-serif", desc: '가독성 1위 모던 고딕 (기본)' },
+  { id: 'Gowun Dodum', name: '고운돋움', family: "'Gowun Dodum', sans-serif", desc: '차분하고 정돈된 텍스트' },
+  { id: 'Song Myung', name: '송명체', family: "'Song Myung', serif", desc: '감성 다큐 스토리텔링' },
+  { id: 'Do Hyeon', name: '도현체', family: "'Do Hyeon', sans-serif", desc: '단단한 예능 카드' },
+  { id: 'Black Han Sans', name: '블랙한산스', family: "'Black Han Sans', sans-serif", desc: '볼드 임팩트' },
+];
+
+export const SUB_DETAIL_SIZE_PRESETS = [
+  { id: 'sm', label: '소형 (14px)', descClass: 'text-xs sm:text-sm', canvasPx: 26 },
+  { id: 'md', label: '보통 (16px 추천)', descClass: 'text-sm sm:text-base', canvasPx: 32 },
+  { id: 'lg', label: '크게 (19px)', descClass: 'text-base sm:text-lg', canvasPx: 38 },
+  { id: 'xl', label: '특대 (22px)', descClass: 'text-lg sm:text-xl', canvasPx: 44 },
+];
+
+export const SUB_DETAIL_COLOR_PRESETS = [
+  { id: 'slate', label: '소프트 슬레이트', hex: '#e2e8f0' },
+  { id: 'white', label: '순백 화이트', hex: '#ffffff' },
+  { id: 'amber', label: '웜 옐로우', hex: '#fde047' },
+  { id: 'mint', label: '네온 민트', hex: '#86efac' },
+  { id: 'cyan', label: '스카이 시안', hex: '#7dd3fc' },
+  { id: 'rose', label: '코랄 핑크', hex: '#fca5a5' },
+];
+
+export const SUB_DETAIL_BG_STYLES = [
+  { id: 'none', label: '투명 (기본)' },
+  { id: 'capsule', label: '다크 캡슐' },
+  { id: 'box', label: '카드 박스' },
+];
+
+// Helper: Compresses long narrative sentences into 1~2 punchy lines (max 15~18 chars) for viral Instagram Carousel cards
+export function compressToPunchline(text: string): { headline: string; detail: string } {
+  let cleaned = text.replace(/["'“”]/g, '').trim();
+  if (cleaned.length <= 18) {
+    return { headline: cleaned, detail: text };
+  }
+
+  // Look for natural clause boundaries
+  const splitClauses = cleaned.split(/(?<=[,?!])\s+|(?<=\b(?:하지만|그러나|결국|그리고|어떻게|당시|과거)\b)\s+/);
+  if (splitClauses.length > 1) {
+    const firstClause = splitClauses[0].trim();
+    if (firstClause.length >= 5 && firstClause.length <= 22) {
+      const rest = splitClauses.slice(1).join(' ').trim();
+      return { headline: firstClause, detail: rest || text };
+    }
+  }
+
+  // Split into 2 short lines around 10-14 chars
+  const words = cleaned.split(/\s+/);
+  let line1 = '';
+  let line2 = '';
+  let remainingWords: string[] = [];
+  
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i];
+    if (!line1 || (line1 + ' ' + w).length <= 11) {
+      line1 = line1 ? `${line1} ${w}` : w;
+    } else if (!line2 || (line2 + ' ' + w).length <= 14) {
+      line2 = line2 ? `${line2} ${w}` : w;
+    } else {
+      remainingWords = words.slice(i);
+      break;
+    }
+  }
+
+  const punchline = line2 ? `${line1}\n${line2}` : line1;
+  return {
+    headline: punchline,
+    detail: remainingWords.length > 0 ? remainingWords.join(' ') : text,
+  };
+}
+
 const loadImage = (src: string): Promise<HTMLImageElement> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -154,6 +226,12 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
   const [fontSizeMode, setSizeMode] = useState<'sm' | 'md' | 'lg'>('md');
   const [textAlign, setTextAlign] = useState<'center' | 'left'>('center');
 
+  // SubDetail Styling (Request 5: 폰트, 글자 크기, 컬러구성, 배경)
+  const [subDetailFont, setSubDetailFont] = useState(SUB_DETAIL_FONT_OPTIONS[0]);
+  const [subDetailFontSize, setSubDetailFontSize] = useState<'sm' | 'md' | 'lg' | 'xl'>('md');
+  const [subDetailColor, setSubDetailColor] = useState<string>('#e2e8f0');
+  const [subDetailBgStyle, setSubDetailBgStyle] = useState<'none' | 'capsule' | 'box'>('none');
+
   // Script Input & Auto-chunker
   const [scriptInput, setScriptInput] = useState(initialScript);
   const [scriptToast, setScriptToast] = useState<string | null>(null);
@@ -223,34 +301,39 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
 
     const newSlides: CarouselSlide[] = [];
 
-    // Slide 1: Cover Hook
-    const coverTitle = rawParts[0] || `${topic}에 대한 충격 진실`;
-    const coverSub = rawParts[1] || '알고리즘이 숨겨둔 결정적 비하인드 (옆으로 넘겨보기 👉)';
+    // Slide 1: Cover Hook (인스타 떡상 트렌드: 1~2줄 압축 펀치라인, 15자 내외)
+    const coverRaw = rawParts[0] || `${topic}에 대한 충격 진실`;
+    const coverPunch = compressToPunchline(coverRaw);
+    const coverSub = coverPunch.detail && coverPunch.detail !== coverPunch.headline
+      ? coverPunch.detail
+      : (rawParts[1] || '알고리즘이 숨겨둔 결정적 비하인드 (옆으로 넘겨보기 👉)');
+
     newSlides.push({
       slideNumber: 1,
       type: 'cover',
-      mainHook: coverTitle,
+      mainHook: coverPunch.headline,
       subDetail: coverSub,
       visualGuide: '인물 고화질 사진 또는 임팩트 그래픽',
       imageSearchKeyword: `${topic} 고화질 프로필 사진`,
-      badgeText: '🔥 쇼츠 대본 연동',
+      badgeText: '🔥 떡상 카드뉴스',
       imageUrl: slides[0]?.imageUrl
     });
 
     // Middle slides
-    const remaining = rawParts.slice(2);
+    const remaining = rawParts.slice(1);
     let step = 1;
     for (let i = 0; i < remaining.length; i += 2) {
-      const mainHookCandidate = remaining[i];
-      const subCandidate = remaining[i + 1] ? remaining[i + 1] : '';
+      const mainRaw = remaining[i];
+      const punch = compressToPunchline(mainRaw);
+      const subCandidate = remaining[i + 1] ? remaining[i + 1] : (punch.detail || '더 깊은 이야기와 반전이 계속됩니다.');
 
       newSlides.push({
         slideNumber: newSlides.length + 1,
         type: 'body',
-        mainHook: mainHookCandidate,
-        subDetail: subCandidate || '더 깊은 이야기와 반전이 계속됩니다.',
+        mainHook: punch.headline,
+        subDetail: subCandidate,
         visualGuide: '스토리 장면에 맞는 현장 사진 또는 자료 사진',
-        imageSearchKeyword: `${topic} ${mainHookCandidate.replace(/[^\w\s가-힣]/g, '').slice(0, 15)} 사진`,
+        imageSearchKeyword: `${topic} ${punch.headline.replace(/[^\w\s가-힣]/g, '').slice(0, 15)} 사진`,
         badgeText: `POINT 0${step}`,
         imageUrl: slides[newSlides.length]?.imageUrl
       });
@@ -261,8 +344,8 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
     newSlides.push({
       slideNumber: newSlides.length + 1,
       type: 'cta',
-      mainHook: `${topic}의 이야기,\n여러분의 생각은 어떠신가요?`,
-      subDetail: '📌 나중에 다시 보려면 지금 바로 [저장] 해두세요!\n💬 댓글로 의견을 들려주세요.',
+      mainHook: `${topic}의 반전 서사,\n어떻게 생각하시나요?`,
+      subDetail: '📌 나중에 다시 보려면 지금 바로 [저장] 해두세요!\n💬 댓글로 자유롭게 의견을 들려주세요.',
       visualGuide: '저장 & 공유 유도 엔딩 카드',
       imageSearchKeyword: `${topic} 최근 근황 사진`,
       badgeText: '💬 토론 & 저장'
@@ -270,17 +353,31 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
 
     setSlides(newSlides);
     setCurrentSlideIndex(0);
-    setScriptToast(`대본이 총 ${newSlides.length}장의 가독성 최적 카드뉴스로 변환되었습니다! ✨`);
+    setScriptToast(`대본이 총 ${newSlides.length}장의 인스타 트렌드 펀치라인 카드뉴스로 변환되었습니다! ✨`);
     setTimeout(() => setScriptToast(null), 3500);
   };
 
   // Update specific field on current slide
-  const handleUpdateCurrentSlide = (field: 'mainHook' | 'subDetail' | 'badgeText' | 'imageSearchKeyword', val: string) => {
+  const handleUpdateCurrentSlide = (field: keyof CarouselSlide, val: any) => {
     if (!slides[currentSlideIndex]) return;
     const updated = [...slides];
     updated[currentSlideIndex] = {
       ...updated[currentSlideIndex],
       [field]: val
+    };
+    setSlides(updated);
+  };
+
+  const handleQuickCompressHeadline = () => {
+    if (!currentSlide?.mainHook) return;
+    const punch = compressToPunchline(currentSlide.mainHook);
+    const updated = [...slides];
+    updated[currentSlideIndex] = {
+      ...updated[currentSlideIndex],
+      mainHook: punch.headline,
+      subDetail: punch.detail && (!currentSlide.subDetail || currentSlide.subDetail.length < 10)
+        ? punch.detail
+        : currentSlide.subDetail
     };
     setSlides(updated);
   };
@@ -405,15 +502,47 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
       startY += titlePx * 1.35;
     }
 
-    // SubDetail
-    ctx.fillStyle = slide.imageUrl ? '#e2e8f0' : selectedTheme.subText;
-    ctx.font = `500 ${descPx}px ${selectedFont.family}`;
-    ctx.shadowBlur = 8;
+    // SubDetail (Request 5: 폰트, 글자 크기, 컬러구성, 배경 박스 커스텀 반영)
+    const activeSubPx = SUB_DETAIL_SIZE_PRESETS.find(p => p.id === (slide.subDetailFontSize || subDetailFontSize))?.canvasPx || 32;
+    const activeSubFont = slide.subDetailFont || subDetailFont.family;
+    const activeSubColor = slide.subDetailColor || subDetailColor;
+    const activeSubBg = slide.subDetailBgStyle || subDetailBgStyle;
+
+    ctx.font = `500 ${activeSubPx}px ${activeSubFont}`;
     const subLines = wrapCanvasText(ctx, slide.subDetail, maxTextWidth);
-    startY += 24;
+    startY += 26;
+
+    if (activeSubBg !== 'none' && subLines.length > 0) {
+      const boxPaddingX = 24;
+      const boxPaddingY = 14;
+      let maxLineWidth = 0;
+      for (const line of subLines) {
+        maxLineWidth = Math.max(maxLineWidth, ctx.measureText(line).width);
+      }
+      const boxWidth = Math.min(width - 120, maxLineWidth + boxPaddingX * 2);
+      const boxHeight = (subLines.length * activeSubPx * 1.42) + boxPaddingY * 2;
+      const boxX = textAlign === 'center' ? (width - boxWidth) / 2 : 70;
+      const boxY = startY - activeSubPx + 6;
+
+      ctx.save();
+      ctx.fillStyle = activeSubBg === 'box' ? 'rgba(15, 23, 42, 0.82)' : 'rgba(0, 0, 0, 0.62)';
+      ctx.beginPath();
+      ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 16);
+      ctx.fill();
+      if (activeSubBg === 'box') {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+      ctx.restore();
+      startY += boxPaddingY * 0.5;
+    }
+
+    ctx.fillStyle = activeSubColor;
+    ctx.shadowBlur = activeSubBg === 'none' ? 8 : 2;
     for (const sLine of subLines) {
       ctx.fillText(sLine, textX, startY);
-      startY += descPx * 1.45;
+      startY += activeSubPx * 1.45;
     }
 
     // Footer page number (No watermark!)
@@ -739,12 +868,26 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
                   {currentSlide?.mainHook || '메인 헤드라인을 입력하세요'}
                 </h2>
 
-                <p 
-                  className={`font-medium leading-relaxed drop-shadow-md whitespace-pre-line ${descClass}`}
-                  style={{ color: currentSlide?.imageUrl ? '#e2e8f0' : selectedTheme.subText }}
-                >
-                  {currentSlide?.subDetail || '보조 상세 설명을 작성해주세요.'}
-                </p>
+                {/* SubDetail with capsule / box styling (Request 5) */}
+                <div className={`transition-all ${
+                  (currentSlide?.subDetailBgStyle || subDetailBgStyle) === 'capsule'
+                    ? 'px-4 py-2.5 rounded-2xl bg-black/60 backdrop-blur-xs max-w-fit mx-auto'
+                    : (currentSlide?.subDetailBgStyle || subDetailBgStyle) === 'box'
+                    ? 'p-3.5 rounded-2xl bg-slate-900/80 border border-white/15 backdrop-blur-sm'
+                    : ''
+                }`}>
+                  <p 
+                    className={`font-medium leading-relaxed drop-shadow-md whitespace-pre-line ${
+                      SUB_DETAIL_SIZE_PRESETS.find(p => p.id === (currentSlide?.subDetailFontSize || subDetailFontSize))?.descClass || 'text-sm sm:text-base'
+                    }`}
+                    style={{ 
+                      color: currentSlide?.subDetailColor || subDetailColor,
+                      fontFamily: currentSlide?.subDetailFont || subDetailFont.family 
+                    }}
+                  >
+                    {currentSlide?.subDetail || '보조 상세 설명을 작성해주세요.'}
+                  </p>
+                </div>
               </div>
 
               {/* Bottom Footer Page Count (Clean, No Watermark) */}
@@ -819,12 +962,33 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
 
             {/* Main Headline Input */}
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-[11px] font-bold text-slate-700">메인 헤드라인 (큰 글씨)</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-1.5">
+                  <label className="text-[11px] font-bold text-slate-800">메인 헤드라인 (큰 글씨)</label>
+                  <button
+                    type="button"
+                    onClick={handleQuickCompressHeadline}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-[10px] font-black border border-rose-200 transition cursor-pointer active:scale-95 shadow-2xs"
+                    title="인스타 트렌드에 맞춰 15자 내외 펀치라인으로 자동 축약합니다"
+                  >
+                    <Sparkles className="w-3 h-3 text-rose-600" />
+                    <span>⚡ 15자 펀치라인 축약</span>
+                  </button>
+                </div>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                  mainHookLen <= 25 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                  mainHookLen <= 18
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : mainHookLen <= 28
+                    ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                    : 'bg-rose-50 text-rose-700 border border-rose-200'
                 }`}>
-                  {mainHookLen}자 {mainHookLen <= 25 ? '🟢 가독성 최적 (25자 이내)' : '🟠 다소 긺'}
+                  {mainHookLen}자 {
+                    mainHookLen <= 18
+                      ? '🟢 인스타 최적 (18자 이내)'
+                      : mainHookLen <= 28
+                      ? '🟠 다소 긺'
+                      : '🔴 글씨 과다 (축약 권장)'
+                  }
                 </span>
               </div>
               <textarea
@@ -879,16 +1043,16 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
             </div>
           </div>
 
-          {/* 2. Typography & Color Customizer */}
+          {/* 2. Main Headline Typography & Color Customizer */}
           <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
             <div className="flex items-center gap-2 text-sm font-black text-slate-900">
               <TypeIcon className="w-4 h-4 text-indigo-600" />
-              <span>폰트 • 글자 크기 • 컬러 구성</span>
+              <span>2. 메인 헤드라인 스타일 (서체 • 크기 • 정렬 • 컬러)</span>
             </div>
 
             {/* Font Selector */}
             <div>
-              <label className="block text-[11px] font-bold text-slate-500 mb-1.5">폰트 서체 선택</label>
+              <label className="block text-[11px] font-bold text-slate-500 mb-1.5">헤드라인 서체 선택</label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {FONT_OPTIONS.map((f) => (
                   <button
@@ -910,7 +1074,7 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
             {/* Font Size & Align */}
             <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
               <div>
-                <label className="block text-[11px] font-bold text-slate-500 mb-1.5">글자 크기</label>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1.5">헤드라인 크기</label>
                 <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl">
                   {FONT_SIZE_PRESETS.map((sz) => (
                     <button
@@ -953,7 +1117,7 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
 
             {/* Text Color Presets */}
             <div className="pt-2 border-t border-slate-100">
-              <label className="block text-[11px] font-bold text-slate-500 mb-1.5">글자 색상</label>
+              <label className="block text-[11px] font-bold text-slate-500 mb-1.5">헤드라인 색상</label>
               <div className="flex items-center space-x-2">
                 {TEXT_COLOR_PRESETS.map((c) => (
                   <button
@@ -971,7 +1135,120 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
             </div>
           </div>
 
-          {/* 3. Theme Preset (Background Mood) */}
+          {/* 3. SubDetail Customizer (폰트 • 글자 크기 • 컬러 • 배경 박스) */}
+          <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm font-black text-slate-900">
+                <TypeIcon className="w-4 h-4 text-emerald-600" />
+                <span>3. 상세 보조 설명 스타일 (서체 • 크기 • 컬러 • 배경)</span>
+              </div>
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                가독성 100% 최적화
+              </span>
+            </div>
+
+            {/* SubDetail Font Selector */}
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 mb-1.5">보조 설명 서체 선택</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {SUB_DETAIL_FONT_OPTIONS.map((f) => {
+                  const isSelected = (currentSlide?.subDetailFont || subDetailFont.family) === f.family;
+                  return (
+                    <button
+                      key={f.id}
+                      onClick={() => {
+                        setSubDetailFont(f);
+                        handleUpdateCurrentSlide('subDetailFont', f.family);
+                      }}
+                      className={`p-2 rounded-xl border text-left transition cursor-pointer ${
+                        isSelected
+                          ? 'border-emerald-600 bg-emerald-50/70 ring-2 ring-emerald-500/20 text-emerald-950 font-black'
+                          : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                      }`}
+                    >
+                      <div className="text-xs font-bold" style={{ fontFamily: f.family }}>{f.name}</div>
+                      <div className="text-[10px] text-slate-400 mt-0.5">{f.desc}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* SubDetail Font Size */}
+            <div className="pt-2 border-t border-slate-100">
+              <label className="block text-[11px] font-bold text-slate-500 mb-1.5">보조 설명 글자 크기</label>
+              <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl">
+                {SUB_DETAIL_SIZE_PRESETS.map((sz) => {
+                  const isSelected = (currentSlide?.subDetailFontSize || subDetailFontSize) === sz.id;
+                  return (
+                    <button
+                      key={sz.id}
+                      onClick={() => {
+                        setSubDetailFontSize(sz.id as any);
+                        handleUpdateCurrentSlide('subDetailFontSize', sz.id);
+                      }}
+                      className={`flex-1 py-1 text-center rounded-lg text-xs font-bold transition cursor-pointer ${
+                        isSelected ? 'bg-white text-emerald-700 shadow-2xs font-black' : 'text-slate-600'
+                      }`}
+                    >
+                      {sz.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* SubDetail Text Color */}
+            <div className="pt-2 border-t border-slate-100">
+              <label className="block text-[11px] font-bold text-slate-500 mb-1.5">보조 설명 글자 색상</label>
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+                {SUB_DETAIL_COLOR_PRESETS.map((c) => {
+                  const isSelected = (currentSlide?.subDetailColor || subDetailColor) === c.hex;
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => {
+                        setSubDetailColor(c.hex);
+                        handleUpdateCurrentSlide('subDetailColor', c.hex);
+                      }}
+                      className={`py-1.5 px-2 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
+                        isSelected ? 'border-emerald-600 ring-2 ring-emerald-500/30 bg-emerald-50/40 font-black' : 'border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className="w-2.5 h-2.5 rounded-full border border-black/10 shrink-0" style={{ backgroundColor: c.hex }} />
+                      <span className="text-[10px] text-slate-700 truncate">{c.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* SubDetail Background Capsule / Box */}
+            <div className="pt-2 border-t border-slate-100">
+              <label className="block text-[11px] font-bold text-slate-500 mb-1.5">가독성 보강 배경 스타일</label>
+              <div className="flex items-center space-x-1.5 bg-slate-100 p-1 rounded-xl">
+                {SUB_DETAIL_BG_STYLES.map((bg) => {
+                  const isSelected = (currentSlide?.subDetailBgStyle || subDetailBgStyle) === bg.id;
+                  return (
+                    <button
+                      key={bg.id}
+                      onClick={() => {
+                        setSubDetailBgStyle(bg.id as any);
+                        handleUpdateCurrentSlide('subDetailBgStyle', bg.id);
+                      }}
+                      className={`flex-1 py-1.5 text-center rounded-lg text-xs font-bold transition cursor-pointer ${
+                        isSelected ? 'bg-white text-emerald-700 shadow-2xs font-black' : 'text-slate-600'
+                      }`}
+                    >
+                      {bg.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* 4. Theme Preset (Background Mood) */}
           <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm font-black text-slate-900">
@@ -1001,12 +1278,12 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
             </div>
           </div>
 
-          {/* 4. Slide List */}
+          {/* 5. Slide List */}
           <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <h4 className="font-black text-slate-900 text-sm flex items-center gap-2">
                 <Layers className="w-4 h-4 text-rose-500" />
-                <span>전체 슬라이드 순서 ({slides.length}장)</span>
+                <span>5. 전체 슬라이드 순서 ({slides.length}장)</span>
               </h4>
               <button
                 onClick={() => {
