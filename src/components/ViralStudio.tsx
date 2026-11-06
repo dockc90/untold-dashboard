@@ -39,7 +39,8 @@ import {
   Mic,
   Zap,
   HelpCircle,
-  ThumbsUp
+  ThumbsUp,
+  Edit3
 } from 'lucide-react';
 import { ViralAssetPackage, CarouselSlide, ThumbnailConcept } from '../types';
 
@@ -220,6 +221,20 @@ export const ViralStudio: React.FC<ViralStudioProps> = ({
     });
     setUrlModalOpen(false);
     setCustomUrlInput('');
+  };
+
+  // Directly edit thumbnail texts (badge, main, sub) to fix typos or customize copy
+  const handleUpdateCurrentThumb = (field: 'badgeText' | 'mainText' | 'subText', value: string) => {
+    if (!assets || !assets.thumbnails[selectedThumbIndex]) return;
+    const updatedThumbs = [...assets.thumbnails];
+    updatedThumbs[selectedThumbIndex] = {
+      ...updatedThumbs[selectedThumbIndex],
+      [field]: value
+    };
+    setAssets({
+      ...assets,
+      thumbnails: updatedThumbs
+    });
   };
 
   // Canvas drawing helper for Thumbnail
@@ -631,6 +646,62 @@ export const ViralStudio: React.FC<ViralStudioProps> = ({
                   <div className="relative z-10 bg-black/60 backdrop-blur-md -mx-6 -mb-6 p-3 text-[11px] text-white/90 border-t border-white/10 flex items-center justify-between">
                     <span>💡 비주얼 연출: {currentThumb.visualComposition}</span>
                     <Eye className="w-4 h-4 text-amber-400 shrink-0 ml-2" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Direct Thumbnail Text Editor Box */}
+            {currentThumb && (
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-1.5">
+                  <div className="flex items-center space-x-1.5 text-xs font-black text-slate-800">
+                    <Edit3 className="w-4 h-4 text-amber-600" />
+                    <span>썸네일 문구 직접 수정 (오타·카피 맞춤 편집)</span>
+                  </div>
+                  <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    실시간 프리뷰 & PNG 다운로드 즉시 반영
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                      상단 뱃지 문구
+                    </label>
+                    <input
+                      type="text"
+                      value={currentThumb.badgeText}
+                      onChange={(e) => handleUpdateCurrentThumb('badgeText', e.target.value)}
+                      placeholder="예: 인간 승리, 충격 실화"
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                      메인 헤드라인 (대형 볼드)
+                    </label>
+                    <input
+                      type="text"
+                      value={currentThumb.mainText}
+                      onChange={(e) => handleUpdateCurrentThumb('mainText', e.target.value)}
+                      placeholder="예: 눈물의 10년"
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-black text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                      서브 카피 문구
+                    </label>
+                    <input
+                      type="text"
+                      value={currentThumb.subText}
+                      onChange={(e) => handleUpdateCurrentThumb('subText', e.target.value)}
+                      placeholder="예: 안성재 셰프가 끝내 버텨낸 이유"
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-amber-700 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
                   </div>
                 </div>
               </div>
