@@ -1,3 +1,5 @@
+import { getSceneFallbackImage } from './sceneImages';
+
 export function generateClientFallbackScript(
   figureName: string = '화제의 인물',
   targetDuration: 45 | 60 = 60,
@@ -87,7 +89,11 @@ export function generateClientFallbackScript(
     ];
   }
 
-  const scenesToReturn = targetDuration === 45 ? fallback60Scenes.slice(0, 9) : fallback60Scenes;
+  const rawSliced = targetDuration === 45 ? fallback60Scenes.slice(0, 9) : fallback60Scenes;
+  const scenesToReturn = rawSliced.map((s, idx) => ({
+    ...s,
+    uploadedImageUrl: getSceneFallbackImage(figureName, 'entertainment', idx),
+  }));
   const fullScriptToReturn = scenesToReturn.map((s) => s.narration).join('\n\n');
 
   return {

@@ -50,6 +50,7 @@ import {
 } from '../types';
 import { VOICE_OPTIONS } from '../data/voices';
 import { playDistinctVoicePreview, stopAllVoicePreviews } from '../utils/voicePlayer';
+import { getSceneFallbackImage } from '../utils/sceneImages';
 
 interface VideoRendererModalProps {
   isOpen: boolean;
@@ -1309,7 +1310,9 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
       const activeScene = scenes[previewSceneIndex] || scenes[0];
       const previewText = activeScene?.narration || `${project.figureName}의 충격적인 인생 역전 스토리`;
-      const previewImgUrl = activeScene?.uploadedImageUrl || `https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=800&q=80`;
+      const previewImgUrl =
+        activeScene?.uploadedImageUrl ||
+        getSceneFallbackImage(project.figureName, project.category, previewSceneIndex);
 
       try {
         const img = await loadImage(previewImgUrl);
@@ -1516,7 +1519,9 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
     for (let i = 0; i < scenes.length; i++) {
       setStatusMessage(`사진 에셋 및 렌더링 최적화 중... (${i + 1}/${scenes.length})`);
-      const imgUrl = scenes[i].uploadedImageUrl || `https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=800&q=80`;
+      const imgUrl =
+        scenes[i].uploadedImageUrl ||
+        getSceneFallbackImage(project.figureName, project.category, i);
       const img = await loadImage(imgUrl);
       loadedImages.push(img);
 
@@ -1529,23 +1534,24 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     }
 
     // 4. Calculate dynamic scene durations based on audio length & speed multiplier
-    const sceneDurationsSec = scenes.map((s, idx) => {
-      const buffer = audioBuffers[idx];
-      if (buffer) {
-        const effectiveRate = voiceSpeedMultiplier * (selectedVoice.rate || 1.0);
-        // Buffer duration divided by effective speed rate + natural breathing pause
-        return Math.max(2.4, (buffer.duration / effectiveRate) + 0.35);
-      }
-      const chars = s.narration.length;
-      return Math.max(2.5, Math.min(5.5, (chars * 0.16) / voiceSpeedMultiplier));
-    });
-
-    // Exact cumulative start times for each scene (seconds from video start)
+    // Unified exact voice playback rate ensuring 100% audio-to-duration match
+    const effectivePlaybackRate = Math.max(0.7, Math.min(1.6, voiceSpeedMultiplier * (selectedVoice.rate || 1.0)));
+    const sceneSpokenDurationsSec: number[] = [];
+    const sceneDurationsSec: number[] = [];
     const sceneStartTimesSec: number[] = [];
-    let curTime = 0.1;
+    let curTime = 0.05;
+
     for (let i = 0; i < scenes.length; i++) {
+      const buffer = audioBuffers[i];
+      const spokenDur = buffer
+        ? (buffer.duration / effectivePlaybackRate)
+        : Math.max(2.2, (scenes[i].narration.replace(/\s+/g, '').length * 0.15) / voiceSpeedMultiplier);
+
+      sceneSpokenDurationsSec.push(spokenDur);
       sceneStartTimesSec.push(curTime);
-      curTime += sceneDurationsSec[i];
+      const sceneDur = spokenDur + 0.30; // 0.30s natural breath pause between scenes
+      sceneDurationsSec.push(sceneDur);
+      curTime += sceneDur;
     }
     const totalVideoSec = curTime;
     setVideoDuration(Math.round(totalVideoSec));
@@ -1558,20 +1564,17 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         try {
           const src = audioCtx.createBufferSource();
           src.buffer = buf;
-
-          // Apply authentic pitch of the chosen Instagram Reels voice actor
-          const effectivePitch = selectedVoice.pitch || 1.0;
-          src.playbackRate.value = effectivePitch * voiceSpeedMultiplier;
+          src.playbackRate.value = effectivePlaybackRate; // Guaranteed exact rate match!
 
           const filter = audioCtx.createBiquadFilter();
           if (selectedVoice.gender === 'male') {
             filter.type = 'lowshelf';
-            filter.frequency.value = 280;
-            filter.gain.value = 5.0; // Warm resonant male presence
+            filter.frequency.value = 250;
+            filter.gain.value = 4.0; // Warm resonant male presence
           } else {
             filter.type = 'highshelf';
-            filter.frequency.value = 2600;
-            filter.gain.value = 4.5; // Bright clear female presence
+            filter.frequency.value = 2800;
+            filter.gain.value = 3.5; // Bright clear female presence
           }
 
           const voiceGain = audioCtx.createGain();
@@ -1707,10 +1710,26 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       // Draw CapCut-style Custom Text Overlays (상단 헤드라인 및 커스텀 자막들)
       renderCustomTextOverlays(ctx, width, height, activeIdx);
 
-      // Subtitle Chunking: keep the scene photo intact while subtitles advance if long (CapCut-style dynamic tempo)
+      // Subtitle Chunking: Exact Voice-Subtitle character-weighted sync (CapCut style)
       const chunks = getSubtitleChunks(scene.narration, subtitleTempo);
-      const chunkIdx = Math.min(chunks.length - 1, Math.floor(progressInScene * chunks.length));
-      const activeSubtitleText = chunks[chunkIdx];
+      const spokenDur = sceneSpokenDurationsSec[activeIdx] || Math.max(0.1, sceneDuration - 0.30);
+      // Progress across spoken duration (0.0 to 1.0 while voice speaks; remains 1.0 during post-speech pause)
+      const speechProgress = Math.min(1.0, Math.max(0, timeInScene / Math.max(0.1, spokenDur)));
+
+      // Weight each chunk by clean character length so pacing matches speech syllables
+      const charWeights = chunks.map((c) => Math.max(1, c.replace(/\s+/g, '').length));
+      const totalChars = charWeights.reduce((a, b) => a + b, 0);
+      let cumulative = 0;
+      let activeChunkIdx = chunks.length - 1;
+      for (let c = 0; c < chunks.length; c++) {
+        cumulative += charWeights[c];
+        if (speechProgress <= cumulative / totalChars) {
+          activeChunkIdx = c;
+          break;
+        }
+      }
+
+      const activeSubtitleText = chunks[activeChunkIdx];
 
       // Draw custom subtitles for current chunk
       drawSubtitles(ctx, activeSubtitleText, width, height);

@@ -52,7 +52,8 @@ export async function GET(request: Request) {
     }
 
     // 2. High-performance acoustic fallback
-    const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=ko&client=tw-ob&q=${encodeURIComponent(cleanText.slice(0, 180))}`;
+    const speechText = cleanText.replace(/["“”'‘’]/g, ' ').replace(/\.{2,}/g, '. ').replace(/\s+/g, ' ').trim();
+    const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=ko&client=tw-ob&q=${encodeURIComponent(speechText.slice(0, 180))}`;
     const response = await fetch(ttsUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -129,7 +130,8 @@ export async function POST(request: Request) {
       }
     }
 
-    const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=ko&client=tw-ob&q=${encodeURIComponent(cleanText.slice(0, 180))}`;
+    const speechText = cleanText.replace(/["“”'‘’]/g, ' ').replace(/\.{2,}/g, '. ').replace(/\s+/g, ' ').trim();
+    const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=ko&client=tw-ob&q=${encodeURIComponent(speechText.slice(0, 180))}`;
     const response = await fetch(ttsUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',

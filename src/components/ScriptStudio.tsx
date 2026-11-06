@@ -33,6 +33,7 @@ import { VOICE_OPTIONS } from '../data/voices';
 import { playDistinctVoicePreview, stopAllVoicePreviews } from '../utils/voicePlayer';
 import { ScenePhotoCollageModal } from './ScenePhotoCollageModal';
 import { ErrorBoundary } from './ErrorBoundary';
+import { getSceneFallbackImage } from '../utils/sceneImages';
 
 interface ScriptStudioProps {
   selectedFigure: TrendingFigure | null;
@@ -331,7 +332,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
           visualGuide: `${fallbackFigure}의 대표 사진과 강렬한 타이틀`,
           imageSearchKeyword: `${fallbackFigure} 고화질`,
           visualEffect: '슬로우 줌인',
-          uploadedImageUrl: selectedFigure?.imageUrl,
+          uploadedImageUrl: selectedFigure?.imageUrl || getSceneFallbackImage(fallbackFigure, selectedFigure?.category || 'entertainment', 0),
           motionEffect: 'zoom_in',
         },
         {
@@ -804,7 +805,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                           {scene.uploadedImageUrl ? (
                             <div onClick={() => handleOpenCollageModal(idx)} className="relative group w-16 h-20 rounded-xl overflow-hidden border border-slate-300 hover:border-purple-400 shadow-2xs flex-shrink-0 cursor-pointer" title="클릭하여 위치/크기 조절 및 사진 편집">
                               <img
-                                src={scene.uploadedImageUrl}
+                                src={scene.uploadedImageUrl || getSceneFallbackImage(selectedFigure?.name || currentProject?.figureName || '', selectedFigure?.category || currentProject?.category || 'entertainment', idx)}
                                 alt={`Scene ${scene.sceneNumber}`}
                                 className="w-full h-full object-cover"
                               />

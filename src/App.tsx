@@ -27,6 +27,7 @@ import {
   isSupabaseConfigured 
 } from './lib/supabase';
 import { generateClientFallbackScript } from './utils/fallbackGenerator';
+import { getSceneFallbackImage } from './utils/sceneImages';
 
 const STORAGE_KEY = 'autoshorts_saved_projects_v2';
 
@@ -276,7 +277,7 @@ export default function App() {
       const scenesWithDefaults = rawScenes.map((s: any, i: number) => ({
         ...s,
         motionEffect: s.motionEffect || motions[i % motions.length],
-        uploadedImageUrl: s.uploadedImageUrl || (i === 0 ? selectedFigure.imageUrl : undefined),
+        uploadedImageUrl: s.uploadedImageUrl || (i === 0 && selectedFigure.imageUrl ? selectedFigure.imageUrl : getSceneFallbackImage(selectedFigure.name, selectedFigure.category, i)),
       }));
 
       const newProject: ShortsProject = {
