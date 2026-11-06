@@ -187,8 +187,8 @@ export const getSubtitleChunks = (
   const clean = narration.trim().replace(/\s+/g, ' ');
   if (!clean) return [''];
 
-  const targetChars = tempo === 'fast' ? 10 : tempo === 'standard' ? 14 : 18;
-  const maxSoftLimit = tempo === 'fast' ? 15 : tempo === 'standard' ? 19 : 24;
+  const targetChars = tempo === 'fast' ? 12 : tempo === 'standard' ? 15 : 18;
+  const maxSoftLimit = tempo === 'fast' ? 16 : tempo === 'standard' ? 20 : 25;
   const minChars = 4;
 
   // 1. Split by major punctuation first, keeping punctuation attached
@@ -196,7 +196,7 @@ export const getSubtitleChunks = (
   const resultChunks: string[] = [];
 
   // Prefixes/modifiers that must NEVER be left alone at the end of a subtitle chunk
-  const stickyPrefixes = /^(한|두|세|그|이|저|전|모든|어떤|새로운|더|가장|너무|완전히|어떻게|과연|결국|비록|매일)$/;
+  const stickyPrefixes = /^(한|두|세|그|이|저|전|모든|어떤|새로운|더|가장|너무|완전히|어떻게|과연|결국|비록|매일|열심히)$/;
   // Suffixes/counters that must stick to preceding word
   const stickySuffixes = /^(\d+.*|셰프.*|선수.*|감독.*|대표.*|스타.*|년.*|월.*|일.*|시.*|분.*|초.*|명.*|개.*|배.*|위.*|%.*|원.*|씨.*|님.*)$/;
 
@@ -231,15 +231,18 @@ export const getSubtitleChunks = (
       }
 
       let breakScore = 0;
-      // High-priority natural breath & clause connectives
-      if (/[고며자]$|지만$|는데$|은데$|아서$|어서$|여서$|면서$|더니$|니까$|므로$|록$|려고$|일어나$|달려가$|바라보며$/.test(w)) {
-        breakScore += 80;
+      // High-priority natural breath & clause connectives (~고, ~며, ~지만, ~는데, ~아서, ~어서, ~여서, ~면서, ~자, ~더니, ~니까, ~므로, ~록, ~려고, ~나, ~보고)
+      if (/[고며자]$|지만$|는데$|은데$|아서$|어서$|여서$|면서$|더니$|니까$|므로$|록$|려고$|일어나$|달려가$|바라보며$|보고$/.test(w)) {
+        breakScore += 90;
       } else if (/(던|었던|았던)$/.test(w)) {
         breakScore += 65;
       } else if (/[은는이가]$|에서는$|에게는$/.test(w)) {
-        breakScore += 50;
-      } else if (/[을를]$|에서$|에게$|까지$|으로$/.test(w)) {
-        breakScore += 35;
+        breakScore += 45;
+      }
+
+      // Discourage cutting between object marker (~을/를) and the following verb!
+      if (/[을를]$/.test(w)) {
+        breakScore -= 20;
       }
 
       // Penalties for unnatural cuts
@@ -248,12 +251,12 @@ export const getSubtitleChunks = (
       if (stickySuffixes.test(nextW)) breakScore -= 90;
       if (/^(놓았습니다|있었습니다|보았습니다|버렸습니다|않았습니다)$/.test(nextW)) breakScore -= 80;
 
-      const isOverTarget = currentLen >= targetChars - 2;
-      const isNearMax = currentLen >= maxSoftLimit - 2;
+      const isOverTarget = currentLen >= targetChars - 1;
+      const isNearMax = currentLen >= maxSoftLimit - 1;
       const isPastMax = currentLen >= maxSoftLimit;
 
-      if ((isOverTarget && breakScore >= 35) || (isNearMax && breakScore > 0) || isPastMax) {
-        if (breakScore < 0 && currentLen < maxSoftLimit + 4) {
+      if ((isOverTarget && breakScore >= 45) || (isNearMax && breakScore > 0) || isPastMax) {
+        if (breakScore < 0 && currentLen < maxSoftLimit + 3) {
           continue;
         }
 
@@ -277,6 +280,26 @@ export const getSubtitleChunks = (
   }
 
   return finalChunks.length > 0 ? finalChunks : [clean];
+};
+
+// Direct WebM EBML binary duration patcher (Overwrites Chrome's 3000ms chunk header with true duration)
+export const patchWebmBinaryDuration = (bytes: Uint8Array, targetDurationMs: number): boolean => {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let patched = false;
+  // Search for EBML ID 0x4489 (Duration)
+  for (let i = 0; i < bytes.length - 10; i++) {
+    if (bytes[i] === 0x44 && bytes[i + 1] === 0x89) {
+      const sizeByte = bytes[i + 2];
+      if (sizeByte === 0x84) { // 4-byte float (Float32)
+        view.setFloat32(i + 3, targetDurationMs);
+        patched = true;
+      } else if (sizeByte === 0x88) { // 8-byte float (Float64)
+        view.setFloat64(i + 3, targetDurationMs);
+        patched = true;
+      }
+    }
+  }
+  return patched;
 };
 
 // Helper: Shortens and formats long YouTube titles into punchy 2-line viral reels headlines
@@ -2050,7 +2073,9 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       sceneDurationsSec.push(sceneDur);
       curTime += sceneDur;
     }
-    const totalVideoSec = curTime;
+    // Generous post-roll outro padding (+1.2s) ensures the last scene, last voice, and last subtitle never get cut off abruptly!
+    const POST_ROLL_SEC = 1.2;
+    const totalVideoSec = curTime + POST_ROLL_SEC;
     setVideoDuration(Math.round(totalVideoSec));
 
     // 5. Pre-draw initial frame (Scene 0 Frame 0) so recording stream has pristine content immediately
@@ -2102,11 +2127,22 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     mediaRecorder.onstop = async () => {
       const finalBlobType = chosenMime || 'video/mp4';
       let blob = new Blob(recordedChunksRef.current, { type: finalBlobType });
+      const durationMs = totalVideoSec * 1000;
 
       // Patch duration metadata so Gallery, KakaoTalk, and Instagram read the full video length (never 3s!)
       try {
         if (finalBlobType.includes('webm')) {
-          blob = await fixWebmDuration(blob, totalVideoSec * 1000);
+          // 1. Run fixWebmDuration library first
+          try {
+            blob = await fixWebmDuration(blob, durationMs);
+          } catch (e) {
+            console.warn('fixWebmDuration lib error:', e);
+          }
+          // 2. ALWAYS force-patch WebM binary Duration float (so Chrome\'s initial 3000ms is never left unpatched!)
+          const arrayBuffer = await blob.arrayBuffer();
+          const bytes = new Uint8Array(arrayBuffer);
+          patchWebmBinaryDuration(bytes, durationMs);
+          blob = new Blob([bytes], { type: finalBlobType });
         } else {
           blob = await fixMp4Duration(blob, totalVideoSec);
         }
@@ -2120,7 +2156,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       setVideoBlobUrl(url);
       setPreviewViewMode('video');
       setIsRendering(false);
-      setStatusMessage('쇼츠 영상 제작 완료! 갤러리와 카카오톡 전송 시 전체 길이가 완벽히 유지됩니다.');
+      setStatusMessage(`쇼츠 영상 제작 완료! (총 ${Math.round(totalVideoSec)}초 - 갤러리 및 카카오톡 전송 시 전체 길이 완벽 유지)`);
       setRenderProgress(100);
     };
 
@@ -2178,11 +2214,16 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       const clampedElapsed = Math.max(0, elapsedSec);
 
       if (clampedElapsed >= totalVideoSec) {
+        // Redraw last scene frame cleanly before final cut
+        const lastIdx = scenes.length - 1;
+        drawSceneImage(ctx, loadedImages[lastIdx], width, height, 0.999, scenes[lastIdx]?.motionEffect || 'zoom_in', precomputedBackdrops[lastIdx]);
+        renderChannelLogo(ctx, width, height, lastIdx, loadedLogoImg);
+        renderCustomTextOverlays(ctx, width, height, lastIdx);
         setTimeout(() => {
           if (mediaRecorder.state !== 'inactive') {
             mediaRecorder.stop();
           }
-        }, 300);
+        }, 150);
         return;
       }
 
@@ -2272,7 +2313,8 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   const handleDownload = (preferredExt?: 'mp4' | 'webm') => {
     if (!videoBlobUrl) return;
     const isWebm = (videoBlobType || '').includes('webm');
-    const ext = preferredExt || (isWebm ? 'webm' : 'mp4');
+    // Ensure MP4 extension is default so mobile gallery & KakaoTalk treat it as standard playable video!
+    const ext = preferredExt || (isWebm ? 'mp4' : 'mp4');
     const a = document.createElement('a');
     a.href = videoBlobUrl;
     a.download = `Untold_${project.figureName}_${resolution}.${ext}`;
@@ -2284,10 +2326,9 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       handleDownload();
       return;
     }
-    const isWebm = (videoBlobType || '').includes('webm');
-    const ext = isWebm ? 'webm' : 'mp4';
-    const fileName = `Untold_${project.figureName}_${resolution}.${ext}`;
-    const file = new File([videoBlobFile], fileName, { type: videoBlobType });
+    const fileName = `Untold_${project.figureName}_${resolution}.mp4`;
+    // Explicitly designate as standard video/mp4 file for native share sheet & KakaoTalk
+    const file = new File([videoBlobFile], fileName, { type: 'video/mp4' });
 
     if (typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files: [file] })) {
       try {

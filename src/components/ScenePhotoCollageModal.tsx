@@ -745,7 +745,7 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
   };
 
   // Draw on Canvas with Cached Images, Transforms & Object-fit Cover
-  const renderCanvasCells = useCallback(() => {
+  const renderCanvasCells = useCallback((isExporting: boolean = false) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -856,8 +856,8 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
           ctx.restore();
         }
 
-        // 3. Selection border indicator for active cell (shown when multi-image or when dragging)
-        if (idx === selectedCellIndex && images.length > 0 && (images.length > 1 || layout !== 'single')) {
+        // 3. Selection border indicator for active cell (shown ONLY during interactive editing preview, NEVER during export/save!)
+        if (!isExporting && idx === selectedCellIndex && images.length > 0 && (images.length > 1 || layout !== 'single')) {
           ctx.save();
           try {
             ctx.strokeStyle = '#a855f7';
@@ -965,13 +965,15 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
     }
   }, [isOpen, renderCanvasCells, imagesLoadedVersion]);
 
-  // Handle Apply to Scene
+  // Handle Apply to Scene (100% clean export WITHOUT selection borders!)
   const handleApply = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     setIsProcessing(true);
     try {
+      // 1. Re-render canvas cleanly without any purple selection borders or edit outlines
+      renderCanvasCells(true);
       const mergedDataUrl = canvas.toDataURL('image/jpeg', 0.94);
       onApplyImage(mergedDataUrl);
       onClose();
@@ -986,14 +988,16 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
     }
   };
 
-  // Download high-res combined JPG
+  // Download high-res combined JPG (100% clean export WITHOUT selection borders!)
   const handleDownload = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    renderCanvasCells(true);
     const link = document.createElement('a');
     link.download = `scene-${sceneNumber}-photo-${aspectRatio}.jpg`;
     link.href = canvas.toDataURL('image/jpeg', 0.95);
     link.click();
+    renderCanvasCells(false);
   };
 
   if (!isOpen) return null;
