@@ -710,8 +710,8 @@ app.post('/api/gemini/generate-viral-assets', async (req, res) => {
                         properties: {
                           slideNumber: { type: Type.INTEGER },
                           type: { type: Type.STRING, description: 'cover | hook | insight | body | cta' },
-                          mainHook: { type: Type.STRING, description: '슬라이드 핵심 텍스트 (1~2줄 압축 펀치라인, 15자 내외 권장)' },
-                          subDetail: { type: Type.STRING, description: '보조 설명 텍스트 (작은 글씨)' },
+                          mainHook: { type: Type.STRING, description: '해당 장면의 핵심 상황을 3초 도입부처럼 시선을 사로잡는 큰 글씨 펀치라인 (1~2줄 압축, 15자 내외 권장)' },
+                          subDetail: { type: Type.STRING, description: '쇼츠 대본을 요약하지 않고, 전체 스토리 서사를 모바일에서 읽기 편하게 컷 분할한 상세 본문 (작은 글씨)' },
                           visualGuide: { type: Type.STRING, description: '배경 이미지 또는 그래픽 가이드' },
                           imageSearchKeyword: { type: Type.STRING, description: '구글 이미지 검색에 가장 적합한 키워드 (예: 안성재 미군 정비병 시절)' },
                           badgeText: { type: Type.STRING, description: '상단 포인트 태그 ex) 충격 진실, 필독' }

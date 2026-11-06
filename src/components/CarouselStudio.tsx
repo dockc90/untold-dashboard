@@ -14,7 +14,6 @@ import {
   Upload, 
   Trash2, 
   Link as LinkIcon, 
-  Search, 
   ExternalLink, 
   Type as TypeIcon, 
   AlignLeft, 
@@ -22,16 +21,23 @@ import {
   Scissors,
   Palette,
   Bookmark,
-  Tag,
   X,
-  Share2
+  Share2,
+  Plus,
+  RefreshCw,
+  GitMerge,
+  ArrowRight,
+  Sliders,
+  CheckCircle2,
+  Film
 } from 'lucide-react';
-import { CarouselSlide, ViralAssetPackage } from '../types';
+import { CarouselSlide, ViralAssetPackage, ShortsProject } from '../types';
 
-interface CarouselStudioProps {
+export interface CarouselStudioProps {
   initialTopic?: string;
   initialCategory?: string;
   initialScript?: string;
+  currentProject?: ShortsProject | null;
   onBackToStudio?: () => void;
 }
 
@@ -95,29 +101,176 @@ export const SUB_DETAIL_BG_STYLES = [
   { id: 'box', label: '카드 박스' },
 ];
 
-// Helper: Compresses long narrative sentences into 1~2 punchy lines (max 15~18 chars) for viral Instagram Carousel cards
+/**
+ * 3초 도입부형 메인 헤드라인(큰 글씨) 생성 알고리즘
+ * 각 장면의 핵심 갈등/사건/반전을 포착하여 3초 만에 시선을 강탈하는 1~2줄 펀치라인을 생성합니다.
+ */
+export function generate3SecondHook(
+  narration: string,
+  index: number,
+  total: number,
+  topic: string,
+  variant: number = 0
+): string {
+  const clean = narration
+    .replace(/\[씬\s*\d+[^\]]*\]/g, '')
+    .replace(/\(\d{2}:\d{2}\s*-\s*\d{2}:\d{2}\)/g, '')
+    .replace(/내레이션[:\s]*/g, '')
+    .replace(/["'“”]/g, '')
+    .trim();
+
+  // 1. Cover Slide (Slide 1: 압도적 시선 강탈 훅)
+  if (index === 0) {
+    const coverVariants = [
+      `${topic}의 숨겨진 반전 실화`,
+      `전 세계를 경악하게 한\n${topic}의 충격 진실`,
+      `모두가 불가능하다 했던\n${topic}의 기적`,
+      `아무도 몰랐던\n${topic}의 진짜 시작`,
+      `100번 넘게 거절당했던\n무명 시절의 기적`
+    ];
+    if (clean.includes('정비병') || clean.includes('이라크') || clean.includes('군대')) {
+      coverVariants.unshift(`이라크 전쟁터에서\n미슐랭 3스타까지`);
+    }
+    return coverVariants[variant % coverVariants.length];
+  }
+
+  // 2. Ending Slide (Last Slide: 저장 & 공유 유발 클로징 훅)
+  if (index === total - 1) {
+    const ctaVariants = [
+      `${topic}의 반전 서사,\n어떻게 생각하시나요?`,
+      `당신의 가슴을 울린\n단 하나의 선택`,
+      `지금 [저장]하고\n필요할 때 꺼내보세요`,
+      `이 놀라운 여정,\n여러분의 생각은?`
+    ];
+    return ctaVariants[variant % ctaVariants.length];
+  }
+
+  // 3. Body Slides: 키워드 감지 기반 3초 도입부 훅 생성
+  const candidates: string[] = [];
+
+  if (clean.includes('전쟁') || clean.includes('군대') || clean.includes('이라크') || clean.includes('정비병')) {
+    candidates.push('전쟁터 한가운데서\n총을 들던 시절', '생사를 넘나들던\n위기의 순간');
+  }
+  if (clean.includes('요리') || clean.includes('셰프') || clean.includes('미슐랭') || clean.includes('음식') || clean.includes('식당')) {
+    candidates.push('세계를 사로잡은\n단 한 접시의 기적', '타협을 모르는\n완벽주의의 비밀');
+  }
+  if (clean.includes('포기') || clean.includes('눈물') || clean.includes('시련') || clean.includes('바닥') || clean.includes('실패') || clean.includes('탈락')) {
+    candidates.push('바닥 끝에서 버텨낸\n눈물의 시간', '모두가 등을 돌렸던\n절망의 순간');
+  }
+  if (clean.includes('기회') || clean.includes('도전') || clean.includes('시작') || clean.includes('결심') || clean.includes('결단') || clean.includes('선택')) {
+    candidates.push('단 한 번의 결단이\n뒤바꾼 운명', '모든 것을 걸었던\n인생 최대의 승부수');
+  }
+  if (clean.includes('성공') || clean.includes('기적') || clean.includes('반전') || clean.includes('합격') || clean.includes('최고') || clean.includes('증명')) {
+    candidates.push('마침내 증명해낸\n0.001%의 실력', '전 세계가 기립박수를\n보낸 이유');
+  }
+  if (clean.includes('비밀') || clean.includes('진실') || clean.includes('몰랐') || clean.includes('이유') || clean.includes('숨겨')) {
+    candidates.push('아무도 몰랐던\n그날의 결정적 비밀', '세상이 숨겨두었던\n진짜 비하인드');
+  }
+
+  // Fallback Dramatic Formula
+  const fallbackPool = [
+    '단 1초 만에\n뒤바뀐 운명의 갈림길',
+    '그는 왜 모든 것을\n걸어야만 했을까?',
+    '아무도 예상하지 못한\n결정적 순간',
+    '상상조차 못 했던\n충격적인 전개',
+    '피눈물 흘리며 버텨낸\n숨겨진 기록'
+  ];
+
+  const pool = candidates.length > 0 ? [...candidates, ...fallbackPool] : fallbackPool;
+  return pool[variant % pool.length];
+}
+
+/**
+ * 쇼츠 대본 100% 원문 보존 & 스마트 컷 편집 분할 알고리즘
+ * - 어떤 문장이나 단어도 요약/누락하지 않고 100% 온전히 보존
+ * - 씬 단위 또는 호흡 단위(60~120자)로 모바일 카드 읽기에 최적화된 컷 분할
+ */
+export function chunkScriptPreservingFullText(
+  rawScript: string,
+  targetTopic: string
+): Array<{ hook: string; text: string; badge: string }> {
+  if (!rawScript.trim()) return [];
+
+  // 1. Check for scene markers like [씬 1], 씬 1:, etc.
+  const hasSceneMarkers = /\[씬\s*\d+[^\]]*\]|(?<=^|\n)씬\s*\d+[:.\s]+/i.test(rawScript);
+
+  let rawCuts: string[] = [];
+
+  if (hasSceneMarkers) {
+    const parts = rawScript.split(/(?:\[씬\s*\d+[^\]]*\]|(?<=^|\n)씬\s*\d+[:.\s]+)/i);
+    rawCuts = parts
+      .map(p => p.replace(/\(\d{2}:\d{2}\s*-\s*\d{2}:\d{2}\)/g, '').replace(/내레이션[:\s]*/g, '').trim())
+      .filter(p => p.length >= 4);
+  }
+
+  // 2. If no scene markers or too few cuts, split into sentences without dropping any text
+  if (rawCuts.length < 2) {
+    const cleaned = rawScript
+      .replace(/\[씬\s*\d+[^\]]*\]/g, '')
+      .replace(/\(\d{2}:\d{2}\s*-\s*\d{2}:\d{2}\)/g, '')
+      .replace(/내레이션[:\s]*/g, '')
+      .replace(/#\S+/g, '')
+      .trim();
+
+    // Match all sentences including punctuation
+    const sentences = cleaned.match(/[^.?!]+[.?!]+(?:\s+|$)|[^.?!]+$/g) || [cleaned];
+    const grouped: string[] = [];
+    let currentChunk = '';
+
+    for (const rawSent of sentences) {
+      const sent = rawSent.trim();
+      if (!sent) continue;
+
+      if (!currentChunk) {
+        currentChunk = sent;
+      } else if ((currentChunk + ' ' + sent).length <= 110) {
+        currentChunk = currentChunk + '\n' + sent;
+      } else {
+        grouped.push(currentChunk);
+        currentChunk = sent;
+      }
+    }
+    if (currentChunk) {
+      grouped.push(currentChunk);
+    }
+    rawCuts = grouped;
+  }
+
+  if (rawCuts.length === 0) return [];
+
+  const total = rawCuts.length;
+  return rawCuts.map((cutText, idx) => {
+    const hook = generate3SecondHook(cutText, idx, total, targetTopic, 0);
+    const badge = idx === 0 
+      ? '🔥 3초 떡상 훅' 
+      : idx === total - 1 
+      ? '💬 토론 & 저장' 
+      : `POINT 0${idx}`;
+
+    return {
+      hook,
+      text: cutText,
+      badge
+    };
+  });
+}
+
+// Helper: Compresses long narrative sentences into 1~2 punchy lines (backwards compatibility)
 export function compressToPunchline(text: string): { headline: string; detail: string } {
   let cleaned = text.replace(/["'“”]/g, '').trim();
   if (cleaned.length <= 18) {
     return { headline: cleaned, detail: text };
   }
-
-  // Look for natural clause boundaries
   const splitClauses = cleaned.split(/(?<=[,?!])\s+|(?<=\b(?:하지만|그러나|결국|그리고|어떻게|당시|과거)\b)\s+/);
   if (splitClauses.length > 1) {
     const firstClause = splitClauses[0].trim();
     if (firstClause.length >= 5 && firstClause.length <= 22) {
-      const rest = splitClauses.slice(1).join(' ').trim();
-      return { headline: firstClause, detail: rest || text };
+      return { headline: firstClause, detail: text };
     }
   }
-
-  // Split into 2 short lines around 10-14 chars
   const words = cleaned.split(/\s+/);
   let line1 = '';
   let line2 = '';
-  let remainingWords: string[] = [];
-  
   for (let i = 0; i < words.length; i++) {
     const w = words[i];
     if (!line1 || (line1 + ' ' + w).length <= 11) {
@@ -125,15 +278,13 @@ export function compressToPunchline(text: string): { headline: string; detail: s
     } else if (!line2 || (line2 + ' ' + w).length <= 14) {
       line2 = line2 ? `${line2} ${w}` : w;
     } else {
-      remainingWords = words.slice(i);
       break;
     }
   }
-
   const punchline = line2 ? `${line1}\n${line2}` : line1;
   return {
     headline: punchline,
-    detail: remainingWords.length > 0 ? remainingWords.join(' ') : text,
+    detail: text,
   };
 }
 
@@ -205,6 +356,7 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
   initialTopic = '안성재 셰프',
   initialCategory = 'entertainment',
   initialScript = '',
+  currentProject,
   onBackToStudio
 }) => {
   const [topic, setTopic] = useState(initialTopic);
@@ -219,6 +371,12 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
   const [carouselRatio, setCarouselRatio] = useState<'4:5' | '1:1' | '9:16'>('4:5');
   const [viralData, setViralData] = useState<ViralAssetPackage | null>(null);
 
+  // 2026 Instagram Algorithm features
+  const [showSwipeIndicator, setShowSwipeIndicator] = useState(true);
+  const [hookVariantIndex, setHookVariantIndex] = useState(0);
+  const [isExportingAll, setIsExportingAll] = useState(false);
+  const [exportProgress, setExportProgress] = useState<string | null>(null);
+
   // Styling
   const [selectedTheme, setSelectedTheme] = useState(THEMES[0]);
   const [selectedFont, setSelectedFont] = useState(FONT_OPTIONS[0]);
@@ -226,7 +384,7 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
   const [fontSizeMode, setSizeMode] = useState<'sm' | 'md' | 'lg'>('md');
   const [textAlign, setTextAlign] = useState<'center' | 'left'>('center');
 
-  // SubDetail Styling (Request 5: 폰트, 글자 크기, 컬러구성, 배경)
+  // SubDetail Styling
   const [subDetailFont, setSubDetailFont] = useState(SUB_DETAIL_FONT_OPTIONS[0]);
   const [subDetailFontSize, setSubDetailFontSize] = useState<'sm' | 'md' | 'lg' | 'xl'>('md');
   const [subDetailColor, setSubDetailColor] = useState<string>('#e2e8f0');
@@ -272,7 +430,12 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
   };
 
   useEffect(() => {
-    handleGenerate(initialTopic);
+    // If project scenes exist, auto-import from project
+    if (currentProject?.scenes && currentProject.scenes.length > 0) {
+      handleImportProjectScenes();
+    } else {
+      handleGenerate(initialTopic);
+    }
   }, []);
 
   const copyToClipboard = (text: string, key: string) => {
@@ -281,80 +444,195 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
-  // Convert Shorts Script to Carousel Slides with Golden Ratio
-  const handleConvertScriptToCarousel = () => {
-    if (!scriptInput.trim()) return;
+  /**
+   * 1. 쇼츠 프로젝트 씬(사진 + 원본 대본) 1:1 완벽 가져오기
+   * - 대본 요약 0%, 원본 대본 100% 그대로 슬라이드에 반영
+   * - 메인 헤드라인은 3초 도입부형으로 자동 생성
+   */
+  const handleImportProjectScenes = () => {
+    if (!currentProject?.scenes || currentProject.scenes.length === 0) return;
 
-    const cleaned = scriptInput
-      .replace(/\[씬\s*\d+[^\]]*\]/g, '')
-      .replace(/\(\d{2}:\d{2}\s*-\s*\d{2}:\d{2}\)/g, '')
-      .replace(/내레이션[:\s]*/g, '')
-      .replace(/#\S+/g, '')
-      .trim();
+    const projectScenes = currentProject.scenes;
+    const total = projectScenes.length;
 
-    const rawParts = cleaned
-      .split(/(?<=[.?!])\s+|\n+/)
-      .map((s) => s.trim())
-      .filter((s) => s.length >= 4);
+    const newSlides: CarouselSlide[] = projectScenes.map((scene, idx) => {
+      const isCover = idx === 0;
+      const isCta = idx === total - 1;
+      const narrationText = scene.narration.trim();
+      const hook = generate3SecondHook(narrationText, idx, total, topic, 0);
 
-    if (rawParts.length === 0) return;
-
-    const newSlides: CarouselSlide[] = [];
-
-    // Slide 1: Cover Hook (인스타 떡상 트렌드: 1~2줄 압축 펀치라인, 15자 내외)
-    const coverRaw = rawParts[0] || `${topic}에 대한 충격 진실`;
-    const coverPunch = compressToPunchline(coverRaw);
-    const coverSub = coverPunch.detail && coverPunch.detail !== coverPunch.headline
-      ? coverPunch.detail
-      : (rawParts[1] || '알고리즘이 숨겨둔 결정적 비하인드 (옆으로 넘겨보기 👉)');
-
-    newSlides.push({
-      slideNumber: 1,
-      type: 'cover',
-      mainHook: coverPunch.headline,
-      subDetail: coverSub,
-      visualGuide: '인물 고화질 사진 또는 임팩트 그래픽',
-      imageSearchKeyword: `${topic} 고화질 프로필 사진`,
-      badgeText: '🔥 떡상 카드뉴스',
-      imageUrl: slides[0]?.imageUrl
-    });
-
-    // Middle slides
-    const remaining = rawParts.slice(1);
-    let step = 1;
-    for (let i = 0; i < remaining.length; i += 2) {
-      const mainRaw = remaining[i];
-      const punch = compressToPunchline(mainRaw);
-      const subCandidate = remaining[i + 1] ? remaining[i + 1] : (punch.detail || '더 깊은 이야기와 반전이 계속됩니다.');
-
-      newSlides.push({
-        slideNumber: newSlides.length + 1,
-        type: 'body',
-        mainHook: punch.headline,
-        subDetail: subCandidate,
-        visualGuide: '스토리 장면에 맞는 현장 사진 또는 자료 사진',
-        imageSearchKeyword: `${topic} ${punch.headline.replace(/[^\w\s가-힣]/g, '').slice(0, 15)} 사진`,
-        badgeText: `POINT 0${step}`,
-        imageUrl: slides[newSlides.length]?.imageUrl
-      });
-      step++;
-    }
-
-    // Final CTA
-    newSlides.push({
-      slideNumber: newSlides.length + 1,
-      type: 'cta',
-      mainHook: `${topic}의 반전 서사,\n어떻게 생각하시나요?`,
-      subDetail: '📌 나중에 다시 보려면 지금 바로 [저장] 해두세요!\n💬 댓글로 자유롭게 의견을 들려주세요.',
-      visualGuide: '저장 & 공유 유도 엔딩 카드',
-      imageSearchKeyword: `${topic} 최근 근황 사진`,
-      badgeText: '💬 토론 & 저장'
+      return {
+        slideNumber: idx + 1,
+        type: isCover ? 'cover' : isCta ? 'cta' : 'body',
+        mainHook: hook,
+        subDetail: narrationText, // 쇼츠 대본 원문 100% 그대로 (요약 0%)
+        imageUrl: scene.uploadedImageUrl, // 현재 씬 사진 100% 그대로 매칭!
+        visualGuide: scene.visualGuide || '쇼츠 프로젝트 씬 사진',
+        imageSearchKeyword: scene.imageSearchKeyword || `${topic} 씬${idx + 1} 사진`,
+        badgeText: isCover ? '🔥 3초 떡상 훅' : isCta ? '💬 토론 & 저장' : `POINT 0${idx + 1}`
+      };
     });
 
     setSlides(newSlides);
     setCurrentSlideIndex(0);
-    setScriptToast(`대본이 총 ${newSlides.length}장의 인스타 트렌드 펀치라인 카드뉴스로 변환되었습니다! ✨`);
+    setScriptToast(`쇼츠 프로젝트의 씬 사진 ${newSlides.length}장과 원본 대본 전체를 100% 온전히 가져왔습니다! ✨`);
     setTimeout(() => setScriptToast(null), 3500);
+  };
+
+  /**
+   * 2. 붙여넣은 대본을 요약 없이 컷 편집하여 슬라이드로 변환
+   */
+  const handleConvertScriptToCarousel = () => {
+    if (!scriptInput.trim()) return;
+
+    const cuts = chunkScriptPreservingFullText(scriptInput, topic);
+    if (cuts.length === 0) return;
+
+    const newSlides: CarouselSlide[] = cuts.map((cut, idx) => ({
+      slideNumber: idx + 1,
+      type: idx === 0 ? 'cover' : idx === cuts.length - 1 ? 'cta' : 'body',
+      mainHook: cut.hook, // 3초 도입부형 헤드라인 (큰 글씨)
+      subDetail: cut.text, // 쇼츠 대본 100% 원문 그대로 (작은 글씨)
+      visualGuide: '스토리 장면에 맞는 현장 사진 또는 자료 사진',
+      imageSearchKeyword: `${topic} ${cut.hook.replace(/[^\w\s가-힣]/g, '').slice(0, 15)} 사진`,
+      badgeText: cut.badge,
+      imageUrl: slides[idx]?.imageUrl
+    }));
+
+    setSlides(newSlides);
+    setCurrentSlideIndex(0);
+    setScriptToast(`대본 원문을 100% 보존하며 총 ${newSlides.length}장의 3초 후킹 카드뉴스로 컷 편집 분할되었습니다! ✨`);
+    setTimeout(() => setScriptToast(null), 3500);
+  };
+
+  // 3. 3초 후킹 헤드라인 스타일 변경 (순환 토글)
+  const handleCycle3SecondHook = () => {
+    if (!currentSlide) return;
+    const nextVar = hookVariantIndex + 1;
+    setHookVariantIndex(nextVar);
+    const newHook = generate3SecondHook(
+      currentSlide.subDetail || currentSlide.mainHook,
+      currentSlideIndex,
+      slides.length,
+      topic,
+      nextVar
+    );
+    handleUpdateCurrentSlide('mainHook', newHook);
+    setScriptToast(`⚡ 3초 후킹 헤드라인 스타일이 변경되었습니다!`);
+    setTimeout(() => setScriptToast(null), 2000);
+  };
+
+  // 4. 슬라이드 컷 분할 (이 위치에서 슬라이드 나누기)
+  const handleSplitCurrentSlide = () => {
+    if (!currentSlide || !currentSlide.subDetail) return;
+    const text = currentSlide.subDetail.trim();
+    if (text.length < 20) {
+      setScriptToast('내용이 너무 짧아 분할할 수 없습니다.');
+      setTimeout(() => setScriptToast(null), 2000);
+      return;
+    }
+
+    const sentences = text.match(/[^.?!]+[.?!]+(?:\s+|$)|[^.?!]+$/g) || [text];
+    let part1 = '';
+    let part2 = '';
+
+    if (sentences.length >= 2) {
+      const mid = Math.ceil(sentences.length / 2);
+      part1 = sentences.slice(0, mid).join('\n').trim();
+      part2 = sentences.slice(mid).join('\n').trim();
+    } else {
+      const half = Math.floor(text.length / 2);
+      const splitIdx = text.indexOf(' ', half);
+      if (splitIdx !== -1) {
+        part1 = text.slice(0, splitIdx).trim();
+        part2 = text.slice(splitIdx).trim();
+      } else {
+        part1 = text;
+        part2 = '상세 보조 설명을 이어가세요.';
+      }
+    }
+
+    const updated = [...slides];
+    updated[currentSlideIndex] = {
+      ...currentSlide,
+      subDetail: part1,
+      mainHook: generate3SecondHook(part1, currentSlideIndex, slides.length + 1, topic, 0)
+    };
+
+    const newSlide: CarouselSlide = {
+      slideNumber: currentSlideIndex + 2,
+      type: 'body',
+      mainHook: generate3SecondHook(part2, currentSlideIndex + 1, slides.length + 1, topic, 1),
+      subDetail: part2,
+      visualGuide: currentSlide.visualGuide,
+      imageSearchKeyword: currentSlide.imageSearchKeyword,
+      badgeText: `POINT 0${currentSlideIndex + 2}`,
+      imageUrl: currentSlide.imageUrl
+    };
+
+    updated.splice(currentSlideIndex + 1, 0, newSlide);
+
+    const reindexed = updated.map((s, i) => ({
+      ...s,
+      slideNumber: i + 1,
+      badgeText: i === 0 ? '🔥 3초 떡상 훅' : i === updated.length - 1 ? '💬 토론 & 저장' : `POINT 0${i + 1}`
+    }));
+
+    setSlides(reindexed);
+    setScriptToast(`✂️ ${currentSlideIndex + 1}번 카드가 2장으로 분할되었습니다!`);
+    setTimeout(() => setScriptToast(null), 3000);
+  };
+
+  // 5. 다음 슬라이드와 대본 합치기
+  const handleMergeWithNextSlide = () => {
+    if (currentSlideIndex >= slides.length - 1) return;
+    const nextSlide = slides[currentSlideIndex + 1];
+
+    const mergedText = `${currentSlide.subDetail}\n${nextSlide.subDetail}`.trim();
+    const updated = [...slides];
+    updated[currentSlideIndex] = {
+      ...currentSlide,
+      subDetail: mergedText
+    };
+    updated.splice(currentSlideIndex + 1, 1);
+
+    const reindexed = updated.map((s, i) => ({
+      ...s,
+      slideNumber: i + 1,
+      badgeText: i === 0 ? '🔥 3초 떡상 훅' : i === updated.length - 1 ? '💬 토론 & 저장' : `POINT 0${i + 1}`
+    }));
+
+    setSlides(reindexed);
+    setScriptToast(`🔗 다음 슬라이드와 대본이 하나로 합쳐졌습니다!`);
+    setTimeout(() => setScriptToast(null), 3000);
+  };
+
+  // 6. 새 슬라이드 추가
+  const handleAddSlide = () => {
+    const newSlide: CarouselSlide = {
+      slideNumber: slides.length + 1,
+      type: 'body',
+      mainHook: '새로운 3초 도입부 헤드라인',
+      subDetail: '대본 내용을 여기에 입력하세요.',
+      visualGuide: '스토리 장면에 맞는 현장 사진',
+      imageSearchKeyword: `${topic} 사진`,
+      badgeText: `POINT 0${slides.length + 1}`
+    };
+    setSlides([...slides, newSlide]);
+    setCurrentSlideIndex(slides.length);
+  };
+
+  // 7. 현재 슬라이드 삭제
+  const handleDeleteCurrentSlide = () => {
+    if (slides.length <= 1) return;
+    const updated = slides.filter((_, idx) => idx !== currentSlideIndex);
+    const reindexed = updated.map((s, i) => ({
+      ...s,
+      slideNumber: i + 1,
+      badgeText: i === 0 ? '🔥 3초 떡상 훅' : i === updated.length - 1 ? '💬 토론 & 저장' : `POINT 0${i + 1}`
+    }));
+    setSlides(reindexed);
+    setCurrentSlideIndex(Math.max(0, currentSlideIndex - 1));
   };
 
   // Update specific field on current slide
@@ -364,20 +642,6 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
     updated[currentSlideIndex] = {
       ...updated[currentSlideIndex],
       [field]: val
-    };
-    setSlides(updated);
-  };
-
-  const handleQuickCompressHeadline = () => {
-    if (!currentSlide?.mainHook) return;
-    const punch = compressToPunchline(currentSlide.mainHook);
-    const updated = [...slides];
-    updated[currentSlideIndex] = {
-      ...updated[currentSlideIndex],
-      mainHook: punch.headline,
-      subDetail: punch.detail && (!currentSlide.subDetail || currentSlide.subDetail.length < 10)
-        ? punch.detail
-        : currentSlide.subDetail
     };
     setSlides(updated);
   };
@@ -424,13 +688,14 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
     setSlides(updated);
   };
 
-  // Clean Watermark-Free HD Canvas Export
-  const drawAndDownloadSlide = async () => {
-    if (!slides[currentSlideIndex]) return;
-    const slide = slides[currentSlideIndex];
+  // Specific Slide Canvas Generator
+  const renderSlideCanvas = async (slideIndex: number): Promise<HTMLCanvasElement | null> => {
+    const slide = slides[slideIndex];
+    if (!slide) return null;
+
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) return null;
 
     let width = 1080;
     let height = 1350; // 4:5
@@ -467,15 +732,38 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
       ctx.fillRect(0, 0, width, height);
     }
 
-    const { titlePx, descPx } = FONT_SIZE_PRESETS.find(p => p.id === fontSizeMode) || FONT_SIZE_PRESETS[1];
+    // 2026 Instagram Algorithm: Top Story Progress Bar (Swipe Cue)
+    if (showSwipeIndicator && slides.length > 1) {
+      const barTop = 32;
+      const barHeight = 6;
+      const barSpacing = 8;
+      const totalWidth = width - 120;
+      const singleBarW = (totalWidth - (slides.length - 1) * barSpacing) / slides.length;
+
+      for (let i = 0; i < slides.length; i++) {
+        const bx = 60 + i * (singleBarW + barSpacing);
+        ctx.beginPath();
+        ctx.roundRect(bx, barTop, singleBarW, barHeight, 3);
+        if (i === slideIndex) {
+          ctx.fillStyle = selectedTheme.accent || '#6366f1';
+        } else if (i < slideIndex) {
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+        } else {
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.28)';
+        }
+        ctx.fill();
+      }
+    }
+
+    const { titlePx } = FONT_SIZE_PRESETS.find(p => p.id === fontSizeMode) || FONT_SIZE_PRESETS[1];
 
     // Badge
-    const badgeText = slide.badgeText || (slide.type === 'cover' ? '🔥 떡상 카드뉴스' : `POINT 0${slide.slideNumber}`);
+    const badgeText = slide.badgeText || (slide.type === 'cover' ? '🔥 3초 떡상 훅' : `POINT 0${slide.slideNumber}`);
     ctx.font = `bold 24px ${selectedFont.family}`;
     ctx.fillStyle = selectedTheme.badgeBg;
     const badgeWidth = ctx.measureText(badgeText).width + 36;
     const badgeX = textAlign === 'center' ? (width - badgeWidth) / 2 : 80;
-    const badgeY = height * 0.18;
+    const badgeY = height * 0.16;
 
     ctx.beginPath();
     ctx.roundRect(badgeX, badgeY, badgeWidth, 48, 24);
@@ -485,7 +773,7 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
     ctx.textAlign = 'center';
     ctx.fillText(badgeText, badgeX + badgeWidth / 2, badgeY + 32);
 
-    // Headline
+    // Headline (3-Second Hook Large Text)
     ctx.fillStyle = selectedTextColor;
     ctx.font = `900 ${titlePx}px ${selectedFont.family}`;
     ctx.textAlign = textAlign;
@@ -494,7 +782,7 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
 
     const maxTextWidth = width - 160;
     const lines = wrapCanvasText(ctx, slide.mainHook, maxTextWidth);
-    let startY = height * 0.36;
+    let startY = height * 0.34;
     const textX = textAlign === 'center' ? width / 2 : 80;
 
     for (const line of lines) {
@@ -502,7 +790,7 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
       startY += titlePx * 1.35;
     }
 
-    // SubDetail (Request 5: 폰트, 글자 크기, 컬러구성, 배경 박스 커스텀 반영)
+    // SubDetail (Full Unsummarized Shorts Narration)
     const activeSubPx = SUB_DETAIL_SIZE_PRESETS.find(p => p.id === (slide.subDetailFontSize || subDetailFontSize))?.canvasPx || 32;
     const activeSubFont = slide.subDetailFont || subDetailFont.family;
     const activeSubColor = slide.subDetailColor || subDetailColor;
@@ -514,7 +802,7 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
 
     if (activeSubBg !== 'none' && subLines.length > 0) {
       const boxPaddingX = 24;
-      const boxPaddingY = 14;
+      const boxPaddingY = 16;
       let maxLineWidth = 0;
       for (const line of subLines) {
         maxLineWidth = Math.max(maxLineWidth, ctx.measureText(line).width);
@@ -545,22 +833,71 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
       startY += activeSubPx * 1.45;
     }
 
-    // Footer page number (No watermark!)
+    // Footer page number & Swipe Cue
     ctx.shadowBlur = 0;
     ctx.fillStyle = slide.imageUrl ? '#94a3b8' : selectedTheme.subText;
     ctx.font = `bold 22px ${selectedFont.family}`;
     ctx.textAlign = 'center';
-    ctx.fillText(`${slide.slideNumber} / ${slides.length}`, width / 2, height - 70);
+    ctx.fillText(`${slide.slideNumber} / ${slides.length}`, width / 2, height - 65);
 
-    // Trigger download
+    if (showSwipeIndicator) {
+      ctx.font = `bold 20px ${selectedFont.family}`;
+      ctx.textAlign = 'right';
+      if (slideIndex < slides.length - 1) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('옆으로 넘기기 👉', width - 70, height - 65);
+      } else {
+        ctx.fillStyle = '#facc15';
+        ctx.fillText('📌 저장 & 공유', width - 70, height - 65);
+      }
+    }
+
+    return canvas;
+  };
+
+  // Download Single Slide
+  const drawAndDownloadSlide = async () => {
+    const canvas = await renderSlideCanvas(currentSlideIndex);
+    if (!canvas) return;
+    const slide = slides[currentSlideIndex];
     const link = document.createElement('a');
-    link.download = `carousel_slide_${slide.slideNumber}_${topic}.png`;
+    const orderNum = String(slide.slideNumber).padStart(2, '0');
+    link.download = `${orderNum}_${slide.type}_${topic}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
   };
 
+  // 2026 Batch Export: Download All Slides Sequentially
+  const downloadAllSlides = async () => {
+    if (slides.length === 0 || isExportingAll) return;
+    setIsExportingAll(true);
+
+    try {
+      for (let i = 0; i < slides.length; i++) {
+        setExportProgress(`${i + 1} / ${slides.length}장 고화질 렌더링 중...`);
+        const canvas = await renderSlideCanvas(i);
+        if (canvas) {
+          const slide = slides[i];
+          const orderNum = String(slide.slideNumber).padStart(2, '0');
+          const link = document.createElement('a');
+          link.download = `${orderNum}_${slide.type}_${topic}.png`;
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+        }
+        await new Promise(r => setTimeout(r, 400));
+      }
+      setScriptToast(`🎉 전체 ${slides.length}장의 고화질 카드뉴스가 일괄 다운로드되었습니다!`);
+      setTimeout(() => setScriptToast(null), 4000);
+    } catch (err) {
+      console.error('All slides download failed:', err);
+    } finally {
+      setIsExportingAll(false);
+      setExportProgress(null);
+    }
+  };
+
   const currentSlide = slides[currentSlideIndex];
-  const { titleClass, descClass } = FONT_SIZE_PRESETS.find(p => p.id === fontSizeMode) || FONT_SIZE_PRESETS[1];
+  const { titleClass } = FONT_SIZE_PRESETS.find(p => p.id === fontSizeMode) || FONT_SIZE_PRESETS[1];
   const mainHookLen = currentSlide?.mainHook ? currentSlide.mainHook.replace(/\s+/g, '').length : 0;
   const subDetailLen = currentSlide?.subDetail ? currentSlide.subDetail.replace(/\s+/g, '').length : 0;
 
@@ -575,7 +912,7 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
               className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-black text-xs transition border border-slate-200 cursor-pointer shadow-2xs"
             >
               <ArrowLeft className="w-4 h-4 text-indigo-600" />
-              <span>← 첫 화면(인물 선택)으로 돌아가기</span>
+              <span>← 쇼츠 스튜디오로 돌아가기</span>
             </button>
           )}
 
@@ -651,13 +988,13 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
             <div className="flex items-center justify-end space-x-2 pt-2">
               <button
                 onClick={() => setUrlModalOpen(false)}
-                className="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
+                className="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
               >
                 취소
               </button>
               <button
                 onClick={() => handleApplySlideCustomUrl(customUrlInput)}
-                className="px-4 py-2 rounded-xl text-xs font-black bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs"
+                className="px-4 py-2 rounded-xl text-xs font-black bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer"
               >
                 적용하기
               </button>
@@ -666,20 +1003,48 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
         </div>
       )}
 
-      {/* Shorts Script to Carousel Auto-Chunker Bar */}
+      {/* Feature 1: 쇼츠 프로젝트 1:1 직통 연동 바 (현재 씬 사진 + 원본 대본) */}
+      {currentProject?.scenes && currentProject.scenes.length > 0 && (
+        <div className="bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-indigo-500/10 border-2 border-indigo-200/80 rounded-3xl p-5 sm:p-6 shadow-sm flex flex-wrap items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-1 rounded-full bg-indigo-600 text-white font-black text-[11px] flex items-center gap-1 shadow-2xs">
+                <Film className="w-3.5 h-3.5" />
+                <span>쇼츠 프로젝트 연동</span>
+              </span>
+              <h4 className="font-black text-slate-900 text-sm sm:text-base">
+                현재 쇼츠 씬 사진({currentProject.scenes.length}장) + 원본 대본 1:1 완벽 가져오기
+              </h4>
+            </div>
+            <p className="text-xs text-slate-600">
+              쇼츠 대본을 <strong>요약하지 않고 100% 온전히 보존</strong>하여 각 카드에 나누어 담고, 메인 헤드라인은 3초 도입부형으로 자동 생성합니다.
+            </p>
+          </div>
+
+          <button
+            onClick={handleImportProjectScenes}
+            className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-rose-600 hover:from-indigo-700 hover:to-rose-700 text-white font-black text-xs sm:text-sm shadow-md flex items-center gap-2 transition cursor-pointer active:scale-95"
+          >
+            <Sparkles className="w-4 h-4 text-amber-300" />
+            <span>🎬 쇼츠 씬 사진 & 원본대본 1:1 가져오기</span>
+          </button>
+        </div>
+      )}
+
+      {/* Feature 2: Shorts Script to Carousel Auto-Chunker Bar */}
       <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-rose-50 border border-indigo-100 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Scissors className="w-5 h-5 text-indigo-600" />
             <h4 className="font-black text-slate-900 text-sm sm:text-base">
-              🎬 쇼츠 대본을 인스타 캐러셀로 자동 변환하기
+              ✂️ 쇼츠 대본 100% 원문 보존 & 스마트 컷 편집 분할
             </h4>
-            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
-              황금 글자량 분할
+            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+              대본 요약 0% • 원문 100% 보존
             </span>
           </div>
-          <span className="text-xs text-slate-500">
-            대본을 붙여넣으면 가독성 최적 문장 단위로 자동 쪼개어 슬라이드에 입혀줍니다
+          <span className="text-xs text-slate-500 font-medium">
+            헤드라인은 3초 도입부형 훅 요약, 보조설명은 쇼츠 대본 그대로 컷 편집
           </span>
         </div>
 
@@ -688,8 +1053,8 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
             value={scriptInput}
             onChange={(e) => setScriptInput(e.target.value)}
             rows={2}
-            placeholder="쇼츠 대본 전체를 여기에 붙여넣으세요. (예: 100번 넘게 오디션에 떨어졌던 무명 배우가...)"
-            className="w-full bg-white rounded-2xl p-3 text-xs sm:text-sm text-slate-800 border border-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-inner pr-28 sm:pr-40"
+            placeholder="쇼츠 대본 전체를 여기에 붙여넣으세요. (내용을 요약하지 않고 모바일 카드 가독성에 맞게 컷 편집 분할됩니다)"
+            className="w-full bg-white rounded-2xl p-3 text-xs sm:text-sm text-slate-800 border border-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-inner pr-36 sm:pr-48"
           />
           <button
             onClick={handleConvertScriptToCarousel}
@@ -697,7 +1062,7 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
             className="absolute bottom-3 right-3 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-rose-600 hover:from-indigo-700 hover:to-rose-700 text-white font-black text-xs shadow-md flex items-center gap-1.5 transition disabled:opacity-40 cursor-pointer"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>✨ 자동 분할 & 입히기</span>
+            <span>✨ 원문 100% 컷 분할 적용</span>
           </button>
         </div>
 
@@ -715,33 +1080,50 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="font-black text-slate-900 text-base sm:text-lg">캐러셀 실시간 비주얼 뷰어</h3>
-              <p className="text-xs text-slate-500">폰트, 컬러, 글자 크기, 사진이 실시간 반영됩니다</p>
+              <p className="text-xs text-slate-500">폰트, 컬러, 글자 크기, 사진, 스와이프 유도 바 실시간 반영</p>
             </div>
 
-            {/* Ratio Toggle */}
-            <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-bold">
+            <div className="flex items-center gap-2">
+              {/* Swipe Indicator Toggle */}
               <button
-                onClick={() => setCarouselRatio('4:5')}
-                className={`px-3 py-1 rounded-lg transition cursor-pointer ${carouselRatio === '4:5' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600'}`}
+                type="button"
+                onClick={() => setShowSwipeIndicator(!showSwipeIndicator)}
+                className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
+                  showSwipeIndicator
+                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                    : 'bg-slate-100 text-slate-500 border-slate-200'
+                }`}
+                title="인스타 스토리 스타일 상단 프로그레스 바 및 하단 넘겨보기 큐레이션 표시"
               >
-                4:5 (세로형)
+                <CheckCircle2 className={`w-3.5 h-3.5 ${showSwipeIndicator ? 'text-indigo-600' : 'text-slate-400'}`} />
+                <span>스와이프 유도 바 {showSwipeIndicator ? 'ON' : 'OFF'}</span>
               </button>
-              <button
-                onClick={() => setCarouselRatio('1:1')}
-                className={`px-3 py-1 rounded-lg transition cursor-pointer ${carouselRatio === '1:1' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600'}`}
-              >
-                1:1 (정방형)
-              </button>
-              <button
-                onClick={() => setCarouselRatio('9:16')}
-                className={`px-3 py-1 rounded-lg transition cursor-pointer ${carouselRatio === '9:16' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600'}`}
-              >
-                9:16 (스토리)
-              </button>
+
+              {/* Ratio Toggle */}
+              <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-bold">
+                <button
+                  onClick={() => setCarouselRatio('4:5')}
+                  className={`px-3 py-1 rounded-lg transition cursor-pointer ${carouselRatio === '4:5' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600'}`}
+                >
+                  4:5 (세로형)
+                </button>
+                <button
+                  onClick={() => setCarouselRatio('1:1')}
+                  className={`px-3 py-1 rounded-lg transition cursor-pointer ${carouselRatio === '1:1' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600'}`}
+                >
+                  1:1 (정방형)
+                </button>
+                <button
+                  onClick={() => setCarouselRatio('9:16')}
+                  className={`px-3 py-1 rounded-lg transition cursor-pointer ${carouselRatio === '9:16' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600'}`}
+                >
+                  9:16 (스토리)
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Photo & Keyword Search Bar for Current Slide (Matching Shorts Studio) */}
+          {/* Photo & Keyword Search Bar for Current Slide */}
           <div className="space-y-2">
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center space-x-3.5">
               {/* Photo Preview Thumbnail */}
@@ -817,7 +1199,6 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
               </div>
             </div>
 
-            {/* Visual Guide line matching screenshot */}
             {currentSlide?.visualGuide && (
               <p className="text-xs text-slate-500 italic font-medium px-1">
                 연출 가이드: {currentSlide.visualGuide}
@@ -846,6 +1227,24 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
                 <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/65 to-black/85 z-0" />
               )}
 
+              {/* 2026 Instagram Algorithm: Top Story Progress Bar */}
+              {showSwipeIndicator && slides.length > 1 && (
+                <div className="relative z-10 flex items-center space-x-1.5 pt-0.5 pb-2">
+                  {slides.map((_, i) => (
+                    <div 
+                      key={i}
+                      className={`h-1 rounded-full flex-1 transition-all ${
+                        i === currentSlideIndex 
+                          ? 'bg-indigo-400 ring-1 ring-white/50' 
+                          : i < currentSlideIndex 
+                          ? 'bg-white/80' 
+                          : 'bg-white/25'
+                      }`}
+                    />
+                  ))}
+                </div>
+              )}
+
               {/* Top Header Badge */}
               <div className={`relative z-10 flex ${textAlign === 'center' ? 'justify-center' : 'justify-start'}`}>
                 <span 
@@ -855,20 +1254,21 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
                     color: selectedTheme.badgeText 
                   }}
                 >
-                  {currentSlide?.badgeText || (currentSlide?.type === 'cover' ? '🔥 떡상 카드뉴스' : `POINT 0${currentSlide?.slideNumber || 1}`)}
+                  {currentSlide?.badgeText || (currentSlide?.type === 'cover' ? '🔥 3초 떡상 훅' : `POINT 0${currentSlide?.slideNumber || 1}`)}
                 </span>
               </div>
 
               {/* Main Content Area */}
               <div className="relative z-10 my-auto py-4 space-y-4">
+                {/* Main Headline (3-Second Hook Large Text) */}
                 <h2 
                   className={`font-black tracking-tight leading-snug drop-shadow-lg whitespace-pre-line ${titleClass}`}
                   style={{ color: selectedTextColor }}
                 >
-                  {currentSlide?.mainHook || '메인 헤드라인을 입력하세요'}
+                  {currentSlide?.mainHook || '3초 도입부 헤드라인을 입력하세요'}
                 </h2>
 
-                {/* SubDetail with capsule / box styling (Request 5) */}
+                {/* SubDetail (Full Unsummarized Shorts Narration) */}
                 <div className={`transition-all ${
                   (currentSlide?.subDetailBgStyle || subDetailBgStyle) === 'capsule'
                     ? 'px-4 py-2.5 rounded-2xl bg-black/60 backdrop-blur-xs max-w-fit mx-auto'
@@ -885,28 +1285,34 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
                       fontFamily: currentSlide?.subDetailFont || subDetailFont.family 
                     }}
                   >
-                    {currentSlide?.subDetail || '보조 상세 설명을 작성해주세요.'}
+                    {currentSlide?.subDetail || '쇼츠 대본 원문이 여기에 그대로 들어갑니다.'}
                   </p>
                 </div>
               </div>
 
-              {/* Bottom Footer Page Count (Clean, No Watermark) */}
+              {/* Bottom Footer Page Count & Swipe Cue */}
               <div className="relative z-10 flex items-center justify-between text-xs pt-4 border-t border-white/10 font-bold text-slate-300">
                 <span>{topic}</span>
                 <span className="px-2 py-0.5 rounded-full bg-black/40 text-[11px]">
                   {(currentSlideIndex + 1)} / {slides.length}
                 </span>
+                {showSwipeIndicator && (
+                  <span className="text-[11px] text-amber-300 font-extrabold flex items-center gap-0.5">
+                    {currentSlideIndex < slides.length - 1 ? '넘겨보기 👉' : '📌 저장하기'}
+                  </span>
+                )}
               </div>
             </div>
           </div>
 
           {/* Slide Navigation & Canvas Export Bar */}
-          <div className="flex items-center justify-between pt-2">
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => setCurrentSlideIndex(Math.max(0, currentSlideIndex - 1))}
                 disabled={currentSlideIndex === 0}
                 className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-30 transition cursor-pointer"
+                title="이전 카드"
               >
                 <ChevronLeft className="w-5 h-5 text-slate-700" />
               </button>
@@ -917,35 +1323,67 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
                 onClick={() => setCurrentSlideIndex(Math.min(slides.length - 1, currentSlideIndex + 1))}
                 disabled={currentSlideIndex >= slides.length - 1}
                 className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-30 transition cursor-pointer"
+                title="다음 카드"
               >
                 <ChevronRight className="w-5 h-5 text-slate-700" />
               </button>
             </div>
 
-            <button
-              onClick={drawAndDownloadSlide}
-              className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs flex items-center gap-1.5 shadow-md transition cursor-pointer"
-            >
-              <Download className="w-4 h-4 text-emerald-400" />
-              <span>현재 슬라이드 HD 다운로드</span>
-            </button>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={drawAndDownloadSlide}
+                className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs flex items-center gap-1.5 shadow-md transition cursor-pointer"
+                title="현재 보고 있는 1장만 다운로드"
+              >
+                <Download className="w-4 h-4 text-emerald-400" />
+                <span>현재 슬라이드 HD</span>
+              </button>
+
+              <button
+                onClick={downloadAllSlides}
+                disabled={isExportingAll}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-indigo-600 hover:from-rose-700 hover:to-indigo-700 text-white font-black text-xs flex items-center gap-1.5 shadow-md transition disabled:opacity-50 cursor-pointer"
+                title="1번 카드부터 끝번 카드까지 순서대로 일괄 다운로드"
+              >
+                <Download className="w-4 h-4 text-amber-300" />
+                <span>{isExportingAll ? (exportProgress || '일괄 저장 중...') : `📦 전체 슬라이드 일괄 다운로드 (${slides.length}장)`}</span>
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Right: Slide Content Inputs & Typography Customizer */}
         <div className="lg:col-span-5 space-y-6">
-          {/* 1. Current Slide Text Editor */}
+          {/* 1. Current Slide Text Editor & Cut-Editing Tools */}
           <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-rose-600" />
                 <h4 className="font-black text-slate-900 text-sm">
-                  {currentSlideIndex + 1}번 카드 내용 직접 입력
+                  {currentSlideIndex + 1}번 카드 내용 & 컷 편집
                 </h4>
               </div>
-              <span className="text-xs font-bold text-slate-500">
-                실시간 카드 반영
-              </span>
+              <div className="flex items-center space-x-1.5">
+                <button
+                  type="button"
+                  onClick={handleAddSlide}
+                  className="px-2 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-black border border-indigo-200 transition cursor-pointer flex items-center gap-0.5"
+                  title="새 슬라이드 추가"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>카드 추가</span>
+                </button>
+                {slides.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={handleDeleteCurrentSlide}
+                    className="p-1 rounded-lg bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-600 transition cursor-pointer"
+                    title="현재 슬라이드 삭제"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Badge text input */}
@@ -955,24 +1393,26 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
                 type="text"
                 value={currentSlide?.badgeText || ''}
                 onChange={(e) => handleUpdateCurrentSlide('badgeText', e.target.value)}
-                placeholder="예: ⚠️ 긴급 분석, POINT 01"
+                placeholder="예: 🔥 3초 떡상 훅, POINT 01"
                 className="w-full px-3 py-1.5 rounded-xl border border-slate-200 text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-rose-500"
               />
             </div>
 
-            {/* Main Headline Input */}
+            {/* Main Headline (3-Second Hook) Input */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-1.5">
-                  <label className="text-[11px] font-bold text-slate-800">메인 헤드라인 (큰 글씨)</label>
+                  <label className="text-[11px] font-bold text-slate-800">
+                    메인 헤드라인 (큰 글씨) - 3초 도입부형
+                  </label>
                   <button
                     type="button"
-                    onClick={handleQuickCompressHeadline}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-[10px] font-black border border-rose-200 transition cursor-pointer active:scale-95 shadow-2xs"
-                    title="인스타 트렌드에 맞춰 15자 내외 펀치라인으로 자동 축약합니다"
+                    onClick={handleCycle3SecondHook}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 text-[10px] font-black border border-amber-200 transition cursor-pointer active:scale-95 shadow-2xs"
+                    title="클릭할 때마다 다른 3초 도입부 후킹 스타일로 즉시 변경됩니다"
                   >
-                    <Sparkles className="w-3 h-3 text-rose-600" />
-                    <span>⚡ 15자 펀치라인 축약</span>
+                    <Sparkles className="w-3 h-3 text-amber-600" />
+                    <span>⚡ 3초 훅 다시 뽑기</span>
                   </button>
                 </div>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
@@ -982,41 +1422,67 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
                     ? 'bg-amber-50 text-amber-700 border border-amber-200'
                     : 'bg-rose-50 text-rose-700 border border-rose-200'
                 }`}>
-                  {mainHookLen}자 {
-                    mainHookLen <= 18
-                      ? '🟢 인스타 최적 (18자 이내)'
-                      : mainHookLen <= 28
-                      ? '🟠 다소 긺'
-                      : '🔴 글씨 과다 (축약 권장)'
-                  }
+                  {mainHookLen}자 {mainHookLen <= 18 ? '🟢 3초 훅 최적' : '🟠 다소 긺'}
                 </span>
               </div>
               <textarea
                 value={currentSlide?.mainHook || ''}
                 onChange={(e) => handleUpdateCurrentSlide('mainHook', e.target.value)}
                 rows={2}
-                placeholder="한눈에 꽂히는 핵심 문장을 적어주세요 (엔터로 줄바꿈 가능)"
+                placeholder="장면을 요약한 3초 도입부 헤드라인 (엔터로 줄바꿈 가능)"
                 className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500"
               />
             </div>
 
-            {/* Sub Detail Input */}
+            {/* Sub Detail (Full Unsummarized Shorts Script) & Cut-Editor */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-[11px] font-bold text-slate-700">상세 보조 설명 (작은 글씨)</label>
+                <div className="flex items-center gap-1.5">
+                  <label className="text-[11px] font-bold text-slate-700">
+                    상세 보조 설명 (작은 글씨) - 쇼츠 대본 원문
+                  </label>
+                  <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800">
+                    요약 0%
+                  </span>
+                </div>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                  subDetailLen <= 60 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                  subDetailLen <= 80 ? 'bg-emerald-50 text-emerald-700' : subDetailLen <= 130 ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-700'
                 }`}>
-                  {subDetailLen}자 {subDetailLen <= 60 ? '🟢 읽기 편함 (60자 이내)' : '🟠 분할 추천'}
+                  {subDetailLen}자 {subDetailLen <= 110 ? '🟢 읽기 최적' : '🟠 분할 추천'}
                 </span>
               </div>
               <textarea
                 value={currentSlide?.subDetail || ''}
                 onChange={(e) => handleUpdateCurrentSlide('subDetail', e.target.value)}
-                rows={3}
-                placeholder="보조 설명이나 디테일한 내용을 적어주세요."
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                rows={4}
+                placeholder="쇼츠 대본 원문이 그대로 들어갑니다. (요약하지 않고 컷 편집으로 분할)"
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-rose-500 leading-relaxed"
               />
+
+              {/* Cut-editing Action Buttons */}
+              <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={handleSplitCurrentSlide}
+                  className="px-2.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold border border-indigo-200 transition cursor-pointer flex items-center gap-1 active:scale-95"
+                  title="이 카드의 대본을 2개의 슬라이드로 나눕니다"
+                >
+                  <Scissors className="w-3.5 h-3.5" />
+                  <span>✂️ 이 문장에서 컷 분할 (슬라이드 나누기)</span>
+                </button>
+
+                {currentSlideIndex < slides.length - 1 && (
+                  <button
+                    type="button"
+                    onClick={handleMergeWithNextSlide}
+                    className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-200 transition cursor-pointer flex items-center gap-1 active:scale-95"
+                    title="다음 슬라이드의 대본을 이 슬라이드 끝에 합칩니다"
+                  >
+                    <GitMerge className="w-3.5 h-3.5" />
+                    <span>🔗 다음 카드와 합치기</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Image Search Keyword Input */}
@@ -1081,7 +1547,7 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
                       key={sz.id}
                       onClick={() => setSizeMode(sz.id as any)}
                       className={`flex-1 py-1 text-center rounded-lg text-xs font-bold transition cursor-pointer ${
-                        fontSizeMode === sz.id ? 'bg-white text-indigo-600 shadow-2xs' : 'text-slate-600'
+                        fontSizeMode === sz.id ? 'bg-white text-indigo-600 shadow-2xs font-black' : 'text-slate-600'
                       }`}
                     >
                       {sz.label}
@@ -1096,7 +1562,7 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
                   <button
                     onClick={() => setTextAlign('center')}
                     className={`flex-1 py-1 flex items-center justify-center rounded-lg text-xs font-bold transition cursor-pointer ${
-                      textAlign === 'center' ? 'bg-white text-indigo-600 shadow-2xs' : 'text-slate-600'
+                      textAlign === 'center' ? 'bg-white text-indigo-600 shadow-2xs font-black' : 'text-slate-600'
                     }`}
                   >
                     <AlignCenter className="w-3.5 h-3.5 mr-1" />
@@ -1105,7 +1571,7 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
                   <button
                     onClick={() => setTextAlign('left')}
                     className={`flex-1 py-1 flex items-center justify-center rounded-lg text-xs font-bold transition cursor-pointer ${
-                      textAlign === 'left' ? 'bg-white text-indigo-600 shadow-2xs' : 'text-slate-600'
+                      textAlign === 'left' ? 'bg-white text-indigo-600 shadow-2xs font-black' : 'text-slate-600'
                     }`}
                   >
                     <AlignLeft className="w-3.5 h-3.5 mr-1" />
@@ -1124,7 +1590,7 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
                     key={c.id}
                     onClick={() => setSelectedTextColor(c.hex)}
                     className={`flex-1 py-1.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                      selectedTextColor === c.hex ? 'border-indigo-600 ring-2 ring-indigo-500/30' : 'border-slate-200'
+                      selectedTextColor === c.hex ? 'border-indigo-600 ring-2 ring-indigo-500/30 font-black' : 'border-slate-200'
                     }`}
                   >
                     <span className="w-3 h-3 rounded-full border border-black/10 shrink-0" style={{ backgroundColor: c.hex }} />
@@ -1135,7 +1601,7 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
             </div>
           </div>
 
-          {/* 3. SubDetail Customizer (폰트 • 글자 크기 • 컬러 • 배경 박스) */}
+          {/* 3. SubDetail Customizer (서체 • 크기 • 컬러 • 배경 박스) */}
           <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm font-black text-slate-900">
@@ -1264,7 +1730,7 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
                   onClick={() => setSelectedTheme(th)}
                   className={`p-2.5 rounded-xl border text-left text-xs font-bold transition flex items-center justify-between cursor-pointer ${
                     selectedTheme.id === th.id
-                      ? 'border-indigo-600 ring-2 ring-indigo-500/20 bg-indigo-50/50 text-indigo-950'
+                      ? 'border-indigo-600 ring-2 ring-indigo-500/20 bg-indigo-50/50 text-indigo-950 font-black'
                       : 'border-slate-200 hover:bg-slate-50 text-slate-700'
                   }`}
                 >
@@ -1283,7 +1749,7 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
             <div className="flex items-center justify-between">
               <h4 className="font-black text-slate-900 text-sm flex items-center gap-2">
                 <Layers className="w-4 h-4 text-rose-500" />
-                <span>5. 전체 슬라이드 순서 ({slides.length}장)</span>
+                <span>전체 슬라이드 순서 ({slides.length}장)</span>
               </h4>
               <button
                 onClick={() => {
@@ -1346,7 +1812,7 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
             </div>
           </div>
 
-          {/* 5. 2026 Instagram Viral Caption & Algorithm Cheatsheet */}
+          {/* 6. 2026 Instagram Viral Caption & Algorithm Cheatsheet */}
           <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <div>

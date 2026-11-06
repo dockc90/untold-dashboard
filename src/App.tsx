@@ -925,6 +925,7 @@ export default function App() {
             initialTopic={selectedFigure?.name || currentProject?.figureName || viralTopic}
             initialCategory={selectedFigure?.category || 'entertainment'}
             initialScript={currentProject?.fullScript || (currentProject?.scenes ? currentProject.scenes.map(s => s.narration).join('\n') : '')}
+            currentProject={currentProject}
             onBackToStudio={() => {
               setCurrentTab('studio');
               setStudioStep('trends');
@@ -938,6 +939,7 @@ export default function App() {
             initialTopic={selectedFigure?.name || currentProject?.figureName || viralTopic}
             initialCategory={selectedFigure?.category || 'entertainment'}
             initialScript={currentProject?.fullScript || (currentProject?.scenes ? currentProject.scenes.map(s => s.narration).join('\n') : '')}
+            currentProject={currentProject}
             onBackToStudio={() => setCurrentTab('studio')}
           />
         )}
