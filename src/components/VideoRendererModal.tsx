@@ -34,6 +34,7 @@ import {
   Share2
 } from 'lucide-react';
 import { fixWebmBlob, patchWebmBinaryDurationAndCues } from '../utils/webmFixer';
+import { ShortsSafeZoneOverlay, PlatformGuideSelector, PlatformGuideType } from './ShortsSafeZoneOverlay';
 import { 
   ShortsProject, 
   SceneItem, 
@@ -851,6 +852,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   const [videoDuration, setVideoDuration] = useState(0);
   const [previewViewMode, setPreviewViewMode] = useState<'live' | 'video'>('live');
   const [previewSceneIndex, setPreviewSceneIndex] = useState(0);
+  const [platformGuide, setPlatformGuide] = useState<PlatformGuideType>('none');
 
   // Step 3 Vault Save States
   const [isSavingToVault, setIsSavingToVault] = useState(false);
@@ -2478,6 +2480,30 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         renderFrame();
       }
     }, 33);
+  };
+
+  const handleShareVideo = async () => {
+    if (!videoBlobFile) return;
+    try {
+      const isWebm = (videoBlobType || '').includes('webm');
+      const ext = isWebm ? 'webm' : 'mp4';
+      const fileName = `Untold_${project.figureName}_${resolution}.${ext}`;
+      const file = new File([videoBlobFile], fileName, { type: videoBlobType || 'video/mp4' });
+      if (typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: `Untold - ${project.figureName}`,
+          text: `Untold 쇼츠 영상: ${project.figureName}`,
+        });
+      } else {
+        handleDownload();
+      }
+    } catch (err: any) {
+      if (err.name !== 'AbortError') {
+        console.warn('Share error fallback to download:', err);
+        handleDownload();
+      }
+    }
   };
 
   const handleDownload = (preferredExt?: 'mp4' | 'webm') => {
@@ -4333,13 +4359,28 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
               {videoBlobUrl && (
                 <div className="space-y-2.5">
-                  <button
-                    onClick={() => handleDownload()}
-                    className="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm rounded-2xl shadow-md shadow-emerald-600/20 flex items-center justify-center space-x-2 transition cursor-pointer active:scale-98"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>{resolution} 쇼츠 영상 파일 다운로드 (전체 {videoDuration}초 완벽 저장)</span>
-                  </button>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleDownload()}
+                      className="flex-1 py-3.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm rounded-2xl shadow-md shadow-emerald-600/20 flex items-center justify-center space-x-2 transition cursor-pointer active:scale-98"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>{resolution} 쇼츠 다운로드 ({videoDuration}초)</span>
+                    </button>
+
+                    {typeof navigator !== 'undefined' && !!navigator.share && (
+                      <button
+                        type="button"
+                        onClick={handleShareVideo}
+                        className="py-3.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-sm rounded-2xl shadow-md shadow-indigo-600/20 flex items-center justify-center space-x-2 transition cursor-pointer active:scale-98 shrink-0"
+                        title="카카오톡, 인스타그램, 틱톡, 갤러리로 직접 전송"
+                      >
+                        <Share2 className="w-4 h-4" />
+                        <span>SNS/카톡 바로 공유</span>
+                      </button>
+                    )}
+                  </div>
 
                   {onSaveProject && (
                     <button
@@ -4452,6 +4493,15 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
               </div>
             )}
 
+            {/* Platform UI Safe Zone Guide Toolbar */}
+            {!isRendering && (
+              <PlatformGuideSelector
+                currentPlatform={platformGuide}
+                onChangePlatform={setPlatformGuide}
+                className="mb-2.5 w-full max-w-[340px]"
+              />
+            )}
+
             <div className="w-[280px] sm:w-[310px] aspect-[9/16] bg-slate-950 rounded-3xl overflow-hidden shadow-2xl border-4 border-slate-900 relative flex items-center justify-center">
               <canvas
                 ref={canvasRef}
@@ -4468,7 +4518,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                   className="w-full h-full object-cover"
                 />
               ) : !isRendering ? (
-                <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none">
+                <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none z-10">
                   <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-slate-900/85 text-white backdrop-blur-xs flex items-center gap-1.5 border border-white/10 shadow-xs">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                     자막 실시간 라이브 뷰
@@ -4478,6 +4528,13 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                   </span>
                 </div>
               ) : null}
+
+              {/* Real-time SNS Platform Safe Zone & UI Overlay Guide */}
+              <ShortsSafeZoneOverlay
+                platform={platformGuide}
+                title={scenes[previewSceneIndex]?.text || project.figureName}
+                authorName={project.figureName || 'Untold Story'}
+              />
             </div>
 
             {/* Quick Actions below canvas */}

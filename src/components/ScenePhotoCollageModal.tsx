@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { ShortsSafeZoneOverlay, PlatformGuideSelector, PlatformGuideType } from './ShortsSafeZoneOverlay';
 import {
   X,
   Upload,
@@ -161,6 +162,7 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
   const [selectedCellIndex, setSelectedCellIndex] = useState<number>(0);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [editorTab, setEditorTab] = useState<'transform' | 'color'>('transform');
+  const [platformGuide, setPlatformGuide] = useState<PlatformGuideType>('none');
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -1679,46 +1681,69 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
               </div>
             )}
 
+            {/* Safe Zone Guide Toolbar (When 9:16 is selected) */}
+            {aspectRatio === '9:16' && (
+              <PlatformGuideSelector
+                currentPlatform={platformGuide}
+                onChangePlatform={setPlatformGuide}
+                className="mb-1.5 w-full"
+              />
+            )}
+
             {/* Interactive Canvas Container with Drag & Wheel support */}
             <div className="relative w-full flex items-center justify-center flex-1 min-h-[300px] max-h-[420px] select-none">
-              <canvas
-                ref={canvasRef}
-                onPointerDown={(e) => {
-                  e.preventDefault();
-                  try {
-                    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-                  } catch {}
-                  handlePointerDown(e.clientX, e.clientY);
-                }}
-                onPointerMove={(e) => {
-                  if (isDragging) {
-                    e.preventDefault();
-                    handlePointerMove(e.clientX, e.clientY);
-                  }
-                }}
-                onPointerUp={(e) => {
-                  try {
-                    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-                  } catch {}
-                  handlePointerUp();
-                }}
-                onPointerCancel={(e) => {
-                  try {
-                    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-                  } catch {}
-                  handlePointerUp();
-                }}
-                onWheel={handleCanvasWheel}
-                className={`max-h-[400px] max-w-full rounded-xl shadow-2xl border border-slate-800 object-contain touch-none select-none ${
-                  isDragging ? 'cursor-grabbing' : 'cursor-grab'
-                }`}
+              <div
+                className="relative max-h-[400px] max-w-full rounded-xl overflow-hidden shadow-2xl border border-slate-800 flex items-center justify-center"
                 style={{
                   aspectRatio:
                     aspectRatio === '9:16' ? '9/16' : aspectRatio === '1:1' ? '1/1' : '4/5',
+                  height: '100%',
                 }}
-              />
+              >
+                <canvas
+                  ref={canvasRef}
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    try {
+                      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+                    } catch {}
+                    handlePointerDown(e.clientX, e.clientY);
+                  }}
+                  onPointerMove={(e) => {
+                    if (isDragging) {
+                      e.preventDefault();
+                      handlePointerMove(e.clientX, e.clientY);
+                    }
+                  }}
+                  onPointerUp={(e) => {
+                    try {
+                      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+                    } catch {}
+                    handlePointerUp();
+                  }}
+                  onPointerCancel={(e) => {
+                    try {
+                      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+                    } catch {}
+                    handlePointerUp();
+                  }}
+                  onWheel={handleCanvasWheel}
+                  className={`w-full h-full object-contain touch-none select-none ${
+                    isDragging ? 'cursor-grabbing' : 'cursor-grab'
+                  }`}
+                />
 
-              {images.length > 0 && !isDragging && (
+                {/* Safe Zone Overlay in 9:16 mode */}
+                {aspectRatio === '9:16' && (
+                  <ShortsSafeZoneOverlay
+                    platform={platformGuide}
+                    title={narrationSnippet || '씬 사진 편집'}
+                    authorName="Untold Story"
+                  />
+                )}
+              </div>
+
+              {images.length > 0 && !isDragging && platformGuide === 'none' && (
                 <div className="absolute top-2 right-2 pointer-events-none px-2 py-1 rounded-md bg-black/70 text-slate-300 text-[10px] font-medium flex items-center gap-1 backdrop-blur-xs">
                   <Hand className="w-3 h-3 text-purple-400" />
                   <span>마우스 드래그로 이동 / 휠로 확대</span>
