@@ -79,7 +79,7 @@ const COMMERCIAL_FONTS: { id: SubtitleFontFamily; name: string; tag: string; sam
 ];
 
 const POSITION_PRESETS = [
-  { label: '하단 (83% 기본)', value: 83 },
+  { label: '하단 (81% 기본)', value: 81 },
   { label: '상단 (17% 기본)', value: 17 },
   { label: '중앙 (50%)', value: 50 },
   { label: '최하단 (86%)', value: 86 },
@@ -778,7 +778,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   const [subtitleXPercent, setSubtitleXPercent] = useState<number>(project.subtitleXPercent ?? 50);
   const [subtitleYPercent, setSubtitleYPercent] = useState<number>(() => {
     if (project.subtitleYPercent !== undefined) return project.subtitleYPercent;
-    return 83; // 하단자막 83% 모든 프레임의 기본값
+    return 81; // 하단자막 81% 모든 프레임의 기본값
   });
   const [subtitleRotationDeg, setSubtitleRotationDeg] = useState<number>(project.subtitleRotationDeg ?? 0);
   const [activeDragSubtitle, setActiveDragSubtitle] = useState<'main' | string | null>(null);
@@ -906,8 +906,8 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   const sceneAudioSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const scenePreviewAnimRef = useRef<number | null>(null);
 
-  // Active custom tab on left ('tone' | 'ratio' | 'overlay' | 'subtitle' | 'voice' | 'output')
-  const [activeSettingsSection, setActiveSettingsSection] = useState<'tone' | 'ratio' | 'overlay' | 'subtitle' | 'voice' | 'output'>('tone');
+  // Active custom tab on left ('ratio' | 'overlay' | 'subtitle' | 'voice' | 'output')
+  const [activeSettingsSection, setActiveSettingsSection] = useState<'ratio' | 'overlay' | 'subtitle' | 'voice' | 'output'>('ratio');
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -1008,7 +1008,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   const handleSelectBackdrop = (bgId: BackdropStyle) => {
     setBackdropStyle(bgId);
     if (bgId === 'card_white') {
-      setSubtitleYPercent(83);
+      setSubtitleYPercent(81);
     }
     setPreviewViewMode('live');
   };
@@ -1018,7 +1018,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     setBackdropStyle('blur');
     setSubtitleFont('GmarketSans');
     setSubtitleStyle('yellow_box');
-    setSubtitleYPercent(83);
+    setSubtitleYPercent(81);
     setSubtitleSizeScale(1.18);
     setVoiceSpeedMultiplier(1.1);
     setResolution('1080p');
@@ -1030,7 +1030,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     setPhotoAspectRatio('1:1');
     setSubtitleFont('Pretendard');
     setSubtitleStyle('yellow_box');
-    setSubtitleYPercent(83);
+    setSubtitleYPercent(81);
     setSubtitleSizeScale(1.15);
     setResolution('1080p');
     setChannelLogo((prev) => ({
@@ -1281,33 +1281,30 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     }
 
     // 3. Compute Card Dimensions based on photoAspectRatio
+    // All photo frames (1:1, 4:5, 16:9, fit) and backdrop styles (ambient blur, white card, etc.)
+    // are strictly centered vertically: cardY = (h - cardH) / 2
     let cardW = w * 0.90;
     let cardH = cardW;
-    let cardY = h * 0.15; // Placed at top-mid so subtitle below has clear space
 
     if (photoAspectRatio === '1:1') {
       if (backdropStyle === 'card_white' || backdropStyle === 'card_black') {
-        // Edge-to-edge horizontal banner matching Reels sample screenshots
+        // Edge-to-edge horizontal banner matching Reels format
         cardW = w;
         cardH = w;
-        cardY = h * 0.22;
       } else {
         cardW = w * 0.90;
-        cardH = cardW; // 1:1 Square
-        cardY = h * 0.15;
+        cardH = cardW; // 1:1 Square Card
       }
     } else if (photoAspectRatio === '4:5') {
       cardW = w * 0.88;
       cardH = cardW * 1.25; // 4:5 Portrait Card
-      cardY = h * 0.11;
     } else if (photoAspectRatio === '16:9') {
       cardW = w * 0.94;
       cardH = cardW * (9 / 16); // 16:9 Landscape Card
-      cardY = h * 0.22;
     } else if (photoAspectRatio === 'fit') {
       // Keep original image ratio inside a max bounding box
       const maxW = w * 0.92;
-      const maxH = h * 0.62;
+      const maxH = h * 0.58;
       const imgRatio = img.width / img.height;
       if (imgRatio >= maxW / maxH) {
         cardW = maxW;
@@ -1316,10 +1313,11 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         cardH = maxH;
         cardW = maxH * imgRatio;
       }
-      cardY = h * 0.15;
     }
 
+    // Always center the card both horizontally and vertically (정중앙 완벽 정렬)
     const cardX = (w - cardW) / 2;
+    const cardY = (h - cardH) / 2;
     const cornerRadius = (backdropStyle === 'card_white' || backdropStyle === 'card_black') && photoAspectRatio === '1:1'
       ? 0
       : (resolution === '1080p' ? 32 : 22);
@@ -2723,20 +2721,8 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
           <button onClick={() => setSaveSuccessMsg(null)} className="text-emerald-600 hover:text-emerald-900 font-bold px-2 py-0.5">✕</button>
         </div>
       )}
-          {/* Settings Navigation Tabs (6 Sections with CapCut Overlays) */}
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200 text-xs font-bold">
-            <button
-              onClick={() => setActiveSettingsSection('tone')}
-              className={`py-2 px-2 rounded-xl transition flex items-center justify-center space-x-1.5 cursor-pointer ${
-                activeSettingsSection === 'tone'
-                  ? 'bg-white text-indigo-700 shadow-2xs font-black ring-1 ring-slate-200'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              <span className="truncate">영상 톤</span>
-            </button>
-
+          {/* Settings Navigation Tabs (5 Sections) */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200 text-xs font-bold">
             <button
               onClick={() => setActiveSettingsSection('ratio')}
               className={`py-2 px-2 rounded-xl transition flex items-center justify-center space-x-1.5 cursor-pointer ${
@@ -2802,118 +2788,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
             {/* Left Column: Settings Sections (6 cols) */}
             <div className="md:col-span-6 space-y-4">
-              {/* SECTION: Video Mood Tone (쇼츠 영상 톤 프리셋) */}
-              {activeSettingsSection === 'tone' && (
-                <div className="space-y-4">
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                        <Sparkles className="w-4 h-4 text-amber-500" />
-                        <span>영상 전체 연출 톤 (Video Mood Tone)</span>
-                      </label>
-                      <span className="text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
-                        선택된 톤: {videoTone}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 font-medium">
-                      영상의 분위기와 서사 호흡을 결정합니다. 원하는 톤의 <strong>'이 톤 스타일 원클릭 적용'</strong>을 누르면 최적의 배경 연출, 자막 폰트, 디자인 스타일, 추천 성우 및 배속이 한 번에 자동 세팅됩니다.
-                    </p>
-                  </div>
 
-                  <div className="space-y-3">
-                    {VIDEO_TONE_PRESETS.map((preset) => {
-                      const isCurrentTone = videoTone === preset.id;
-                      return (
-                        <div
-                          key={preset.id}
-                          className={`p-4 rounded-2xl border transition relative ${
-                            isCurrentTone
-                              ? 'bg-indigo-50/90 border-indigo-500 shadow-sm ring-1 ring-indigo-500'
-                              : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/70'
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-3 mb-2">
-                            <div>
-                              <div className="flex items-center space-x-2">
-                                <h4 className="text-sm font-black text-slate-900">{preset.title}</h4>
-                                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200">
-                                  {preset.badge}
-                                </span>
-                              </div>
-                              <p className="text-xs text-slate-600 font-medium mt-1 leading-relaxed">
-                                {preset.desc}
-                              </p>
-                            </div>
-
-                            {isCurrentTone && (
-                              <span className="text-[11px] font-black text-indigo-700 bg-white px-2.5 py-1 rounded-full border border-indigo-200 shrink-0 flex items-center gap-1 shadow-2xs">
-                                <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600" />
-                                <span>현재 적용 중</span>
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Characteristics pills */}
-                          <div className="flex flex-wrap gap-1.5 mb-3">
-                            {preset.characteristics.map((char, i) => (
-                              <span
-                                key={i}
-                                className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700 border border-slate-200"
-                              >
-                                ✓ {char}
-                              </span>
-                            ))}
-                          </div>
-
-                          {/* Recommendations metadata bar */}
-                          <div className="bg-slate-100/80 rounded-xl p-2.5 text-[11px] text-slate-600 grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
-                            <div>
-                              <span className="text-[10px] text-slate-400 block font-bold">배경 스타일</span>
-                              <span className="font-extrabold text-slate-800">
-                                {preset.recommendedBackdrop === 'blur' ? '앰비언트 블러' : preset.recommendedBackdrop === 'dark' ? '다크 매트' : '시네마틱 그라디언트'}
-                              </span>
-                            </div>
-                            <div>
-                              <span className="text-[10px] text-slate-400 block font-bold">추천 자막폰트</span>
-                              <span className="font-extrabold text-slate-800">{preset.recommendedFont}</span>
-                            </div>
-                            <div>
-                              <span className="text-[10px] text-slate-400 block font-bold">자막 스타일</span>
-                              <span className="font-extrabold text-slate-800">
-                                {preset.recommendedSubtitleStyle === 'yellow_box' ? '옐로우 박스' : preset.recommendedSubtitleStyle === 'white_outline' ? '화이트 외곽선' : '블랙 캡슐'}
-                              </span>
-                            </div>
-                            <div>
-                              <span className="text-[10px] text-slate-400 block font-bold">추천 배속</span>
-                              <span className="font-extrabold text-slate-800">{preset.recommendedSpeed}x</span>
-                            </div>
-                          </div>
-
-                          {/* Action button */}
-                          <div className="flex items-center justify-end space-x-2 pt-1">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setVideoTone(preset.id);
-                                setBackdropStyle(preset.recommendedBackdrop);
-                                setSubtitleFont(preset.recommendedFont);
-                                setSubtitleStyle(preset.recommendedSubtitleStyle);
-                                setSelectedVoiceId(preset.recommendedVoiceId);
-                                setVoiceSpeedMultiplier(preset.recommendedSpeed);
-                                setPreviewViewMode('live');
-                              }}
-                              className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-xs transition cursor-pointer"
-                            >
-                              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                              <span>이 톤 스타일 원클릭 적용</span>
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
 
               {/* SECTION 0: Photo Aspect Ratio & Framing */}
               {activeSettingsSection === 'ratio' && (
@@ -3514,7 +3389,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                                   { label: '상단 (17% 기본)', y: 17 },
                                   { label: '중상단 (26%)', y: 26 },
                                   { label: '중앙 (50%)', y: 50 },
-                                  { label: '하단 (83%)', y: 83 },
+                                  { label: '하단 (81%)', y: 81 },
                                 ].map((pos) => (
                                   <button
                                     key={pos.label}

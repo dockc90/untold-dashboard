@@ -210,7 +210,7 @@ export interface ShortsProject {
   channelLogoOverlay?: ChannelLogoOverlay; // 채널 로고 & 워터마크 오버레이
   subtitleTempo?: SubtitleTempo; // 캡컷식 자막 분할 속도 템포 (fast, standard, relaxed)
   subtitleXPercent?: number; // 메인 자막 X축 (기본 50%)
-  subtitleYPercent?: number; // 메인 자막 Y축 (기본 83%)
+  subtitleYPercent?: number; // 메인 자막 Y축 (기본 81%)
   subtitleRotationDeg?: number; // 메인 자막 회전 각도 (기본 0도)
   // 2026 알고리즘 치트키 필드
   firstTwoLinesSeo?: string;
