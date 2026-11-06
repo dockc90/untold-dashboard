@@ -253,7 +253,8 @@ export interface ElevenLabsAlignment {
 }
 
 export const base64ToArrayBuffer = (base64: string): ArrayBuffer => {
-  const binaryString = window.atob(base64);
+  const clean = (base64 || '').replace(/\s+/g, '');
+  const binaryString = window.atob(clean);
   const len = binaryString.length;
   const bytes = new Uint8Array(len);
   for (let i = 0; i < len; i++) {
@@ -1800,23 +1801,77 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     }
     const audioDest = audioCtx.createMediaStreamDestination();
 
-    // Helper: Synthesizes a vocal cadence harmonic audio buffer if upstream network TTS drops
-    const createFallbackSpeechBuffer = (ctx: AudioContext, text: string, gender: 'male' | 'female'): AudioBuffer => {
-      const cleanChars = text.replace(/\s+/g, '');
-      const syllables = Math.max(8, cleanChars.length);
-      const dur = Math.max(2.4, Math.min(5.5, (syllables * 0.16) / voiceSpeedMultiplier));
-      const sRate = ctx.sampleRate;
-      const buf = ctx.createBuffer(1, Math.floor(sRate * dur), sRate);
-      const chData = buf.getChannelData(0);
-      const bFreq = gender === 'female' ? 220 : 135;
+    // Robust TTS fetcher with automatic 3-step retry & binary fallback (NO sine-wave buzzing drone!)
+    const fetchSceneTTSWithRetry = async (
+      narrationText: string,
+      sceneIdx: number
+    ): Promise<{ buffer: AudioBuffer; alignment: ElevenLabsAlignment | null }> => {
+      const cleanText = narrationText
+        .replace(/^[\"'“‘\s]+/, '')
+        .replace(/[\"'”’\s]+$/, '')
+        .trim();
 
-      for (let i = 0; i < chData.length; i++) {
-        const t = i / sRate;
-        const env = Math.max(0.05, Math.sin(Math.PI * ((t * 5.8) % 1)));
-        const tone = Math.sin(2 * Math.PI * bFreq * t) + 0.35 * Math.sin(2 * Math.PI * bFreq * 2 * t);
-        chData[i] = tone * 0.25 * env;
+      const queryParams = new URLSearchParams({
+        text: cleanText,
+        voice_id: selectedVoice.id,
+        model_id: elevenLabsModel,
+        stability: elevenLabsStability.toString(),
+        similarity_boost: elevenLabsSimilarity.toString(),
+        style: elevenLabsStyle.toString(),
+        use_speaker_boost: elevenLabsSpeakerBoost ? 'true' : 'false',
+        with_timestamps: 'true',
+      });
+
+      // 1. Try with timestamps (up to 3 retries for serverless cold-starts)
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const res = await fetch(`/api/tts?${queryParams.toString()}`);
+          if (res.ok) {
+            const contentType = res.headers.get('content-type') || '';
+            if (contentType.includes('application/json')) {
+              const data = await res.json();
+              if (data.audio_base64) {
+                const ab = base64ToArrayBuffer(data.audio_base64);
+                const decoded = await audioCtx.decodeAudioData(ab.slice(0));
+                return { buffer: decoded, alignment: data.alignment || null };
+              }
+            } else {
+              const ab = await res.arrayBuffer();
+              const decoded = await audioCtx.decodeAudioData(ab.slice(0));
+              return { buffer: decoded, alignment: null };
+            }
+          }
+        } catch (err) {
+          console.warn(`Scene ${sceneIdx + 1} TTS attempt ${attempt} error:`, err);
+        }
+        if (attempt < 3) {
+          await new Promise((resolve) => setTimeout(resolve, 400));
+        }
       }
-      return buf;
+
+      // 2. Fallback: standard binary MP3 stream without timestamps
+      try {
+        const fallbackParams = new URLSearchParams({
+          text: cleanText,
+          voice_id: selectedVoice.id,
+          model_id: elevenLabsModel,
+        });
+        const res = await fetch(`/api/tts?${fallbackParams.toString()}`);
+        if (res.ok) {
+          const ab = await res.arrayBuffer();
+          const decoded = await audioCtx.decodeAudioData(ab.slice(0));
+          return { buffer: decoded, alignment: null };
+        }
+      } catch (err) {
+        console.warn(`Scene ${sceneIdx + 1} binary fallback TTS error:`, err);
+      }
+
+      // 3. Clean silent buffer (Zero robotic buzzing/humming drone)
+      const syllables = Math.max(8, cleanText.length);
+      const estDur = Math.max(2.4, Math.min(6.0, (syllables * 0.16) / voiceSpeedMultiplier));
+      const sRate = audioCtx.sampleRate;
+      const silentBuf = audioCtx.createBuffer(1, Math.floor(sRate * estDur), sRate);
+      return { buffer: silentBuf, alignment: null };
     };
 
     // 2. Preload & Decode voice TTS with exact millisecond timestamps for all scenes
@@ -1828,55 +1883,18 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       setStatusMessage(`내레이션 음성 합성 및 정밀 자막 동기화 중... (${i + 1}/${scenes.length})`);
       setRenderProgress(Math.round(((i + 1) / (scenes.length * 2)) * 30));
 
-      let decodedBuffer: AudioBuffer | null = null;
-      let alignmentData: ElevenLabsAlignment | null = null;
-
-      try {
-        const query = new URLSearchParams({
-          text: scenes[i].narration,
-          voice_id: selectedVoice.id,
-          model_id: elevenLabsModel,
-          stability: elevenLabsStability.toString(),
-          similarity_boost: elevenLabsSimilarity.toString(),
-          style: elevenLabsStyle.toString(),
-          use_speaker_boost: elevenLabsSpeakerBoost ? 'true' : 'false',
-          with_timestamps: 'true',
-        });
-
-        const res = await fetch(`/api/tts?${query.toString()}`);
-        if (res.ok) {
-          const contentType = res.headers.get('content-type') || '';
-          if (contentType.includes('application/json')) {
-            const data = await res.json();
-            if (data.audio_base64) {
-              const ab = base64ToArrayBuffer(data.audio_base64);
-              decodedBuffer = await audioCtx.decodeAudioData(ab);
-              alignmentData = data.alignment || null;
-            }
-          } else {
-            const ab = await res.arrayBuffer();
-            decodedBuffer = await audioCtx.decodeAudioData(ab);
-          }
-        }
-      } catch (e) {
-        console.warn('TTS fetch failed for scene, falling back:', i, e);
-      }
-
-      if (!decodedBuffer) {
-        decodedBuffer = createFallbackSpeechBuffer(audioCtx, scenes[i].narration, selectedVoice.gender);
-      }
-
-      audioBuffers.push(decodedBuffer);
+      const { buffer, alignment } = await fetchSceneTTSWithRetry(scenes[i].narration, i);
+      audioBuffers.push(buffer);
 
       // Detect leading silence from audio encoder
-      const silenceSec = detectAudioLeadingSilence(decodedBuffer);
-      const spokenDur = decodedBuffer.duration / effectivePlaybackRate;
+      const silenceSec = detectAudioLeadingSilence(buffer);
+      const spokenDur = buffer.duration / effectivePlaybackRate;
 
       // Compute frame-perfect millisecond chunk timings
       const chunkTimings = computeAlignedSubtitleChunks(
         scenes[i].narration,
         subtitleTempo,
-        alignmentData,
+        alignment,
         spokenDur,
         effectivePlaybackRate,
         silenceSec

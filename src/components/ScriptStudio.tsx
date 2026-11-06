@@ -436,19 +436,19 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
             </div>
           </div>
 
-          {/* Persona, Duration & Voice Selectors & Generate Button */}
-          <div className="flex flex-wrap items-center gap-2">
+          {/* Persona, Duration & Voice Selectors & Generate Button (Mobile-first Clean Grid) */}
+          <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2">
             {/* Voice Selector */}
-            <div className="flex items-center space-x-1 bg-white border border-slate-200 rounded-xl px-2 py-1 shadow-2xs">
-              <span className="text-[11px] font-extrabold text-indigo-700 mr-0.5">🎙️ ElevenLabs 성우 (eleven_v4)</span>
+            <div className="flex items-center justify-between bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 shadow-2xs w-full sm:w-auto">
+              <span className="text-[11px] font-extrabold text-indigo-700 shrink-0 mr-1.5">🎙️ 성우</span>
               <select
                 value={selectedVoiceId}
                 onChange={(e) => setSelectedVoiceId(e.target.value)}
-                className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer max-w-[190px]"
+                className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer flex-1 sm:max-w-[170px] truncate"
               >
                 {VOICE_OPTIONS.map((v) => (
                   <option key={v.id} value={v.id}>
-                    {v.gender === 'male' ? '👨' : '👩'} {v.name} ({v.role}) • [{v.categoryTag}]
+                    {v.gender === 'male' ? '👨' : '👩'} {v.name} ({v.role})
                   </option>
                 ))}
               </select>
@@ -458,7 +458,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                   const voice = VOICE_OPTIONS.find((v) => v.id === selectedVoiceId) || VOICE_OPTIONS[0];
                   playVoiceSample(voice);
                 }}
-                className={`p-1 rounded-lg text-[10px] font-bold transition flex items-center space-x-1 ${
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition flex items-center space-x-1 shrink-0 ml-1.5 ${
                   isPlayingVoiceSample
                     ? 'bg-rose-500 text-white'
                     : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
@@ -470,101 +470,107 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
               </button>
             </div>
 
-            {/* Persona Selector */}
-            <select
-              value={targetPersona}
-              onChange={(e) => setTargetPersona(e.target.value as TargetPersona)}
-              className="bg-white border border-slate-200 text-xs font-bold text-slate-700 rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-indigo-500 shadow-2xs"
-            >
-              <option value="4060_emotional">👵 40~60대 감동 극복</option>
-              <option value="1020_dopamine">⚡ 10~20대 도파민 밈</option>
-              <option value="3040_success">💼 30~40대 동기부여</option>
-              <option value="mystery_twist">🕵️ 반전 미스터리</option>
-            </select>
-
-            {/* Target Duration Selector (45s vs 60s) */}
-            <div className="flex items-center bg-slate-200/70 rounded-xl border border-slate-200 p-0.5 text-xs font-bold">
-              <button
-                type="button"
-                onClick={() => setDuration(45)}
-                className={`px-2.5 py-1 rounded-lg transition ${
-                  duration === 45 ? 'bg-white text-slate-900 shadow-2xs font-black' : 'text-slate-600 hover:text-slate-900'
-                }`}
-                title="45초 쇼츠 규격 (약 300~330자, 9개 씬)"
+            {/* Persona & Duration in 2-col on mobile */}
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center w-full sm:w-auto">
+              <select
+                value={targetPersona}
+                onChange={(e) => setTargetPersona(e.target.value as TargetPersona)}
+                className="bg-white border border-slate-200 text-xs font-bold text-slate-700 rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-indigo-500 shadow-2xs w-full"
               >
-                45초 (9씬)
-              </button>
-              <button
-                type="button"
-                onClick={() => setDuration(60)}
-                className={`px-2.5 py-1 rounded-lg transition ${
-                  duration === 60 ? 'bg-white text-slate-900 shadow-2xs font-black' : 'text-slate-600 hover:text-slate-900'
-                }`}
-                title="60초 쇼츠 완벽 규격 (약 400~450자, 12개 씬)"
-              >
-                60초 (12씬)
-              </button>
-            </div>
+                <option value="4060_emotional">👵 40~60대 감동</option>
+                <option value="1020_dopamine">⚡ 10~20대 도파민</option>
+                <option value="3040_success">💼 30~40대 동기부여</option>
+                <option value="mystery_twist">🕵️ 반전 미스터리</option>
+              </select>
 
-            <button
-              type="button"
-              onClick={() => onGenerateScript(targetPersona, duration, videoTone, 'random')}
-              disabled={isGenerating || !selectedFigure}
-              className="flex items-center space-x-1.5 px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs rounded-xl shadow-md shadow-amber-500/20 transition disabled:opacity-50 cursor-pointer"
-              title="대본이 마음에 안 드시나요? 새로운 스토리로 즉시 새로고침합니다"
-            >
-              <RotateCw className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
-              <span>대본 새로고침</span>
-            </button>
-
-            <button
-              onClick={() => onGenerateScript(targetPersona, duration, videoTone)}
-              disabled={isGenerating || !selectedFigure}
-              className="flex items-center space-x-1.5 px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-md shadow-indigo-500/20 transition disabled:opacity-50 cursor-pointer"
-            >
-              <Sparkles className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
-              <span>{isGenerating ? '대본 생성 중...' : `${duration}초 대본 자동 생성`}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* 3초 후킹(Hook) 3단 선택기 */}
-        {currentProject && currentProject.hooks && currentProject.hooks.length > 0 && (
-          <div className="mt-3.5 pt-3.5 border-t border-slate-200">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center space-x-1.5 text-xs font-extrabold text-amber-600">
-                <Flame className="w-4 h-4 fill-amber-500 text-amber-500" />
-                <span>시청자 이탈 방지 3초 후킹(Hook) 선택</span>
-                <span className="text-[11px] text-slate-500 font-medium">
-                  (클릭 시 도입부 씬1에 실시간 자동 적용)
-                </span>
+              <div className="flex items-center bg-slate-200/70 rounded-xl border border-slate-200 p-0.5 text-xs font-bold w-full justify-center">
+                <button
+                  type="button"
+                  onClick={() => setDuration(45)}
+                  className={`flex-1 px-2.5 py-1 rounded-lg transition text-center ${
+                    duration === 45 ? 'bg-white text-slate-900 shadow-2xs font-black' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  45초 (9씬)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDuration(60)}
+                  className={`flex-1 px-2.5 py-1 rounded-lg transition text-center ${
+                    duration === 60 ? 'bg-white text-slate-900 shadow-2xs font-black' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  60초 (12씬)
+                </button>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+            {/* Action Buttons in 2-col on mobile */}
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:ml-auto w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={() => onGenerateScript(targetPersona, duration, videoTone, 'random')}
+                disabled={isGenerating || !selectedFigure}
+                className="flex items-center justify-center space-x-1.5 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs rounded-xl shadow-xs transition disabled:opacity-50 cursor-pointer"
+              >
+                <RotateCw className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
+                <span>대본 새로고침</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onGenerateScript(targetPersona, duration, videoTone)}
+                disabled={isGenerating || !selectedFigure}
+                className="flex items-center justify-center space-x-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition disabled:opacity-50 cursor-pointer"
+              >
+                <Sparkles className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
+                <span>{isGenerating ? '대본 생성 중...' : `${duration}초 대본 자동 생성`}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* 3초 후킹(Hook) 3종 선택기 (Clean Mobile Spacing & Readability) */}
+        {currentProject && currentProject.hooks && currentProject.hooks.length > 0 && (
+          <div className="mt-3 pt-3 border-t border-slate-200">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center space-x-1.5 text-xs font-extrabold text-amber-600">
+                <Flame className="w-4 h-4 fill-amber-500 text-amber-500 shrink-0" />
+                <span>시청자 이탈 방지 3초 후킹(Hook) 선택</span>
+              </div>
+              <span className="text-[10px] text-slate-400 font-medium hidden sm:inline">
+                (클릭 시 도입부 씬1에 실시간 자동 적용)
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-2.5">
               {currentProject.hooks.map((hook, idx) => {
                 const isHookSelected = selectedHookIndex === idx;
+                const cleanHookText = hook.text.replace(/^[\"'“‘\s]+/, '').replace(/[\"'”’\s]+$/, '');
                 return (
                   <button
                     key={idx}
+                    type="button"
                     onClick={() => handleHookSelect(idx)}
-                    className={`text-left p-3 rounded-2xl border text-xs transition relative ${
+                    className={`text-left p-3 rounded-2xl border text-xs transition relative cursor-pointer ${
                       isHookSelected
-                        ? 'bg-amber-50 border-amber-400 text-amber-950 shadow-xs ring-1 ring-amber-400'
+                        ? 'bg-amber-50/90 border-amber-400 text-amber-950 shadow-xs ring-2 ring-amber-400/50'
                         : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-                        {hook.label || `옵션 ${idx + 1}`}
+                        {hook.label || `후킹 ${idx + 1}`}
                       </span>
                       {isHookSelected && (
-                        <span className="text-[10px] font-black text-amber-600 flex items-center gap-1">
+                        <span className="text-[10px] font-black text-amber-700 flex items-center gap-1 bg-amber-100/90 px-2 py-0.5 rounded-full">
                           <Check className="w-3 h-3" /> 적용됨
                         </span>
                       )}
                     </div>
-                    <p className="line-clamp-2 leading-relaxed font-semibold">"{hook.text}"</p>
+                    <p className="font-bold text-xs sm:text-sm text-slate-900 leading-relaxed break-keep">
+                      "{cleanHookText}"
+                    </p>
                   </button>
                 );
               })}
