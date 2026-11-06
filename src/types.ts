@@ -193,6 +193,8 @@ export interface ShortsProject {
   estimatedSeconds: number;
   charCount: number;
   createdAt: string;
+  updatedAt?: string; // 최종 수정 일시 (ISO 문자열)
+  autoSavedAt?: string; // 임시 자동 저장 일시 (ISO 문자열)
   isSaved?: boolean;
   selectedVoiceId?: string; // 선택된 내레이션 성우 ID
   voiceSpeedMultiplier?: number; // 성우 목소리 스피드 배속 (0.8x ~ 1.5x)

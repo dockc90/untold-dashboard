@@ -178,7 +178,8 @@ export const VIDEO_TONE_PRESETS: {
 ];
 
 // Helper: Splits long narration into punchy, readable CapCut-style subtitle chunks (2~4 words / 6~12 chars)
-// In viral shorts/reels, short subtitles change every 0.8~1.3s to keep viewer focus locked!
+// In viral shorts/reels, subtitles should split at natural Korean grammatical & breath pauses (어절, 연결어미, 조사 단위)
+// so that words are never awkwardly cut or isolated from context!
 export const getSubtitleChunks = (
   narration: string,
   tempo: SubtitleTempo = 'fast'
@@ -186,59 +187,96 @@ export const getSubtitleChunks = (
   const clean = narration.trim().replace(/\s+/g, ' ');
   if (!clean) return [''];
 
-  // Target max character length per subtitle chunk
-  // 'fast': 7~10 chars (CapCut dopamine short captions - changes rapidly!)
-  // 'standard': 11~14 chars (Natural 1.2s pace)
-  // 'relaxed': 15~18 chars (Documentary pace)
-  const maxChars = tempo === 'fast' ? 10 : tempo === 'standard' ? 14 : 18;
-  const minChars = tempo === 'fast' ? 3 : 5;
+  const targetChars = tempo === 'fast' ? 10 : tempo === 'standard' ? 14 : 18;
+  const maxSoftLimit = tempo === 'fast' ? 15 : tempo === 'standard' ? 19 : 24;
+  const minChars = 4;
 
-  // 1. Initial split by natural punctuation (commas, period, question mark, exclamation, tilde)
-  const punctRegex = /(?<=[,?!~.])\s+/;
-  const clauses = clean.split(punctRegex).map((s) => s.trim()).filter(Boolean);
+  // 1. Split by major punctuation first, keeping punctuation attached
+  const punctClauses = clean.split(/(?<=[,?!~…])\s+|(?<=\.\.\.)\s+/).map((s) => s.trim()).filter(Boolean);
+  const resultChunks: string[] = [];
 
-  const chunks: string[] = [];
+  // Prefixes/modifiers that must NEVER be left alone at the end of a subtitle chunk
+  const stickyPrefixes = /^(한|두|세|그|이|저|전|모든|어떤|새로운|더|가장|너무|완전히|어떻게|과연|결국|비록|매일)$/;
+  // Suffixes/counters that must stick to preceding word
+  const stickySuffixes = /^(\d+.*|셰프.*|선수.*|감독.*|대표.*|스타.*|년.*|월.*|일.*|시.*|분.*|초.*|명.*|개.*|배.*|위.*|%.*|원.*|씨.*|님.*)$/;
 
-  for (const clause of clauses) {
-    // If clause is already short enough, add directly
-    if (clause.length <= maxChars + 1) {
-      chunks.push(clause);
+  for (const clause of punctClauses) {
+    if (clause.length <= targetChars + 2) {
+      resultChunks.push(clause);
       continue;
     }
 
-    // Split clause into words
     const words = clause.split(' ').filter(Boolean);
-    let currentChunk = '';
-
-    for (let i = 0; i < words.length; i++) {
-      const word = words[i];
-      const candidate = currentChunk ? `${currentChunk} ${word}` : word;
-
-      if (currentChunk && candidate.length > maxChars) {
-        chunks.push(currentChunk);
-        currentChunk = word;
-      } else {
-        currentChunk = candidate;
-      }
+    if (words.length <= 1) {
+      resultChunks.push(clause);
+      continue;
     }
 
-    if (currentChunk) {
-      // If trailing chunk is very tiny and previous chunk exists, merge if not too huge
-      if (chunks.length > 0 && currentChunk.length < minChars && !currentChunk.match(/[.!?]$/)) {
-        const last = chunks.pop()!;
-        if (last.length + currentChunk.length + 1 <= maxChars + 5) {
-          chunks.push(`${last} ${currentChunk}`);
-        } else {
-          chunks.push(last);
-          chunks.push(currentChunk);
+    let currentWords: string[] = [];
+    let currentLen = 0;
+
+    for (let i = 0; i < words.length; i++) {
+      const w = words[i];
+      const nextW = words[i + 1] || '';
+      const wLen = w.length;
+      const spaceLen = currentWords.length > 0 ? 1 : 0;
+      const combinedLen = currentLen + spaceLen + wLen;
+
+      currentWords.push(w);
+      currentLen = combinedLen;
+
+      if (i === words.length - 1) {
+        resultChunks.push(currentWords.join(' '));
+        break;
+      }
+
+      let breakScore = 0;
+      // High-priority natural breath & clause connectives
+      if (/[고며자]$|지만$|는데$|은데$|아서$|어서$|여서$|면서$|더니$|니까$|므로$|록$|려고$|일어나$|달려가$|바라보며$/.test(w)) {
+        breakScore += 80;
+      } else if (/(던|었던|았던)$/.test(w)) {
+        breakScore += 65;
+      } else if (/[은는이가]$|에서는$|에게는$/.test(w)) {
+        breakScore += 50;
+      } else if (/[을를]$|에서$|에게$|까지$|으로$/.test(w)) {
+        breakScore += 35;
+      }
+
+      // Penalties for unnatural cuts
+      if (stickyPrefixes.test(w)) breakScore -= 90;
+      if (/의$/.test(w)) breakScore -= 90;
+      if (stickySuffixes.test(nextW)) breakScore -= 90;
+      if (/^(놓았습니다|있었습니다|보았습니다|버렸습니다|않았습니다)$/.test(nextW)) breakScore -= 80;
+
+      const isOverTarget = currentLen >= targetChars - 2;
+      const isNearMax = currentLen >= maxSoftLimit - 2;
+      const isPastMax = currentLen >= maxSoftLimit;
+
+      if ((isOverTarget && breakScore >= 35) || (isNearMax && breakScore > 0) || isPastMax) {
+        if (breakScore < 0 && currentLen < maxSoftLimit + 4) {
+          continue;
         }
-      } else {
-        chunks.push(currentChunk);
+
+        resultChunks.push(currentWords.join(' '));
+        currentWords = [];
+        currentLen = 0;
       }
     }
   }
 
-  return chunks.length > 0 ? chunks : [clean];
+  // Post-process: merge tiny trailing fragments if any
+  const finalChunks: string[] = [];
+  for (let i = 0; i < resultChunks.length; i++) {
+    const chunk = resultChunks[i].trim();
+    if (finalChunks.length > 0 && chunk.length < minChars && !/[.!?…]$/.test(finalChunks[finalChunks.length - 1])) {
+      const prev = finalChunks.pop()!;
+      finalChunks.push(`${prev} ${chunk}`);
+    } else {
+      finalChunks.push(chunk);
+    }
+  }
+
+  return finalChunks.length > 0 ? finalChunks : [clean];
 };
 
 // Helper: Shortens and formats long YouTube titles into punchy 2-line viral reels headlines

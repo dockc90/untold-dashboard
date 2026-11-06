@@ -24,7 +24,9 @@ import {
   fetchProjectsFromSupabase, 
   saveProjectToSupabase, 
   deleteProjectFromSupabase, 
-  isSupabaseConfigured 
+  isSupabaseConfigured,
+  fetchProjectsBySyncCode,
+  fetchDraftFromServer
 } from './lib/supabase';
 import { generateClientFallbackScript } from './utils/fallbackGenerator';
 import { getSceneFallbackImage } from './utils/sceneImages';
@@ -38,6 +40,7 @@ export default function App() {
   const [selectedFigure, setSelectedFigure] = useState<TrendingFigure | null>(INITIAL_TRENDING_FIGURES[0]);
   const [currentProject, setCurrentProject] = useState<ShortsProject | null>(SAMPLE_PROJECT);
   const [savedProjects, setSavedProjects] = useState<ShortsProject[]>([]);
+  const [draftProject, setDraftProject] = useState<ShortsProject | null>(null);
   const [isLoadingTrends, setIsLoadingTrends] = useState<boolean>(false);
   const [isGeneratingScript, setIsGeneratingScript] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -67,7 +70,29 @@ export default function App() {
       setSavedProjects([SAMPLE_PROJECT]);
     }
 
-    // 2. Background async sync with Supabase
+    // 2. Draft retrieval (Auto-save)
+    try {
+      const localDraft = localStorage.getItem('untold_autosave_draft');
+      if (localDraft) {
+        const parsedDraft = JSON.parse(localDraft);
+        if (parsedDraft && parsedDraft.fullScript) {
+          setDraftProject(parsedDraft);
+        }
+      }
+    } catch (e) {}
+
+    fetchDraftFromServer().then((srvDraft) => {
+      if (srvDraft && srvDraft.fullScript) {
+        setDraftProject((prev) => {
+          if (!prev) return srvDraft;
+          const timeA = new Date(prev.autoSavedAt || 0).getTime();
+          const timeB = new Date(srvDraft.autoSavedAt || 0).getTime();
+          return timeB > timeA ? srvDraft : prev;
+        });
+      }
+    }).catch(() => {});
+
+    // 3. Background async sync with Supabase / Cloud Store
     fetchProjectsFromSupabase().then((cloudProjects) => {
       if (cloudProjects && cloudProjects.length > 0) {
         setSavedProjects((prev) => {
@@ -84,26 +109,84 @@ export default function App() {
     }).catch((err) => {
       console.warn('Supabase initial fetch failed, using local cache:', err);
     });
+
+    // 4. Check for URL sync code parameter (?sync_code=123456)
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get('sync_code');
+      if (code) {
+        fetchProjectsBySyncCode(code).then((imported) => {
+          if (imported && imported.length > 0) {
+            handleImportProjects(imported);
+            setCurrentTab('saved');
+          }
+        }).catch(() => {});
+      }
+    }
   }, []);
 
-  // Save project helper (Syncs to both LocalStorage and Supabase Database)
+  const handleSyncRefresh = async () => {
+    try {
+      const cloudProjects = await fetchProjectsFromSupabase();
+      if (cloudProjects && cloudProjects.length > 0) {
+        setSavedProjects((prev) => {
+          const map = new Map<string, ShortsProject>();
+          cloudProjects.forEach((p) => map.set(p.id, p));
+          prev.forEach((p) => {
+            if (!map.has(p.id)) map.set(p.id, p);
+          });
+          const merged = Array.from(map.values());
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+          return merged;
+        });
+      }
+    } catch (e) {
+      console.warn('Sync refresh error:', e);
+    }
+  };
+
+  const handleImportProjects = (imported: ShortsProject[]) => {
+    setSavedProjects((prev) => {
+      const map = new Map<string, ShortsProject>();
+      imported.forEach((p) => map.set(p.id, { ...p, isSaved: true }));
+      prev.forEach((p) => {
+        if (!map.has(p.id)) map.set(p.id, p);
+      });
+      const merged = Array.from(map.values());
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      imported.forEach((p) => saveProjectToSupabase(p).catch(() => {}));
+      return merged;
+    });
+    setSuccessToast(`🎉 ${imported.length}개 프로젝트가 성공적으로 보관함에 연동되었습니다!`);
+    setTimeout(() => setSuccessToast(null), 3500);
+  };
+
+  // Save project helper (Syncs to both LocalStorage and Cloud Database)
   const handleSaveProject = async (project: ShortsProject) => {
     try {
+      const nowIso = new Date().toISOString();
+      const projectWithTime: ShortsProject = {
+        ...project,
+        createdAt: project.createdAt || nowIso,
+        updatedAt: nowIso,
+        isSaved: true,
+      };
+
       const existingIdx = savedProjects.findIndex((p) => p.id === project.id);
       let updated: ShortsProject[];
       if (existingIdx >= 0) {
         updated = [...savedProjects];
-        updated[existingIdx] = { ...project, isSaved: true };
+        updated[existingIdx] = projectWithTime;
       } else {
-        updated = [{ ...project, isSaved: true }, ...savedProjects];
+        updated = [projectWithTime, ...savedProjects];
       }
       setSavedProjects(updated);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
 
-      // Asynchronously sync to Supabase Cloud Database
-      const savedToDb = await saveProjectToSupabase(project);
+      // Asynchronously sync to Cloud Database / Server Store
+      const savedToDb = await saveProjectToSupabase(projectWithTime);
       if (savedToDb) {
-        setSuccessToast(`☁️ Supabase 데이터베이스에 안전하게 자동 저장되었습니다!`);
+        setSuccessToast(`☁️ 클라우드 보관함에 안전하게 자동 저장되었습니다!`);
         setTimeout(() => setSuccessToast(null), 3500);
       }
     } catch (e) {
@@ -660,6 +743,10 @@ export default function App() {
                     currentProject={currentProject}
                     onGenerateScript={handleGenerateScript}
                     onSaveProject={handleSaveProject}
+                    onUpdateProject={(updated) => {
+                      setCurrentProject(updated);
+                      setDraftProject(updated);
+                    }}
                     onOpenVideoRenderer={handleOpenVideoRenderer}
                     onOpenViralStudio={(topic) => {
                       setViralTopic(topic);
@@ -734,8 +821,11 @@ export default function App() {
         {currentTab === 'saved' && (
           <SavedProjectsView
             projects={savedProjects}
+            draftProject={draftProject}
             onOpenProject={handleOpenProject}
             onDeleteProject={handleDeleteProject}
+            onSyncRefresh={handleSyncRefresh}
+            onImportProjects={handleImportProjects}
           />
         )}
       </main>

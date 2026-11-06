@@ -1182,85 +1182,88 @@ app.all('/api/tts', async (req, res) => {
 });
 
 // ==========================================
-// Supabase Database Integration Endpoints
+// Cloud Sync & Projects Endpoints (Server Store + Supabase)
 // ==========================================
-app.get('/api/projects', async (_req, res) => {
-  if (!supabase) {
-    return res.json({ projects: [], source: 'supabase_not_configured' });
+const serverProjectsStore = new Map<string, any>();
+const serverSyncCodes = new Map<string, { projects: any[]; expiresAt: number }>();
+let serverActiveDraft: any = null;
+const TMP_SERVER_STORE = path.join(os.tmpdir ? os.tmpdir() : '/tmp', 'untold_projects_store.json');
+const TMP_SERVER_DRAFT = path.join(os.tmpdir ? os.tmpdir() : '/tmp', 'untold_draft_store.json');
+
+try {
+  if (fs.existsSync(TMP_SERVER_STORE)) {
+    const list = JSON.parse(fs.readFileSync(TMP_SERVER_STORE, 'utf8'));
+    if (Array.isArray(list)) {
+      list.forEach((p: any) => { if (p && p.id) serverProjectsStore.set(p.id, p); });
+    }
   }
+} catch (e) {}
 
+try {
+  if (fs.existsSync(TMP_SERVER_DRAFT)) {
+    serverActiveDraft = JSON.parse(fs.readFileSync(TMP_SERVER_DRAFT, 'utf8'));
+  }
+} catch (e) {}
+
+function persistServerStore() {
   try {
-    // 1. Try JSONB table
-    try {
-      const { data: untoldData, error: untoldErr } = await supabase
-        .from('untold_projects')
-        .select('data')
-        .order('created_at', { ascending: false });
+    fs.writeFileSync(TMP_SERVER_STORE, JSON.stringify(Array.from(serverProjectsStore.values())), 'utf8');
+  } catch (e) {}
+}
 
-      if (!untoldErr && untoldData && untoldData.length > 0) {
-        const formatted = untoldData.map((row: any) => row.data).filter(Boolean);
-        return res.json({ projects: formatted, source: 'untold_projects' });
+function persistServerDraft(draft: any) {
+  try {
+    fs.writeFileSync(TMP_SERVER_DRAFT, JSON.stringify(draft), 'utf8');
+  } catch (e) {}
+}
+
+app.get('/api/projects', async (req, res) => {
+  try {
+    const syncCode = req.query.sync_code as string;
+    if (syncCode) {
+      const codeKey = syncCode.replace(/[^0-9]/g, '');
+      const entry = serverSyncCodes.get(codeKey);
+      if (entry) {
+        if (Date.now() > entry.expiresAt) {
+          serverSyncCodes.delete(codeKey);
+          return res.status(404).json({ error: '만료된 동기화 코드입니다.', projects: [] });
+        }
+        return res.json({ success: true, projects: entry.projects });
       }
-    } catch (e) {}
-
-    // 2. Try relational tables
-    const { data: rows, error } = await supabase
-      .from('shorts_projects')
-      .select(`
-        *,
-        project_hooks (*),
-        project_scenes (*),
-        project_metadata (*)
-      `)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      return res.json({ projects: [], error: error.message });
+      return res.status(404).json({ error: '동기화 코드를 찾을 수 없습니다.', projects: [] });
     }
 
-    const projects = (rows || []).map((row: any) => {
-      const meta = Array.isArray(row.project_metadata) ? row.project_metadata[0] : row.project_metadata;
-      const hooks = (row.project_hooks || []).map((h: any) => ({
-        type: h.hook_type || 'question',
-        label: h.label || '후킹',
-        text: h.hook_text || '',
-      }));
+    if (req.query.type === 'draft') {
+      return res.json({ success: true, draft: serverActiveDraft });
+    }
 
-      const scenes = (row.project_scenes || [])
-        .sort((a: any, b: any) => a.scene_number - b.scene_number)
-        .map((s: any) => ({
-          sceneNumber: s.scene_number,
-          timeRange: s.time_range,
-          narration: s.narration,
-          visualGuide: s.visual_guide,
-          imageSearchKeyword: s.image_search_keyword,
-          visualEffect: s.visual_effect,
-          bgmSuggestion: s.bgm_suggestion,
-        }));
+    const projectMap = new Map<string, any>();
+    for (const [id, p] of serverProjectsStore.entries()) {
+      projectMap.set(id, p);
+    }
 
-      return {
-        id: row.id,
-        figureName: row.figure_name,
-        category: row.category || 'entertainment',
-        targetPersona: row.target_persona || '4060_emotional',
-        targetDuration: row.target_duration || 60,
-        selectedHookIndex: row.selected_hook_index || 0,
-        hooks,
-        titles: meta?.titles || [row.figure_name + ' 쇼츠'],
-        hashtags: meta?.hashtags || ['#shorts', `#${row.figure_name}`],
-        description: meta?.description || '',
-        pinnedComment: meta?.pinned_comment || '',
-        fullScript: row.full_script,
-        scenes,
-        copyrightDefenseNote: row.copyright_defense_note || '2차 저작물 보증',
-        charCount: row.char_count || row.full_script?.length || 0,
-        estimatedSeconds: row.estimated_seconds || row.target_duration || 60,
-        createdAt: row.created_at,
-        isSaved: true,
-      };
+    if (supabase) {
+      try {
+        const { data: untoldData } = await supabase
+          .from('untold_projects')
+          .select('data')
+          .order('created_at', { ascending: false });
+
+        if (untoldData && untoldData.length > 0) {
+          untoldData.forEach((row: any) => {
+            if (row.data && row.data.id) projectMap.set(row.data.id, row.data);
+          });
+        }
+      } catch (e) {}
+    }
+
+    const projects = Array.from(projectMap.values()).sort((a, b) => {
+      const timeA = new Date(a.updatedAt || a.createdAt || 0).getTime();
+      const timeB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+      return timeB - timeA;
     });
 
-    return res.json({ projects, source: 'shorts_projects' });
+    return res.json({ projects, source: 'cloud_sync_ready' });
   } catch (err: any) {
     console.error('Error fetching projects:', err.message);
     return res.status(500).json({ error: err.message, projects: [] });
@@ -1268,139 +1271,104 @@ app.get('/api/projects', async (_req, res) => {
 });
 
 app.post('/api/projects', async (req, res) => {
-  if (!supabase) {
-    return res.status(400).json({ error: 'Supabase credentials not configured' });
-  }
-
   try {
-    const project = req.body;
+    const body = req.body;
+    if (!body) {
+      return res.status(400).json({ error: 'Invalid project payload' });
+    }
+
+    if (body.action === 'create_sync_code' && Array.isArray(body.projects)) {
+      const rawCode = Math.floor(100000 + Math.random() * 900000).toString();
+      serverSyncCodes.set(rawCode, {
+        projects: body.projects,
+        expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+      });
+      for (const p of body.projects) {
+        if (p && p.id) {
+          serverProjectsStore.set(p.id, { ...p, isSaved: true, updatedAt: p.updatedAt || new Date().toISOString() });
+        }
+      }
+      persistServerStore();
+      return res.json({
+        success: true,
+        syncCode: `${rawCode.slice(0, 3)}-${rawCode.slice(3)}`,
+        rawCode,
+        count: body.projects.length,
+      });
+    }
+
+    if (body.type === 'draft' && body.project) {
+      const draft = {
+        ...body.project,
+        autoSavedAt: new Date().toISOString(),
+      };
+      serverActiveDraft = draft;
+      persistServerDraft(draft);
+      return res.json({ success: true, autoSavedAt: draft.autoSavedAt });
+    }
+
+    const project = body;
     if (!project || !project.figureName) {
       return res.status(400).json({ error: 'Invalid project payload' });
     }
 
     const projectId = project.id || `proj-${Date.now()}`;
-    const uuidId = toValidUUID(projectId);
+    const nowIso = new Date().toISOString();
+    const enrichedProject = {
+      ...project,
+      id: projectId,
+      createdAt: project.createdAt || nowIso,
+      updatedAt: nowIso,
+      isSaved: true,
+    };
 
-    // 1. Try untold_projects table first
-    try {
-      const { error: untoldErr } = await supabase
-        .from('untold_projects')
-        .upsert(
+    serverProjectsStore.set(projectId, enrichedProject);
+    persistServerStore();
+
+    if (supabase) {
+      try {
+        await supabase.from('untold_projects').upsert(
           {
             id: projectId,
-            figure_name: project.figureName,
-            category: project.category || 'entertainment',
-            full_script: project.fullScript || '',
-            data: { ...project, id: projectId, isSaved: true },
-            updated_at: new Date().toISOString(),
+            figure_name: enrichedProject.figureName,
+            category: enrichedProject.category || 'entertainment',
+            full_script: enrichedProject.fullScript || '',
+            data: enrichedProject,
+            updated_at: nowIso,
           },
           { onConflict: 'id' }
         );
-
-      if (!untoldErr) {
-        return res.json({ success: true, savedId: projectId, source: 'untold_projects' });
-      }
-    } catch (e) {}
-
-    // 2. Fallback to relational shorts_projects
-    let userId: string | null = null;
-    const { data: profiles } = await supabase.from('profiles').select('id').limit(1);
-    if (profiles && profiles.length > 0) {
-      userId = profiles[0].id;
+      } catch (e) {}
     }
 
-    const { error: projectErr } = await supabase
-      .from('shorts_projects')
-      .upsert(
-        {
-          id: uuidId,
-          user_id: userId,
-          figure_name: project.figureName,
-          category: project.category || 'entertainment',
-          target_persona: project.targetPersona || '4060_emotional',
-          target_duration: project.targetDuration || 60,
-          selected_hook_index: project.selectedHookIndex || 0,
-          full_script: project.fullScript || '',
-          char_count: project.charCount || project.fullScript?.length || 0,
-          estimated_seconds: project.estimatedSeconds || project.targetDuration || 60,
-          copyright_defense_note: project.copyrightDefenseNote || '2차 저작물 보증',
-          status: 'script_ready',
-          is_bookmarked: true,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'id' }
-      );
-
-    if (projectErr) {
-      return res.status(500).json({ success: false, error: projectErr.message });
-    }
-
-    if (project.titles || project.hashtags || project.description || project.pinnedComment) {
-      await supabase.from('project_metadata').upsert(
-        {
-          project_id: uuidId,
-          titles: project.titles || [],
-          hashtags: project.hashtags || [],
-          description: project.description || '',
-          pinned_comment: project.pinnedComment || '',
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'project_id' }
-      );
-    }
-
-    if (Array.isArray(project.scenes) && project.scenes.length > 0) {
-      await supabase.from('project_scenes').delete().eq('project_id', uuidId);
-      const scenesToInsert = project.scenes.map((s: any) => ({
-        project_id: uuidId,
-        scene_number: s.sceneNumber,
-        time_range: s.timeRange,
-        narration: s.narration,
-        visual_guide: s.visualGuide,
-        image_search_keyword: s.imageSearchKeyword,
-        visual_effect: s.visualEffect || '줌인',
-        bgm_suggestion: s.bgmSuggestion || '',
-      }));
-      await supabase.from('project_scenes').insert(scenesToInsert);
-    }
-
-    if (Array.isArray(project.hooks) && project.hooks.length > 0) {
-      await supabase.from('project_hooks').delete().eq('project_id', uuidId);
-      const hooksToInsert = project.hooks.map((h: any, idx: number) => ({
-        project_id: uuidId,
-        hook_type: h.type || 'question',
-        label: h.label || '후킹',
-        hook_text: h.text || '',
-        is_selected: idx === (project.selectedHookIndex || 0),
-      }));
-      await supabase.from('project_hooks').insert(hooksToInsert);
-    }
-
-    return res.json({ success: true, savedId: projectId });
+    return res.json({ success: true, savedId: projectId, savedAt: nowIso, source: 'server_cloud_sync' });
   } catch (err: any) {
-    console.error('Error saving project to Supabase:', err.message);
+    console.error('Error saving project:', err.message);
     return res.status(500).json({ error: err.message });
   }
 });
 
 app.delete('/api/projects', async (req, res) => {
-  if (!supabase) {
-    return res.status(400).json({ error: 'Supabase credentials not configured' });
-  }
-
   try {
     const id = req.query.id as string;
     if (!id) {
       return res.status(400).json({ error: 'Missing id query parameter' });
     }
 
-    const uuidId = toValidUUID(id);
-    await supabase.from('untold_projects').delete().eq('id', id);
-    await supabase.from('shorts_projects').delete().eq('id', uuidId);
+    serverProjectsStore.delete(id);
+    persistServerStore();
+
+    if (supabase) {
+      try {
+        const uuidId = toValidUUID(id);
+        await supabase.from('untold_projects').delete().eq('id', id);
+        await supabase.from('shorts_projects').delete().eq('id', uuidId);
+      } catch (e) {}
+    }
 
     return res.json({ success: true, deletedId: id });
   } catch (err: any) {
-    console.error('Error deleting project from Supabase:', err.message);
+    console.error('Error deleting project:', err.message);
     return res.status(500).json({ error: err.message });
   }
 });

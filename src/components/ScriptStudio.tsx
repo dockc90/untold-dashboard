@@ -34,12 +34,14 @@ import { playDistinctVoicePreview, stopAllVoicePreviews } from '../utils/voicePl
 import { ScenePhotoCollageModal } from './ScenePhotoCollageModal';
 import { ErrorBoundary } from './ErrorBoundary';
 import { getSceneFallbackImage } from '../utils/sceneImages';
+import { saveDraftToServer } from '../lib/supabase';
 
 interface ScriptStudioProps {
   selectedFigure: TrendingFigure | null;
   currentProject: ShortsProject | null;
   onGenerateScript: (persona: TargetPersona, duration: 45 | 60, videoTone: VideoMoodTone, storyAngle?: string) => Promise<void>;
   onSaveProject: (project: ShortsProject) => void;
+  onUpdateProject?: (project: ShortsProject) => void;
   onOpenVideoRenderer: (project: ShortsProject) => void;
   onOpenViralStudio?: (topic: string) => void;
   onBackToTrends?: () => void;
@@ -69,6 +71,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
   currentProject,
   onGenerateScript,
   onSaveProject,
+  onUpdateProject,
   onOpenVideoRenderer,
   onOpenViralStudio,
   onBackToTrends,
@@ -397,6 +400,33 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
       estimatedSeconds,
     };
   };
+
+  // Feature 3: Real-time Auto-save Draft (auto-saved without pressing manual save)
+  const [lastAutoSaveTime, setLastAutoSaveTime] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!editableScript && editableScenes.length === 0) return;
+    const timer = setTimeout(() => {
+      try {
+        const updated = getUpdatedProject();
+        const now = new Date();
+        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+        const draftProject = {
+          ...updated,
+          autoSavedAt: now.toISOString(),
+          updatedAt: now.toISOString(),
+        };
+        localStorage.setItem('untold_autosave_draft', JSON.stringify(draftProject));
+        setLastAutoSaveTime(timeStr);
+        onUpdateProject?.(draftProject);
+        saveDraftToServer(draftProject).catch(() => {});
+      } catch (err) {
+        console.warn('Auto-save error:', err);
+      }
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [editableScript, editableScenes, selectedHookIndex, selectedVoiceId, speechRate, videoTone]);
 
   return (
     <div className="flex flex-col h-full bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
@@ -1265,16 +1295,24 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
           </div>
 
           <div className="flex items-center space-x-2">
+            {lastAutoSaveTime && (
+              <span className="inline-flex items-center space-x-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1.5 rounded-xl border border-emerald-200">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span className="hidden sm:inline">실시간 자동저장됨 ({lastAutoSaveTime})</span>
+                <span className="sm:hidden">자동저장 ({lastAutoSaveTime})</span>
+              </span>
+            )}
+
             <button
               onClick={() => {
                 const updated = getUpdatedProject();
                 onSaveProject({ ...updated, isSaved: true });
                 handleCopy('', 'saved-project');
               }}
-              className="flex items-center space-x-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl transition shadow-sm"
+              className="flex items-center space-x-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl transition shadow-sm cursor-pointer"
             >
               <Bookmark className="w-3.5 h-3.5" />
-              <span>{copiedKey === 'saved-project' ? '저장 완료!' : '보관함에 저장'}</span>
+              <span>{copiedKey === 'saved-project' ? '저장 완료!' : '보관함에 보관'}</span>
             </button>
           </div>
         </div>

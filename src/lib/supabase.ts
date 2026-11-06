@@ -219,3 +219,66 @@ export async function deleteProjectFromSupabase(id: string): Promise<boolean> {
     return false;
   }
 }
+
+
+// 4. Create 6-digit Sync Code for Mobile <-> PC instant sync
+export async function createSyncCodeOnServer(projects: ShortsProject[]): Promise<string | null> {
+  try {
+    const res = await fetch('/api/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'create_sync_code', projects }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data.syncCode || null;
+    }
+  } catch (e) {
+    console.warn('createSyncCodeOnServer error:', e);
+  }
+  return null;
+}
+
+// 5. Fetch projects by 6-digit Sync Code
+export async function fetchProjectsBySyncCode(code: string): Promise<ShortsProject[] | null> {
+  try {
+    const res = await fetch(`/api/projects?sync_code=${encodeURIComponent(code)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data.projects)) {
+        return data.projects;
+      }
+    }
+  } catch (e) {
+    console.warn('fetchProjectsBySyncCode error:', e);
+  }
+  return null;
+}
+
+// 6. Cloud Draft Auto-Save (Stores current active draft in server)
+export async function saveDraftToServer(project: ShortsProject): Promise<boolean> {
+  try {
+    const res = await fetch('/api/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'draft', project }),
+    });
+    return res.ok;
+  } catch (e) {
+    return false;
+  }
+}
+
+// 7. Fetch active draft from server
+export async function fetchDraftFromServer(): Promise<ShortsProject | null> {
+  try {
+    const res = await fetch('/api/projects?type=draft');
+    if (res.ok) {
+      const data = await res.json();
+      return data.draft || null;
+    }
+  } catch (e) {
+    return null;
+  }
+  return null;
+}
