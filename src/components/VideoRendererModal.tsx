@@ -30,8 +30,10 @@ import {
   Tag,
   Move,
   Check,
-  Eye
+  Eye,
+  Share2
 } from 'lucide-react';
+import fixWebmDuration from 'fix-webm-duration';
 import { 
   ShortsProject, 
   SceneItem, 
@@ -240,6 +242,70 @@ export const getSubtitleChunks = (
 };
 
 // Helper: Shortens and formats long YouTube titles into punchy 2-line viral reels headlines
+export const fixMp4Duration = async (blob: Blob, durationSec: number): Promise<Blob> => {
+  try {
+    const arrayBuffer = await blob.arrayBuffer();
+    const view = new DataView(arrayBuffer);
+    const bytes = new Uint8Array(arrayBuffer);
+
+    const findBox = (tag: string, startOffset = 0, endOffset = arrayBuffer.byteLength): number => {
+      const c0 = tag.charCodeAt(0), c1 = tag.charCodeAt(1), c2 = tag.charCodeAt(2), c3 = tag.charCodeAt(3);
+      for (let i = startOffset; i < endOffset - 4; i++) {
+        if (bytes[i] === c0 && bytes[i + 1] === c1 && bytes[i + 2] === c2 && bytes[i + 3] === c3) {
+          return i;
+        }
+      }
+      return -1;
+    };
+
+    // 1. Patch mvhd (Movie Header Box)
+    const mvhdOffset = findBox('mvhd');
+    if (mvhdOffset !== -1) {
+      const version = view.getUint8(mvhdOffset + 4);
+      if (version === 0) {
+        const timescale = view.getUint32(mvhdOffset + 16) || 1000;
+        view.setUint32(mvhdOffset + 20, Math.round(durationSec * timescale));
+      } else if (version === 1) {
+        const timescale = view.getUint32(mvhdOffset + 24) || 1000;
+        view.setUint32(mvhdOffset + 28, 0);
+        view.setUint32(mvhdOffset + 32, Math.round(durationSec * timescale));
+      }
+    }
+
+    // 2. Patch tkhd (Track Header Boxes)
+    let curOffset = 0;
+    while (curOffset < arrayBuffer.byteLength) {
+      const tkhdOffset = findBox('tkhd', curOffset);
+      if (tkhdOffset === -1) break;
+      const version = view.getUint8(tkhdOffset + 4);
+      const timescale = mvhdOffset !== -1 ? (view.getUint32(mvhdOffset + (view.getUint8(mvhdOffset + 4) === 0 ? 16 : 24)) || 1000) : 1000;
+      if (version === 0) {
+        view.setUint32(tkhdOffset + 24, Math.round(durationSec * timescale));
+      }
+      curOffset = tkhdOffset + 8;
+    }
+
+    // 3. Patch mehd (Movie Extends Header Box in fragmented MP4)
+    const mehdOffset = findBox('mehd');
+    if (mehdOffset !== -1) {
+      const version = view.getUint8(mehdOffset + 4);
+      const timescale = mvhdOffset !== -1 ? (view.getUint32(mvhdOffset + (view.getUint8(mvhdOffset + 4) === 0 ? 16 : 24)) || 1000) : 1000;
+      const targetDuration = Math.round(durationSec * timescale);
+      if (version === 0) {
+        view.setUint32(mehdOffset + 8, targetDuration);
+      } else if (version === 1) {
+        view.setUint32(mehdOffset + 8, 0);
+        view.setUint32(mehdOffset + 12, targetDuration);
+      }
+    }
+
+    return new Blob([bytes], { type: blob.type || 'video/mp4' });
+  } catch (err) {
+    console.warn('fixMp4Duration error:', err);
+    return blob;
+  }
+};
+
 export interface SubtitleChunkTiming {
   text: string;
   startSec: number;
@@ -648,6 +714,8 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   const [currentRenderingScene, setCurrentRenderingScene] = useState(1);
   const [statusMessage, setStatusMessage] = useState('렌더링 준비 완료');
   const [videoBlobUrl, setVideoBlobUrl] = useState<string | null>(null);
+  const [videoBlobType, setVideoBlobType] = useState<string>('video/mp4');
+  const [videoBlobFile, setVideoBlobFile] = useState<Blob | null>(null);
   const [videoDuration, setVideoDuration] = useState(0);
   const [previewViewMode, setPreviewViewMode] = useState<'live' | 'video'>('live');
   const [previewSceneIndex, setPreviewSceneIndex] = useState(0);
@@ -1993,14 +2061,28 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       }
     };
 
-    mediaRecorder.onstop = () => {
+    mediaRecorder.onstop = async () => {
       const finalBlobType = chosenMime || 'video/mp4';
-      const blob = new Blob(recordedChunksRef.current, { type: finalBlobType });
+      let blob = new Blob(recordedChunksRef.current, { type: finalBlobType });
+
+      // Patch duration metadata so Gallery, KakaoTalk, and Instagram read the full video length (never 3s!)
+      try {
+        if (finalBlobType.includes('webm')) {
+          blob = await fixWebmDuration(blob, totalVideoSec * 1000);
+        } else {
+          blob = await fixMp4Duration(blob, totalVideoSec);
+        }
+      } catch (err) {
+        console.warn('Video duration metadata fix warning:', err);
+      }
+
+      setVideoBlobFile(blob);
+      setVideoBlobType(finalBlobType);
       const url = URL.createObjectURL(blob);
       setVideoBlobUrl(url);
       setPreviewViewMode('video');
       setIsRendering(false);
-      setStatusMessage('MP4 쇼츠 영상 제작 완료! 유튜브 쇼츠, 인스타 릴스에 바로 업로드 가능합니다.');
+      setStatusMessage('쇼츠 영상 제작 완료! 갤러리와 카카오톡 전송 시 전체 길이가 완벽히 유지됩니다.');
       setRenderProgress(100);
     };
 
@@ -2149,12 +2231,41 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     renderFrame();
   };
 
-  const handleDownload = () => {
+  const handleDownload = (preferredExt?: 'mp4' | 'webm') => {
     if (!videoBlobUrl) return;
+    const isWebm = (videoBlobType || '').includes('webm');
+    const ext = preferredExt || (isWebm ? 'webm' : 'mp4');
     const a = document.createElement('a');
     a.href = videoBlobUrl;
-    a.download = `Untold_${project.figureName}_${resolution}.mp4`;
+    a.download = `Untold_${project.figureName}_${resolution}.${ext}`;
     a.click();
+  };
+
+  const handleShareToMobile = async () => {
+    if (!videoBlobFile) {
+      handleDownload();
+      return;
+    }
+    const isWebm = (videoBlobType || '').includes('webm');
+    const ext = isWebm ? 'webm' : 'mp4';
+    const fileName = `Untold_${project.figureName}_${resolution}.${ext}`;
+    const file = new File([videoBlobFile], fileName, { type: videoBlobType });
+
+    if (typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: `${project.figureName} 쇼츠 영상`,
+          text: `${project.figureName} 쇼츠 영상 (전체 ${videoDuration}초)`,
+        });
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          handleDownload();
+        }
+      }
+    } else {
+      handleDownload();
+    }
   };
 
   const modalHeaderContent = (
@@ -3945,13 +4056,26 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
               )}
 
               {videoBlobUrl && (
-                <button
-                  onClick={handleDownload}
-                  className="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm rounded-2xl shadow-lg shadow-emerald-600/20 flex items-center justify-center space-x-2 transition cursor-pointer"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>{resolution} 완성 쇼츠 영상 파일 다운로드 (.mp4)</span>
-                </button>
+                <div className="space-y-2">
+                  {typeof navigator !== 'undefined' && typeof navigator.share === 'function' && (
+                    <button
+                      type="button"
+                      onClick={handleShareToMobile}
+                      className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-600 hover:opacity-95 text-white font-black text-sm rounded-2xl shadow-lg shadow-indigo-500/20 flex items-center justify-center space-x-2 transition cursor-pointer active:scale-98"
+                    >
+                      <Share2 className="w-4 h-4" />
+                      <span>📲 카톡 / 갤러리 바로 공유 & 저장 (전체 {videoDuration}초 보장)</span>
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => handleDownload()}
+                    className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm rounded-2xl shadow-md shadow-emerald-600/20 flex items-center justify-center space-x-2 transition cursor-pointer"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>{resolution} 완성 영상 파일 다운로드 (전체 {videoDuration}초 메타데이터 포함)</span>
+                  </button>
+                </div>
               )}
 
               <button
