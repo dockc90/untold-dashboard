@@ -123,6 +123,9 @@ export type PhotoAspectRatio =
 
 export type BackdropStyle = 'blur' | 'dark' | 'gradient' | 'card_white' | 'card_black';
 
+// 캡컷식 자막 분할 템포 (한 씬 다분할 전환 모드)
+export type SubtitleTempo = 'fast' | 'standard' | 'relaxed';
+
 // 사용자 추가 커스텀 자막/텍스트 오버레이 (캡컷 스타일 멀티 자막)
 export interface CustomTextOverlay {
   id: string;
@@ -190,6 +193,7 @@ export interface ShortsProject {
   videoTone?: VideoMoodTone; // 영상 전체 분위기 톤 (Cinematic, Documentary, Fast-paced, Minimal)
   customTextOverlays?: CustomTextOverlay[]; // 캡컷 스타일 커스텀 자막 레이어 목록
   channelLogoOverlay?: ChannelLogoOverlay; // 채널 로고 & 워터마크 오버레이
+  subtitleTempo?: SubtitleTempo; // 캡컷식 자막 분할 속도 템포 (fast, standard, relaxed)
   // 2026 알고리즘 치트키 필드
   firstTwoLinesSeo?: string;
   timestamps?: { time: string; label: string }[];

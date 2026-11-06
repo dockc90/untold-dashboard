@@ -45,7 +45,8 @@ import {
   BackdropStyle,
   VideoMoodTone,
   CustomTextOverlay,
-  ChannelLogoOverlay
+  ChannelLogoOverlay,
+  SubtitleTempo
 } from '../types';
 import { VOICE_OPTIONS } from '../data/voices';
 import { playDistinctVoicePreview, stopAllVoicePreviews } from '../utils/voicePlayer';
@@ -173,60 +174,65 @@ export const VIDEO_TONE_PRESETS: {
   },
 ];
 
-// Helper: Splits long narration into 2-3 readable subtitle chunks while maintaining the scene photo
-export const getSubtitleChunks = (narration: string): string[] => {
+// Helper: Splits long narration into punchy, readable CapCut-style subtitle chunks (2~4 words / 6~12 chars)
+// In viral shorts/reels, short subtitles change every 0.8~1.3s to keep viewer focus locked!
+export const getSubtitleChunks = (
+  narration: string,
+  tempo: SubtitleTempo = 'fast'
+): string[] => {
   const clean = narration.trim().replace(/\s+/g, ' ');
   if (!clean) return [''];
 
-  // Short sentences (under 18 chars) stay as 1 chunk
-  if (clean.length <= 18) {
-    return [clean];
-  }
+  // Target max character length per subtitle chunk
+  // 'fast': 7~10 chars (CapCut dopamine short captions - changes rapidly!)
+  // 'standard': 11~14 chars (Natural 1.2s pace)
+  // 'relaxed': 15~18 chars (Documentary pace)
+  const maxChars = tempo === 'fast' ? 10 : tempo === 'standard' ? 14 : 18;
+  const minChars = tempo === 'fast' ? 3 : 5;
 
-  // Punctuation-based splitting if natural
-  const punctDelimiters = /(?<=[.?!~,])\s+/;
-  if (punctDelimiters.test(clean)) {
-    const punctSplits = clean.split(punctDelimiters).map((s) => s.trim()).filter(Boolean);
-    if (punctSplits.length >= 2 && punctSplits.every((p) => p.length >= 6 && p.length <= 32)) {
-      return punctSplits;
-    }
-  }
-
-  // Word-based splitting into 2 or 3 balanced chunks (approx 14~18 chars each)
-  const words = clean.split(' ');
-  if (words.length <= 3) {
-    return [clean];
-  }
-
-  const numChunks = Math.max(2, Math.round(clean.length / 16));
-  const targetLen = Math.ceil(clean.length / numChunks);
+  // 1. Initial split by natural punctuation (commas, period, question mark, exclamation, tilde)
+  const punctRegex = /(?<=[,?!~.])\s+/;
+  const clauses = clean.split(punctRegex).map((s) => s.trim()).filter(Boolean);
 
   const chunks: string[] = [];
-  let currentWords: string[] = [];
-  let currentLen = 0;
 
-  for (let i = 0; i < words.length; i++) {
-    const word = words[i];
-    const wouldBeLen = currentLen + (currentWords.length > 0 ? 1 : 0) + word.length;
-
-    if (currentWords.length > 0 && wouldBeLen > targetLen + 3 && chunks.length < numChunks - 1) {
-      chunks.push(currentWords.join(' '));
-      currentWords = [word];
-      currentLen = word.length;
-    } else {
-      currentWords.push(word);
-      currentLen = wouldBeLen;
+  for (const clause of clauses) {
+    // If clause is already short enough, add directly
+    if (clause.length <= maxChars + 1) {
+      chunks.push(clause);
+      continue;
     }
-  }
 
-  if (currentWords.length > 0) {
-    chunks.push(currentWords.join(' '));
-  }
+    // Split clause into words
+    const words = clause.split(' ').filter(Boolean);
+    let currentChunk = '';
 
-  // Merge trailing tiny chunk (under 5 chars) with previous
-  if (chunks.length > 1 && chunks[chunks.length - 1].length < 6) {
-    const last = chunks.pop()!;
-    chunks[chunks.length - 1] += ' ' + last;
+    for (let i = 0; i < words.length; i++) {
+      const word = words[i];
+      const candidate = currentChunk ? `${currentChunk} ${word}` : word;
+
+      if (currentChunk && candidate.length > maxChars) {
+        chunks.push(currentChunk);
+        currentChunk = word;
+      } else {
+        currentChunk = candidate;
+      }
+    }
+
+    if (currentChunk) {
+      // If trailing chunk is very tiny and previous chunk exists, merge if not too huge
+      if (chunks.length > 0 && currentChunk.length < minChars && !currentChunk.match(/[.!?]$/)) {
+        const last = chunks.pop()!;
+        if (last.length + currentChunk.length + 1 <= maxChars + 5) {
+          chunks.push(`${last} ${currentChunk}`);
+        } else {
+          chunks.push(last);
+          chunks.push(currentChunk);
+        }
+      } else {
+        chunks.push(currentChunk);
+      }
+    }
   }
 
   return chunks.length > 0 ? chunks : [clean];
@@ -428,6 +434,9 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   const [subtitleYPercent, setSubtitleYPercent] = useState<number>(78); // 15 to 90
   const [subtitleSizeScale, setSubtitleSizeScale] = useState<number>(1.1); // 0.8 to 1.4
   const [subtitleStyle, setSubtitleStyle] = useState<SubtitleEffectStyle>('yellow_box');
+  const [subtitleTempo, setSubtitleTempo] = useState<SubtitleTempo>(project.subtitleTempo || 'fast');
+  const [previewChunkIndex, setPreviewChunkIndex] = useState<number>(0);
+  const [isAutoCyclingChunks, setIsAutoCyclingChunks] = useState<boolean>(true);
 
   // Voice & Speed
   const [selectedVoiceId, setSelectedVoiceId] = useState<string>(project.selectedVoiceId || 'voice-1');
@@ -451,9 +460,10 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         backdropStyle,
         photoAspectRatio,
         videoTone,
+        subtitleTempo,
       });
     }
-  }, [customTextOverlays, channelLogo, backdropStyle, photoAspectRatio, videoTone]);
+  }, [customTextOverlays, channelLogo, backdropStyle, photoAspectRatio, videoTone, subtitleTempo]);
 
   // States
   const [isPlayingVoiceSample, setIsPlayingVoiceSample] = useState(false);
@@ -505,6 +515,26 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
   const scenes = project.scenes || [];
   const selectedVoice = VOICE_OPTIONS.find((v) => v.id === selectedVoiceId) || VOICE_OPTIONS[0];
+
+  // Auto-cycle through subtitle chunks every 1.1s in live preview so user sees the CapCut dynamic rhythm
+  useEffect(() => {
+    if (!isOpen || previewViewMode !== 'live' || !isAutoCyclingChunks || isRendering) return;
+    const activeScene = scenes[previewSceneIndex] || scenes[0];
+    const previewText = activeScene?.narration || `${project.figureName}의 이야기`;
+    const chunks = getSubtitleChunks(previewText, subtitleTempo);
+    if (chunks.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setPreviewChunkIndex((prev) => (prev + 1) % chunks.length);
+    }, 1100);
+
+    return () => clearInterval(interval);
+  }, [isOpen, previewViewMode, isAutoCyclingChunks, previewSceneIndex, subtitleTempo, scenes, isRendering, project.figureName]);
+
+  // Reset chunk index when scene or tempo changes
+  useEffect(() => {
+    setPreviewChunkIndex(0);
+  }, [previewSceneIndex, subtitleTempo]);
 
   // Width and Height depending on resolution (9:16 Shorts)
   const width = resolution === '1080p' ? 1080 : 720;
@@ -1313,9 +1343,11 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         // Draw CapCut-style Custom Text Overlays (상단 헤드라인 및 커스텀 자막들)
         renderCustomTextOverlays(ctx, width, height, previewSceneIndex);
 
-        // Draw Subtitles: if text is long, preview the first punchy chunk
-        const previewChunks = getSubtitleChunks(previewText);
-        drawSubtitles(ctx, previewChunks[0], width, height);
+        // Draw Subtitles: CapCut-style dynamic short chunks
+        const previewChunks = getSubtitleChunks(previewText, subtitleTempo);
+        const activeChunkIdx = Math.min(previewChunkIndex, Math.max(0, previewChunks.length - 1));
+        const activeSubtitle = previewChunks[activeChunkIdx] || previewChunks[0];
+        drawSubtitles(ctx, activeSubtitle, width, height);
       } catch (err) {
         console.warn('Live preview canvas error:', err);
       }
@@ -1333,6 +1365,8 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     subtitleYPercent,
     subtitleSizeScale,
     subtitleStyle,
+    subtitleTempo,
+    previewChunkIndex,
     photoAspectRatio,
     backdropStyle,
     resolution,
@@ -1673,8 +1707,8 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       // Draw CapCut-style Custom Text Overlays (상단 헤드라인 및 커스텀 자막들)
       renderCustomTextOverlays(ctx, width, height, activeIdx);
 
-      // Subtitle Chunking: keep the scene photo intact while subtitles advance if long
-      const chunks = getSubtitleChunks(scene.narration);
+      // Subtitle Chunking: keep the scene photo intact while subtitles advance if long (CapCut-style dynamic tempo)
+      const chunks = getSubtitleChunks(scene.narration, subtitleTempo);
       const chunkIdx = Math.min(chunks.length - 1, Math.floor(progressInScene * chunks.length));
       const activeSubtitleText = chunks[chunkIdx];
 
@@ -2595,6 +2629,139 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
               {/* SECTION 1: Subtitle Customizer */}
             {activeSettingsSection === 'subtitle' && (
               <div className="space-y-4">
+                {/* 0. CapCut Dynamic Subtitle Tempo (캡컷식 한 씬 다분할 자막 전환) */}
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 space-y-3 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black text-amber-950 flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-amber-600 animate-pulse" />
+                      <span>캡컷식 빠른 자막 분할 템포 (시청 유지율 극대화)</span>
+                    </label>
+                    <span className="text-[10px] text-amber-800 font-extrabold bg-amber-200/80 px-2 py-0.5 rounded-full border border-amber-300">
+                      ⚡ 캡컷 몰입형 전환
+                    </span>
+                  </div>
+
+                  <p className="text-[11px] text-amber-900/80 leading-relaxed font-medium">
+                    인스타 릴스·유튜브 쇼츠에서 긴 문장을 한 씬 내내 띄우면 이탈률이 높아집니다. 
+                    <strong> 한 씬 안에서 2~4단어(6~12자)씩 자막이 빠르게 교체</strong>되며 시청자의 몰입과 집중을 유지합니다.
+                  </p>
+
+                  {/* Tempo 3 Presets */}
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      {
+                        id: 'fast' as SubtitleTempo,
+                        title: '⚡ 속공형 (추천)',
+                        desc: '6~10자 (약 0.9초마다 전환)',
+                        badge: '릴스·쇼츠 떡상용'
+                      },
+                      {
+                        id: 'standard' as SubtitleTempo,
+                        title: '🎬 표준형',
+                        desc: '10~14자 (약 1.3초마다 전환)',
+                        badge: '자연스러운 속도'
+                      },
+                      {
+                        id: 'relaxed' as SubtitleTempo,
+                        title: '📖 여유형',
+                        desc: '14~18자 (호흡 길게)',
+                        badge: '스토리·다큐형'
+                      }
+                    ].map((tempo) => {
+                      const isSelected = subtitleTempo === tempo.id;
+                      return (
+                        <button
+                          key={tempo.id}
+                          type="button"
+                          onClick={() => setSubtitleTempo(tempo.id)}
+                          disabled={isRendering}
+                          className={`p-2.5 rounded-xl text-left border transition relative flex flex-col justify-between ${
+                            isSelected
+                              ? 'bg-amber-500 text-white border-amber-600 shadow-md ring-2 ring-amber-300'
+                              : 'bg-white text-slate-700 border-slate-200 hover:border-amber-300 hover:bg-amber-50/50'
+                          }`}
+                        >
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-black">{tempo.title}</span>
+                              {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
+                            </div>
+                            <p className={`text-[10px] leading-tight font-medium ${isSelected ? 'text-amber-100' : 'text-slate-500'}`}>
+                              {tempo.desc}
+                            </p>
+                          </div>
+                          <span className={`mt-2 inline-block text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
+                            isSelected ? 'bg-amber-600/80 text-white' : 'bg-slate-100 text-slate-600'
+                          }`}>
+                            {tempo.badge}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Real-time Subtitle Chunks Breakdown for Active Preview Scene */}
+                  {(() => {
+                    const activeScene = scenes[previewSceneIndex] || scenes[0];
+                    const text = activeScene?.narration || '';
+                    const chunks = getSubtitleChunks(text, subtitleTempo);
+                    return (
+                      <div className="pt-2 border-t border-amber-200/80 space-y-2">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="font-extrabold text-amber-950 flex items-center gap-1">
+                            <span>현재 씬({previewSceneIndex + 1}) 자막 분할:</span>
+                            <span className="text-amber-600 font-black">{chunks.length}개로 순차 전환</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setIsAutoCyclingChunks(!isAutoCyclingChunks)}
+                            className="flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100 hover:bg-amber-200 px-2 py-0.5 rounded-full border border-amber-300 transition"
+                          >
+                            {isAutoCyclingChunks ? (
+                              <>
+                                <Pause className="w-2.5 h-2.5 text-amber-700" />
+                                <span>롤링 일시정지</span>
+                              </>
+                            ) : (
+                              <>
+                                <Play className="w-2.5 h-2.5 text-amber-700" />
+                                <span>자동 롤링 재생</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+
+                        {/* Chunk Pills */}
+                        <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-1.5 bg-white/80 rounded-xl border border-amber-200">
+                          {chunks.map((chk, idx) => {
+                            const isActive = previewChunkIndex === idx;
+                            return (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => {
+                                  setIsAutoCyclingChunks(false);
+                                  setPreviewChunkIndex(idx);
+                                }}
+                                className={`text-[11px] px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1 border ${
+                                  isActive
+                                    ? 'bg-amber-500 text-white border-amber-600 shadow-xs scale-[1.02]'
+                                    : 'bg-white text-slate-700 border-slate-200 hover:bg-amber-50'
+                                }`}
+                              >
+                                <span className={`text-[9px] px-1 py-0.2 rounded font-black ${isActive ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                  #{idx + 1}
+                                </span>
+                                <span>"{chk}"</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+
                 {/* 1. Commercial Free Font Selector */}
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
                   <label className="text-xs font-black text-slate-800 flex items-center justify-between">
