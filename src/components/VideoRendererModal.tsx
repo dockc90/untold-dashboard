@@ -79,10 +79,10 @@ const COMMERCIAL_FONTS: { id: SubtitleFontFamily; name: string; tag: string; sam
 ];
 
 const POSITION_PRESETS = [
-  { label: '하단 (78% 표준)', value: 78 },
-  { label: '최하단 (86%)', value: 86 },
+  { label: '하단 (83% 기본)', value: 83 },
+  { label: '상단 (17% 기본)', value: 17 },
   { label: '중앙 (50%)', value: 50 },
-  { label: '상단 (22%)', value: 22 },
+  { label: '최하단 (86%)', value: 86 },
 ];
 
 const SIZE_PRESETS = [
@@ -775,8 +775,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   const [subtitleFont, setSubtitleFont] = useState<SubtitleFontFamily>(project.subtitleFont || 'Pretendard');
   const [subtitleYPercent, setSubtitleYPercent] = useState<number>(() => {
     if (project.subtitleYPercent !== undefined) return project.subtitleYPercent;
-    if ((project.backdropStyle || 'card_white') === 'card_white') return 86;
-    return 78;
+    return 83; // 하단자막 83% 모든 프레임의 기본값
   });
   const [subtitleSizeScale, setSubtitleSizeScale] = useState<number>(1.1); // 0.8 to 1.4
   const [subtitleStyle, setSubtitleStyle] = useState<SubtitleEffectStyle>('yellow_box');
@@ -1001,7 +1000,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   const handleSelectBackdrop = (bgId: BackdropStyle) => {
     setBackdropStyle(bgId);
     if (bgId === 'card_white') {
-      setSubtitleYPercent(86);
+      setSubtitleYPercent(83);
     }
     setPreviewViewMode('live');
   };
@@ -1011,7 +1010,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     setBackdropStyle('blur');
     setSubtitleFont('GmarketSans');
     setSubtitleStyle('yellow_box');
-    setSubtitleYPercent(78);
+    setSubtitleYPercent(83);
     setSubtitleSizeScale(1.18);
     setVoiceSpeedMultiplier(1.1);
     setResolution('1080p');
@@ -1023,7 +1022,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     setPhotoAspectRatio('1:1');
     setSubtitleFont('Pretendard');
     setSubtitleStyle('yellow_box');
-    setSubtitleYPercent(86);
+    setSubtitleYPercent(83);
     setSubtitleSizeScale(1.15);
     setResolution('1080p');
     setChannelLogo((prev) => ({
@@ -1547,7 +1546,8 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     const logoScale = channelLogo.size === 'small' ? 0.75 : channelLogo.size === 'large' ? 1.35 : 1.0;
     const logoSize = Math.round(baseLogoDim * logoScale);
     const marginX = w * 0.055;
-    const marginY = h * 0.038;
+    const currentYPercent = channelLogo.yPercent !== undefined ? channelLogo.yPercent : 7;
+    const marginY = h * (currentYPercent / 100);
 
     let x = marginX;
     let y = marginY;
@@ -3102,6 +3102,61 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                           </div>
                         </div>
 
+                        {/* Channel Logo Y-Axis Height Adjustment (상하 위치 조절) */}
+                        <div className="p-2.5 rounded-xl bg-white border border-slate-200 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-black text-slate-700 flex items-center gap-1.5">
+                              <AlignVerticalJustifyCenter className="w-3.5 h-3.5 text-indigo-600" />
+                              로고 상하 높이 (Y축 위치)
+                            </span>
+                            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                              화면 {channelLogo.yPercent ?? 7}% 높이
+                            </span>
+                          </div>
+
+                          {/* Quick Height Presets */}
+                          <div className="grid grid-cols-4 gap-1 text-[10px]">
+                            {[
+                              { label: '최상단 (4%)', val: 4 },
+                              { label: '상단 (7% 기본)', val: 7 },
+                              { label: '안전 (12%)', val: 12 },
+                              { label: '중상단 (17%)', val: 17 },
+                            ].map((p) => (
+                              <button
+                                key={p.val}
+                                type="button"
+                                onClick={() => setChannelLogo((prev) => ({ ...prev, yPercent: p.val }))}
+                                className={`py-1 rounded-md font-bold text-center transition ${
+                                  (channelLogo.yPercent ?? 7) === p.val
+                                    ? 'bg-indigo-600 text-white shadow-xs'
+                                    : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
+                                }`}
+                              >
+                                {p.label}
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Y-Axis Slider */}
+                          <div className="flex items-center space-x-2 pt-0.5">
+                            <span className="text-[9px] text-slate-400 font-bold">2%</span>
+                            <input
+                              type="range"
+                              min={2}
+                              max={45}
+                              value={channelLogo.yPercent ?? 7}
+                              onChange={(e) =>
+                                setChannelLogo((prev) => ({
+                                  ...prev,
+                                  yPercent: parseInt(e.target.value, 10),
+                                }))
+                              }
+                              className="flex-1 accent-indigo-600 cursor-pointer h-1.5"
+                            />
+                            <span className="text-[9px] text-slate-400 font-bold">45%</span>
+                          </div>
+                        </div>
+
                         {/* Scene Extension Range (구간 연장) */}
                         <div className="p-2.5 rounded-xl bg-white border border-slate-200 space-y-1.5">
                           <div className="flex items-center justify-between text-xs">
@@ -3642,10 +3697,10 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
                   {/* Slider */}
                   <div className="flex items-center space-x-3 pt-1">
-                    <span className="text-[10px] text-slate-400 font-bold">상단 (15%)</span>
+                    <span className="text-[10px] text-slate-400 font-bold">상단 (12%)</span>
                     <input
                       type="range"
-                      min={18}
+                      min={12}
                       max={88}
                       value={subtitleYPercent}
                       onChange={(e) => setSubtitleYPercent(parseInt(e.target.value, 10))}
@@ -4518,15 +4573,23 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                   className="w-full h-full object-cover"
                 />
               ) : !isRendering ? (
-                <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none z-10">
-                  <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-slate-900/85 text-white backdrop-blur-xs flex items-center gap-1.5 border border-white/10 shadow-xs">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    자막 실시간 라이브 뷰
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-600/90 text-white shadow-2xs">
-                    {previewSceneIndex + 1}번 씬
-                  </span>
-                </div>
+                platformGuide === 'none' ? (
+                  <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none z-10">
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-slate-900/85 text-white backdrop-blur-xs flex items-center gap-1.5 border border-white/10 shadow-xs">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      자막 실시간 라이브 뷰
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-600/90 text-white shadow-2xs">
+                      {previewSceneIndex + 1}번 씬
+                    </span>
+                  </div>
+                ) : (
+                  <div className="absolute top-2 left-2 pointer-events-none z-30">
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-black/60 text-white/90 backdrop-blur-xs border border-white/20 shadow-xs">
+                      {previewSceneIndex + 1}씬 편집
+                    </span>
+                  </div>
+                )
               ) : null}
 
               {/* Real-time SNS Platform Safe Zone & UI Overlay Guide */}

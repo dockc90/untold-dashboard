@@ -161,6 +161,7 @@ export interface ChannelLogoOverlay {
   size: 'small' | 'medium' | 'large';
   shape: 'circle' | 'rounded' | 'original';
   showChannelName: boolean;
+  yPercent?: number; // Y축 상하 위치 (0%~50%)
 }
 
 export interface SceneItem {
