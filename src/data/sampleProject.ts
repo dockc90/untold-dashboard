@@ -187,6 +187,7 @@ export const SAMPLE_PROJECT: ShortsProject = {
   charCount: 395,
   createdAt: new Date().toISOString(),
   isSaved: true,
-  selectedVoiceId: 'voice-1',
-  voiceSpeedMultiplier: 1.1
+  selectedVoiceId: 'JBFqnCBsd6RMkjVDRZzb', // George (ElevenLabs v4)
+  voiceSpeedMultiplier: 1.05,
+  elevenLabsModel: 'eleven_v4',
 };

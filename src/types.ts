@@ -17,6 +17,13 @@ export interface ChannelMetrics {
   instaReels?: string;     // e.g. "릴스 챌린지 15만 개"
 }
 
+export interface ElevenLabsVoiceSettings {
+  stability: number; // 0.0 ~ 1.0 (기본 0.5)
+  similarityBoost: number; // 0.0 ~ 1.0 (기본 0.75)
+  style: number; // 0.0 ~ 1.0 (기본 0.15)
+  useSpeakerBoost: boolean; // 기본 true
+}
+
 export interface VoiceOption {
   id: string;
   name: string;
@@ -28,9 +35,10 @@ export interface VoiceOption {
   pitch: number;
   rate: number;
   sampleNarration: string;
-  provider?: 'fish_audio';
+  provider?: 'elevenlabs' | 'fish_audio';
   model?: string;
   referenceId?: string;
+  voiceId?: string;
   tagline?: string;
 }
 
@@ -188,6 +196,8 @@ export interface ShortsProject {
   isSaved?: boolean;
   selectedVoiceId?: string; // 선택된 내레이션 성우 ID
   voiceSpeedMultiplier?: number; // 성우 목소리 스피드 배속 (0.8x ~ 1.5x)
+  elevenLabsModel?: string; // 일레븐랩스 모델 (기본값: 'eleven_v4')
+  elevenLabsSettings?: ElevenLabsVoiceSettings; // 일레븐랩스 Stability, Similarity, Style 설정
   photoAspectRatio?: PhotoAspectRatio; // 동영상 제작 시 사진 프레이밍 비율
   backdropStyle?: BackdropStyle; // 사진 뒤 배경 스타일
   videoTone?: VideoMoodTone; // 영상 전체 분위기 톤 (Cinematic, Documentary, Fast-paced, Minimal)

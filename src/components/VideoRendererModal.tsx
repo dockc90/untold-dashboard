@@ -134,7 +134,7 @@ export const VIDEO_TONE_PRESETS: {
     recommendedBackdrop: 'gradient',
     recommendedFont: 'Pretendard',
     recommendedSubtitleStyle: 'white_outline',
-    recommendedVoiceId: 'voice-6', // 성진 (동기부여 멘토)
+    recommendedVoiceId: 'pNInz6obpgDQGcFmaJgB', // 아담 (Adam - 카리스마 다큐멘터리)
     recommendedSpeed: 1.0,
   },
   {
@@ -146,7 +146,7 @@ export const VIDEO_TONE_PRESETS: {
     recommendedBackdrop: 'dark',
     recommendedFont: 'Song Myung',
     recommendedSubtitleStyle: 'white_outline',
-    recommendedVoiceId: 'voice-13', // 영호 (인간극장 다큐)
+    recommendedVoiceId: 'JBFqnCBsd6RMkjVDRZzb', // 조지 (George - 인간극장 다큐)
     recommendedSpeed: 0.95,
   },
   {
@@ -158,7 +158,7 @@ export const VIDEO_TONE_PRESETS: {
     recommendedBackdrop: 'blur',
     recommendedFont: 'GmarketSans',
     recommendedSubtitleStyle: 'yellow_box',
-    recommendedVoiceId: 'voice-2', // 준호 (도파민 숏폼남)
+    recommendedVoiceId: 'TX3LPaxmHKxFdv7VOQHJ', // 리암 (Liam - 도파민 숏폼남)
     recommendedSpeed: 1.2,
   },
   {
@@ -170,7 +170,7 @@ export const VIDEO_TONE_PRESETS: {
     recommendedBackdrop: 'dark',
     recommendedFont: 'Pretendard',
     recommendedSubtitleStyle: 'black_capsule',
-    recommendedVoiceId: 'voice-5', // 서연 (또박또박 지식형)
+    recommendedVoiceId: 'Xb7hH8MSUJpSbSDYk0k2', // 앨리스 (Alice - 명쾌한 지식형)
     recommendedSpeed: 1.05,
   },
 ];
@@ -439,10 +439,15 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   const [previewChunkIndex, setPreviewChunkIndex] = useState<number>(0);
   const [isAutoCyclingChunks, setIsAutoCyclingChunks] = useState<boolean>(true);
 
-  // Voice & Speed
-  const [selectedVoiceId, setSelectedVoiceId] = useState<string>(project.selectedVoiceId || 'voice-1');
-  const [voiceSpeedMultiplier, setVoiceSpeedMultiplier] = useState<number>(project.voiceSpeedMultiplier || 1.1);
+  // ElevenLabs Voice & Settings (Default: eleven_v4)
+  const [selectedVoiceId, setSelectedVoiceId] = useState<string>(project.selectedVoiceId || 'JBFqnCBsd6RMkjVDRZzb');
+  const [voiceSpeedMultiplier, setVoiceSpeedMultiplier] = useState<number>(project.voiceSpeedMultiplier || 1.05);
   const [voiceCategoryFilter, setVoiceCategoryFilter] = useState<string>('all');
+  const [elevenLabsModel, setElevenLabsModel] = useState<string>(project.elevenLabsModel || 'eleven_v4');
+  const [elevenLabsStability, setElevenLabsStability] = useState<number>(project.elevenLabsSettings?.stability ?? 0.50);
+  const [elevenLabsSimilarity, setElevenLabsSimilarity] = useState<number>(project.elevenLabsSettings?.similarityBoost ?? 0.75);
+  const [elevenLabsStyle, setElevenLabsStyle] = useState<number>(project.elevenLabsSettings?.style ?? 0.15);
+  const [elevenLabsSpeakerBoost, setElevenLabsSpeakerBoost] = useState<boolean>(project.elevenLabsSettings?.useSpeakerBoost ?? true);
 
   // Video Mood Tone State
   const [videoTone, setVideoTone] = useState<VideoMoodTone>(project.videoTone || 'Cinematic');
@@ -462,9 +467,32 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         photoAspectRatio,
         videoTone,
         subtitleTempo,
+        selectedVoiceId,
+        voiceSpeedMultiplier,
+        elevenLabsModel,
+        elevenLabsSettings: {
+          stability: elevenLabsStability,
+          similarityBoost: elevenLabsSimilarity,
+          style: elevenLabsStyle,
+          useSpeakerBoost: elevenLabsSpeakerBoost,
+        },
       });
     }
-  }, [customTextOverlays, channelLogo, backdropStyle, photoAspectRatio, videoTone, subtitleTempo]);
+  }, [
+    customTextOverlays,
+    channelLogo,
+    backdropStyle,
+    photoAspectRatio,
+    videoTone,
+    subtitleTempo,
+    selectedVoiceId,
+    voiceSpeedMultiplier,
+    elevenLabsModel,
+    elevenLabsStability,
+    elevenLabsSimilarity,
+    elevenLabsStyle,
+    elevenLabsSpeakerBoost
+  ]);
 
   // States
   const [isPlayingVoiceSample, setIsPlayingVoiceSample] = useState(false);
@@ -493,9 +521,9 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   const [favoriteVoiceIds, setFavoriteVoiceIds] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('favorite_voices');
-      return saved ? JSON.parse(saved) : ['voice-1', 'voice-7', 'voice-13', 'voice-19', 'voice-25'];
+      return saved ? JSON.parse(saved) : ['JBFqnCBsd6RMkjVDRZzb', 'pNInz6obpgDQGcFmaJgB', 'nPczCjzI2devNBz1zQrb', 'EXAVITQu4vr4xnSDxMaL'];
     } catch {
-      return ['voice-1', 'voice-7', 'voice-13', 'voice-19', 'voice-25'];
+      return ['JBFqnCBsd6RMkjVDRZzb', 'pNInz6obpgDQGcFmaJgB', 'nPczCjzI2devNBz1zQrb', 'EXAVITQu4vr4xnSDxMaL'];
     }
   });
 
@@ -1420,10 +1448,21 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     setSelectedVoiceId(voice.id);
 
     try {
-      const stopFn = await playDistinctVoicePreview(voice, currentSpeed, () => {
-        setIsPlayingVoiceSample(false);
-        setPlayingVoiceId(null);
-      });
+      const stopFn = await playDistinctVoicePreview(
+        voice,
+        {
+          speedMultiplier: currentSpeed,
+          modelId: elevenLabsModel,
+          stability: elevenLabsStability,
+          similarityBoost: elevenLabsSimilarity,
+          style: elevenLabsStyle,
+          useSpeakerBoost: elevenLabsSpeakerBoost,
+        },
+        () => {
+          setIsPlayingVoiceSample(false);
+          setPlayingVoiceId(null);
+        }
+      );
       stopVoiceRef.current = stopFn;
     } catch (e) {
       setIsPlayingVoiceSample(false);
@@ -1492,8 +1531,16 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       setStatusMessage(`내레이션 음성 합성 중... (${i + 1}/${scenes.length})`);
       setRenderProgress(Math.round(((i + 1) / (scenes.length * 2)) * 30));
       try {
-        const refParam = selectedVoice.referenceId ? `&reference_id=${encodeURIComponent(selectedVoice.referenceId)}` : "";
-        const res = await fetch(`/api/tts?text=${encodeURIComponent(scenes[i].narration)}&voice_id=${encodeURIComponent(selectedVoice.id)}${refParam}`);
+        const query = new URLSearchParams({
+          text: scenes[i].narration,
+          voice_id: selectedVoice.id,
+          model_id: elevenLabsModel,
+          stability: elevenLabsStability.toString(),
+          similarity_boost: elevenLabsSimilarity.toString(),
+          style: elevenLabsStyle.toString(),
+          use_speaker_boost: elevenLabsSpeakerBoost ? 'true' : 'false',
+        });
+        const res = await fetch(`/api/tts?${query.toString()}`);
         if (res.ok) {
           const ab = await res.arrayBuffer();
           const decoded = await audioCtx.decodeAudioData(ab);
@@ -2951,15 +2998,120 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
               </div>
             )}
 
-            {/* SECTION 2: Voice & Speed Customizer */}
+            {/* SECTION 2: Voice & Speed Customizer (ElevenLabs Official Integration) */}
             {activeSettingsSection === 'voice' && (
               <div className="space-y-4">
-                {/* 1. Voice Persona Selector (30 Voices + Favorites 찜) */}
+                {/* 0. ElevenLabs Official Integration Status Card */}
+                <div className="p-3.5 rounded-2xl bg-gradient-to-r from-violet-900 via-indigo-900 to-slate-900 text-white shadow-md border border-violet-500/30 flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-9 h-9 rounded-xl bg-violet-600/40 border border-violet-400/40 flex items-center justify-center font-black text-sm text-violet-200 shadow-inner">
+                      XI
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black tracking-wide">ElevenLabs 차세대 음성 변환 엔진 연동</span>
+                        <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-extrabold px-2 py-0.5 rounded-full border border-emerald-500/40">
+                          ● API 연결됨
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-violet-200/80 font-medium">
+                        다큐멘터리 쇼츠에 최적화된 최신 고품질 모델 <strong className="text-amber-300">eleven_v4</strong>가 기본값으로 적용되었습니다.
+                      </p>
+                    </div>
+                  </div>
+
+                  <span className="hidden sm:inline-block text-[10px] font-black px-2.5 py-1 rounded-lg bg-white/10 text-violet-200 border border-white/15">
+                    Pro Audio HD
+                  </span>
+                </div>
+
+                {/* 1. ElevenLabs Model Selector (Default: eleven_v4) */}
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                      <Mic className="w-4 h-4 text-indigo-600" />
-                      <div className="flex items-center gap-2"><span>내레이션 성우 선택 (Fish Audio S2.1-Pro 15인 성우)</span><span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 text-[10px] font-black border border-blue-200">Fish Audio</span></div>
+                      <Sparkles className="w-4 h-4 text-violet-600" />
+                      <span>음성 변환 AI 모델 선택 (기본값: eleven_v4)</span>
+                    </label>
+                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-violet-100 text-violet-800 border border-violet-200">
+                      최신 고품질 다큐 최적화
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    {[
+                      {
+                        id: 'eleven_v4',
+                        name: '⚡ eleven_v4 (기본값 / 추천)',
+                        tag: '최신 최고품질',
+                        desc: '인간 수준의 자연스러운 호흡과 다큐멘터리 감정 억양에 특화된 차세대 플래그십 모델',
+                        badge: '다큐멘터리 쇼츠 1위'
+                      },
+                      {
+                        id: 'eleven_multilingual_v2',
+                        name: '🌐 eleven_multilingual_v2',
+                        tag: '안정적 다국어',
+                        desc: '검증된 글로벌 다국어 고품질 음성 합성 모델',
+                        badge: '표준 다국어'
+                      },
+                      {
+                        id: 'eleven_turbo_v2_5',
+                        name: '🚀 eleven_turbo_v2_5',
+                        tag: '초고속 터보',
+                        desc: '초저지연 빠른 렌더링에 최적화된 속도 중심 모델',
+                        badge: '초고속 렌더'
+                      },
+                      {
+                        id: 'eleven_flash_v2_5',
+                        name: '✨ eleven_flash_v2_5',
+                        tag: '초경량 플래시',
+                        desc: '가볍고 빠른 연산 중심의 초경량 실시간 모델',
+                        badge: '경량 모델'
+                      }
+                    ].map((model) => {
+                      const isSelected = elevenLabsModel === model.id;
+                      return (
+                        <button
+                          key={model.id}
+                          type="button"
+                          onClick={() => setElevenLabsModel(model.id)}
+                          disabled={isRendering}
+                          className={`p-2.5 rounded-xl text-left border transition relative flex flex-col justify-between ${
+                            isSelected
+                              ? 'bg-violet-600 text-white border-violet-700 shadow-md ring-2 ring-violet-300'
+                              : 'bg-white text-slate-700 border-slate-200 hover:border-violet-300 hover:bg-violet-50/50'
+                          }`}
+                        >
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-black">{model.name}</span>
+                              {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
+                            </div>
+                            <p className={`text-[10px] leading-tight font-medium ${isSelected ? 'text-violet-100' : 'text-slate-500'}`}>
+                              {model.desc}
+                            </p>
+                          </div>
+                          <span className={`mt-2 inline-block text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
+                            isSelected ? 'bg-violet-700/80 text-white' : 'bg-slate-100 text-slate-600'
+                          }`}>
+                            {model.badge}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 2. Voice Persona Selector (16 ElevenLabs Voices) */}
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                      <Mic className="w-4 h-4 text-violet-600" />
+                      <div className="flex items-center gap-2">
+                        <span>내레이션 성우 선택 (일레븐랩스 16인 성우)</span>
+                        <span className="px-1.5 py-0.5 rounded bg-violet-100 text-violet-800 text-[10px] font-black border border-violet-200">
+                          ElevenLabs
+                        </span>
+                      </div>
                     </label>
 
                     <div className="flex items-center space-x-1.5">
@@ -2985,7 +3137,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                         className={`flex items-center space-x-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition ${
                           isPlayingVoiceSample && playingVoiceId === selectedVoice.id
                             ? 'bg-rose-500 text-white animate-pulse'
-                            : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+                            : 'bg-violet-100 text-violet-800 hover:bg-violet-200'
                         }`}
                         title="샘플 목소리 미리듣기"
                       >
@@ -3010,14 +3162,14 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                       <span>❤️ 찜한 성우 ({favoriteVoiceIds.length})</span>
                     </button>
 
-                    {['all', '감동/다큐', '숏폼/도파민', '뉴스/지식', '공감/힐링', '스릴러/미스터리'].map((cat) => (
+                    {['all', '감동/다큐', '뉴스/지식', '숏폼/도파민', '공감/힐링', '스릴러/미스터리'].map((cat) => (
                       <button
                         key={cat}
                         type="button"
                         onClick={() => setVoiceCategoryFilter(cat)}
                         className={`whitespace-nowrap px-2 py-0.5 rounded-lg font-bold border transition ${
                           voiceCategoryFilter === cat
-                            ? 'bg-indigo-600 text-white border-indigo-600'
+                            ? 'bg-violet-600 text-white border-violet-600'
                             : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
                         }`}
                       >
@@ -3037,7 +3189,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                         value={selectedVoiceId}
                         onChange={(e) => setSelectedVoiceId(e.target.value)}
                         disabled={isRendering}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-bold focus:outline-none focus:border-indigo-500 shadow-2xs"
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-bold focus:outline-none focus:border-violet-500 shadow-2xs"
                       >
                         {filteredVoices.map((v) => {
                           const isFav = favoriteVoiceIds.includes(v.id);
@@ -3050,7 +3202,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                       </select>
 
                       {/* Quick Voice Carousel / Card Previews */}
-                      <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1 text-xs">
+                      <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1 text-xs">
                         {filteredVoices.map((v) => {
                           const isCurrent = selectedVoiceId === v.id;
                           const isFav = favoriteVoiceIds.includes(v.id);
@@ -3061,7 +3213,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                               onClick={() => setSelectedVoiceId(v.id)}
                               className={`p-2 rounded-xl border flex items-center justify-between cursor-pointer transition ${
                                 isCurrent
-                                  ? 'bg-indigo-50/80 border-indigo-500 shadow-xs ring-1 ring-indigo-300'
+                                  ? 'bg-violet-50/90 border-violet-500 shadow-xs ring-1 ring-violet-300'
                                   : 'bg-white hover:bg-slate-50 border-slate-200'
                               }`}
                             >
@@ -3070,7 +3222,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-center space-x-1.5">
                                     <span className="font-extrabold text-slate-900 truncate">{v.name}</span>
-                                    <span className="text-[10px] text-indigo-600 bg-indigo-50 px-1.5 py-0.2 rounded font-bold">{v.role}</span>
+                                    <span className="text-[10px] text-violet-700 bg-violet-100 px-1.5 py-0.2 rounded font-bold">{v.role}</span>
                                     <span className="text-[10px] text-slate-400 font-medium hidden sm:inline">[{v.categoryTag}]</span>
                                   </div>
                                   <p className="text-[10px] text-slate-500 truncate">{v.tone}</p>
@@ -3097,7 +3249,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                                   className={`p-1.5 rounded-lg transition ${
                                     isPlayingThisVoice
                                       ? 'bg-rose-500 text-white shadow-xs animate-pulse ring-2 ring-rose-300'
-                                      : 'bg-slate-100 hover:bg-indigo-100 text-slate-700 hover:text-indigo-700'
+                                      : 'bg-slate-100 hover:bg-violet-100 text-slate-700 hover:text-violet-700'
                                   }`}
                                   title={isPlayingThisVoice ? '정지' : `${v.name} 목소리 미리듣기`}
                                 >
@@ -3116,7 +3268,166 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                   </p>
                 </div>
 
-                {/* 2. Voice Speed Multiplier Controller + Live Speed Preview */}
+                {/* 3. ElevenLabs Fine-Tuning Studio (Stability, Similarity, Style, Speaker Boost) */}
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-violet-50/80 to-purple-50/80 border-2 border-violet-200 space-y-3.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black text-violet-950 flex items-center gap-1.5">
+                      <Sliders className="w-4 h-4 text-violet-600" />
+                      <span>일레븐랩스 정밀 음성 튜닝 스튜디오</span>
+                    </label>
+                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-violet-200/80 text-violet-900 border border-violet-300">
+                      Voice Settings
+                    </span>
+                  </div>
+
+                  {/* One-click Presets */}
+                  <div className="grid grid-cols-4 gap-1.5 text-xs">
+                    {[
+                      {
+                        label: '🎙️ 감동 휴먼 다큐',
+                        desc: '인간극장 최적 밸런스',
+                        st: 0.50,
+                        sim: 0.75,
+                        sty: 0.15,
+                        spd: 1.0,
+                      },
+                      {
+                        label: '🎬 시네마틱 웅장',
+                        desc: '드라마틱 감정 증폭',
+                        st: 0.40,
+                        sim: 0.80,
+                        sty: 0.25,
+                        spd: 1.05,
+                      },
+                      {
+                        label: '⚡ 숏폼 도파민',
+                        desc: '빠른 템포 1초 후킹',
+                        st: 0.35,
+                        sim: 0.70,
+                        sty: 0.30,
+                        spd: 1.15,
+                      },
+                      {
+                        label: '📰 탐사보도 팩트',
+                        desc: '차분하고 정돈된 보도',
+                        st: 0.70,
+                        sim: 0.85,
+                        sty: 0.05,
+                        spd: 1.05,
+                      },
+                    ].map((pst) => (
+                      <button
+                        key={pst.label}
+                        type="button"
+                        onClick={() => {
+                          setElevenLabsStability(pst.st);
+                          setElevenLabsSimilarity(pst.sim);
+                          setElevenLabsStyle(pst.sty);
+                          setVoiceSpeedMultiplier(pst.spd);
+                        }}
+                        className="p-1.5 rounded-xl bg-white border border-violet-200 hover:border-violet-400 hover:bg-violet-100/50 text-left transition"
+                      >
+                        <span className="block text-[11px] font-black text-violet-950">{pst.label}</span>
+                        <span className="block text-[9px] text-slate-500">{pst.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* 3-1. Stability (안정성) */}
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-extrabold text-slate-800">1. Stability (안정성)</span>
+                      <span className="font-black text-violet-700 bg-white px-2 py-0.5 rounded-md border border-violet-200">
+                        {Math.round(elevenLabsStability * 100)}%
+                        <span className="text-[10px] text-slate-400 ml-1">
+                          {elevenLabsStability < 0.4 ? '(감정 풍부)' : elevenLabsStability > 0.65 ? '(차분·일관)' : '(다큐 표준)'}
+                        </span>
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0.1}
+                      max={1.0}
+                      step={0.05}
+                      value={elevenLabsStability}
+                      onChange={(e) => setElevenLabsStability(parseFloat(e.target.value))}
+                      disabled={isRendering}
+                      className="w-full accent-violet-600 cursor-pointer"
+                    />
+                    <div className="flex justify-between text-[9px] text-slate-400 font-medium">
+                      <span>← 감정 기복 풍부 / 드라마틱</span>
+                      <span>차분하고 일관된 정통 뉴스톤 →</span>
+                    </div>
+                  </div>
+
+                  {/* 3-2. Similarity Boost (원음 명확도) */}
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-extrabold text-slate-800">2. Similarity Boost (원음 유사도 / 명확도)</span>
+                      <span className="font-black text-violet-700 bg-white px-2 py-0.5 rounded-md border border-violet-200">
+                        {Math.round(elevenLabsSimilarity * 100)}%
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0.3}
+                      max={1.0}
+                      step={0.05}
+                      value={elevenLabsSimilarity}
+                      onChange={(e) => setElevenLabsSimilarity(parseFloat(e.target.value))}
+                      disabled={isRendering}
+                      className="w-full accent-violet-600 cursor-pointer"
+                    />
+                    <p className="text-[9px] text-slate-500 font-medium">
+                      선택한 성우 고유의 오리지널 음색 특징을 얼마나 명확하고 선명하게 유지할지 조절합니다. (권장: 70~80%)
+                    </p>
+                  </div>
+
+                  {/* 3-3. Style Exaggeration (스타일 과장도) */}
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-extrabold text-slate-800">3. Style Exaggeration (스타일 과장도 / 서사 몰입감)</span>
+                      <span className="font-black text-violet-700 bg-white px-2 py-0.5 rounded-md border border-violet-200">
+                        {Math.round(elevenLabsStyle * 100)}%
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0.0}
+                      max={0.8}
+                      step={0.05}
+                      value={elevenLabsStyle}
+                      onChange={(e) => setElevenLabsStyle(parseFloat(e.target.value))}
+                      disabled={isRendering}
+                      className="w-full accent-violet-600 cursor-pointer"
+                    />
+                    <p className="text-[9px] text-slate-500 font-medium">
+                      성우의 발화 스타일과 감정 과장도를 높여 다큐멘터리 쇼츠의 극적 긴장감을 증폭합니다. (권장: 10~25%)
+                    </p>
+                  </div>
+
+                  {/* 3-4. Speaker Boost Switch */}
+                  <div className="pt-2 border-t border-violet-200 flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-extrabold text-slate-800 block">4. Speaker Boost (스피커 선명도 강화)</span>
+                      <span className="text-[10px] text-slate-500">배경음(BGM) 속에서도 성우 목소리의 윤곽을 선명하게 부각시킵니다.</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setElevenLabsSpeakerBoost(!elevenLabsSpeakerBoost)}
+                      disabled={isRendering}
+                      className={`px-3 py-1 rounded-full text-xs font-black transition border ${
+                        elevenLabsSpeakerBoost
+                          ? 'bg-violet-600 text-white border-violet-700 shadow-xs'
+                          : 'bg-white text-slate-400 border-slate-300'
+                      }`}
+                    >
+                      {elevenLabsSpeakerBoost ? 'ON (선명화 적용)' : 'OFF'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* 4. Voice Speed Multiplier Controller */}
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-black text-slate-800 flex items-center gap-1.5">
@@ -3124,13 +3435,13 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                       <span>성우 목소리 스피드 배속 조절 & 실시간 미리듣기</span>
                     </label>
                     <span className="text-xs font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200">
-                      {voiceSpeedMultiplier.toFixed(1)}x {voiceSpeedMultiplier === 1.1 && '(쇼츠 추천)'}
+                      {voiceSpeedMultiplier.toFixed(2)}x {voiceSpeedMultiplier >= 1.05 && voiceSpeedMultiplier <= 1.15 && '(다큐 쇼츠 추천)'}
                     </span>
                   </div>
 
                   {/* Quick Select Buttons */}
                   <div className="grid grid-cols-6 gap-1 text-xs">
-                    {SPEED_PRESETS.map((spd) => (
+                    {[0.9, 0.95, 1.0, 1.05, 1.1, 1.2].map((spd) => (
                       <button
                         key={spd}
                         type="button"
@@ -3151,7 +3462,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                   <input
                     type="range"
                     min={0.8}
-                    max={1.5}
+                    max={1.4}
                     step={0.05}
                     value={voiceSpeedMultiplier}
                     onChange={(e) => handleSpeedChange(parseFloat(e.target.value))}
@@ -3162,8 +3473,8 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                   {/* Dedicated Real-time Speed Preview Test Button */}
                   <div className="pt-2 mt-1 border-t border-slate-200/80 flex items-center justify-between">
                     <div className="text-[11px] font-bold text-slate-600 flex items-center gap-1.5">
-                      <Volume2 className={`w-3.5 h-3.5 ${isPlayingVoiceSample ? 'text-amber-500 animate-pulse' : 'text-slate-400'}`} />
-                      <span>{selectedVoice.name} 성우 ({voiceSpeedMultiplier.toFixed(1)}x 배속 적용)</span>
+                      <Volume2 className={`w-3.5 h-3.5 ${isPlayingVoiceSample ? 'text-violet-600 animate-pulse' : 'text-slate-400'}`} />
+                      <span>{selectedVoice.name} ({elevenLabsModel} • {voiceSpeedMultiplier.toFixed(2)}x)</span>
                     </div>
 
                     <button
@@ -3173,7 +3484,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                       className={`px-3 py-1.5 rounded-xl font-black text-xs flex items-center space-x-1.5 transition shadow-xs cursor-pointer ${
                         isPlayingVoiceSample
                           ? 'bg-rose-500 hover:bg-rose-600 text-white ring-2 ring-rose-300'
-                          : 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-black'
+                          : 'bg-violet-600 hover:bg-violet-700 text-white'
                       }`}
                     >
                       {isPlayingVoiceSample ? (
@@ -3184,18 +3495,19 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                       ) : (
                         <>
                           <Play className="w-3.5 h-3.5 fill-current" />
-                          <span>{voiceSpeedMultiplier.toFixed(1)}x 배속 미리듣기</span>
+                          <span>일레븐랩스 목소리 미리듣기</span>
                         </>
                       )}
                     </button>
                   </div>
 
                   <p className="text-[11px] text-slate-500 font-medium">
-                    슬라이더나 배속 버튼을 누르면 즉시 해당 배속으로 샘플 음성이 조정되어 실시간으로 들어보실 수 있습니다.
+                    일레븐랩스 API를 통해 렌더링 및 미리듣기 시 설정된 모델({elevenLabsModel}), 안정성({Math.round(elevenLabsStability * 100)}%), 유사도({Math.round(elevenLabsSimilarity * 100)}%)가 실시간으로 반영됩니다.
                   </p>
                 </div>
               </div>
             )}
+
 
             {/* SECTION 3: Output & Resolution */}
             {activeSettingsSection === 'output' && (

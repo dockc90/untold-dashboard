@@ -1,9 +1,8 @@
 import { VoiceOption } from '../types';
 
 /**
- * High-fidelity voice preview player
- * Guarantees 100% distinct, realistic pitch, tempo, and acoustic character for each of the 15 Instagram Reels voice actors.
- * Priority 1: Web Audio API with real-time DSP pitch shift (playbackRate: 0.68 ~ 1.55) & BiquadFilter formant EQ.
+ * High-fidelity voice preview player with ElevenLabs v4
+ * Real-time synthesis and playback with ElevenLabs REST API
  * Memory Cache: In-memory AudioBuffer cache for zero-latency instant switching between voices.
  */
 
@@ -31,12 +30,20 @@ export const stopAllVoicePreviews = () => {
   }
 };
 
+export interface VoicePreviewOptions {
+  speedMultiplier?: number;
+  modelId?: string;
+  stability?: number;
+  similarityBoost?: number;
+  style?: number;
+  useSpeakerBoost?: boolean;
+}
+
 export const playDistinctVoicePreview = async (
   voice: VoiceOption,
-  speedMultiplier: number = 1.0,
+  optionsOrSpeed: number | VoicePreviewOptions = 1.0,
   onEnd?: () => void
 ): Promise<() => void> => {
-  // 1. Instantly stop any previous preview
   stopAllVoicePreviews();
 
   let isCancelled = false;
@@ -62,7 +69,19 @@ export const playDistinctVoicePreview = async (
   const stopFn = cleanup;
   activeStopCallback = stopFn;
 
-  // Priority 1: High-Fidelity Web Audio API with DSP Pitch Shift & Formant Sculpting
+  const options: VoicePreviewOptions =
+    typeof optionsOrSpeed === 'number'
+      ? { speedMultiplier: optionsOrSpeed }
+      : (optionsOrSpeed || {});
+
+  const speedMultiplier = options.speedMultiplier || 1.0;
+  const modelId = options.modelId || 'eleven_v4';
+  const stability = options.stability ?? 0.5;
+  const similarityBoost = options.similarityBoost ?? 0.75;
+  const style = options.style ?? 0.15;
+  const useSpeakerBoost = options.useSpeakerBoost !== false;
+
+  // Priority 1: High-Fidelity Web Audio API with ElevenLabs
   try {
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
     if (AudioContextClass) {
@@ -74,12 +93,21 @@ export const playDistinctVoicePreview = async (
       }
 
       const text = voice.sampleNarration.trim();
-      const cacheKey = `${voice.id}_${text}`;
+      const cacheKey = `${voice.id}_${modelId}_${stability}_${similarityBoost}_${style}_${text}`;
       let audioBuffer = audioBufferCache.get(cacheKey);
 
       if (!audioBuffer) {
-        const refParam = voice.referenceId ? `&reference_id=${encodeURIComponent(voice.referenceId)}` : "";
-        const res = await fetch(`/api/tts?text=${encodeURIComponent(text)}&voice_id=${encodeURIComponent(voice.id)}${refParam}`);
+        const query = new URLSearchParams({
+          text,
+          voice_id: voice.id,
+          model_id: modelId,
+          stability: stability.toString(),
+          similarity_boost: similarityBoost.toString(),
+          style: style.toString(),
+          use_speaker_boost: useSpeakerBoost ? 'true' : 'false',
+        });
+
+        const res = await fetch(`/api/tts?${query.toString()}`);
         if (!res.ok || isCancelled) {
           throw new Error('TTS fetch failed');
         }
@@ -96,89 +124,74 @@ export const playDistinctVoicePreview = async (
 
       const source = activeAudioContext.createBufferSource();
       source.buffer = audioBuffer;
+      source.playbackRate.value = Math.max(0.7, Math.min(1.5, speedMultiplier));
 
-      // Mathematical Pitch Shift via playbackRate (0.68 ~ 1.55)
-      // This shifts the fundamental frequency (F0) directly, guaranteeing distinct acoustic identity
-      const effectivePitch = voice.pitch || 1.0;
-      const effectiveRate = (voice.rate || 1.0) * (speedMultiplier || 1.0);
-      source.playbackRate.value = Math.max(0.60, Math.min(1.70, effectivePitch * effectiveRate));
-
-      // Dual-stage Formant Filter EQ: Sculpt natural vocal tract resonances
-      const lowFilter = activeAudioContext.createBiquadFilter();
-      const highFilter = activeAudioContext.createBiquadFilter();
-
+      // Presence filter
+      const filter = activeAudioContext.createBiquadFilter();
       if (voice.gender === 'male') {
-        // Deep masculine resonance: Boost chest resonance around 220Hz, warm low-end
-        lowFilter.type = 'lowshelf';
-        lowFilter.frequency.value = 240;
-        lowFilter.gain.value = 6.5;
-
-        highFilter.type = 'highshelf';
-        highFilter.frequency.value = 4500;
-        highFilter.gain.value = -3.0; // Round off harsh sibilance
+        filter.type = 'lowshelf';
+        filter.frequency.value = 240;
+        filter.gain.value = 3.5;
       } else {
-        // Bright feminine presence: Clean low rumble, sparkling presence at 3200Hz
-        lowFilter.type = 'highpass';
-        lowFilter.frequency.value = 160;
-
-        highFilter.type = 'highshelf';
-        highFilter.frequency.value = 3200;
-        highFilter.gain.value = 5.5; // Crisp treble brilliance
+        filter.type = 'highshelf';
+        filter.frequency.value = 3200;
+        filter.gain.value = 3.0;
       }
 
       const gainNode = activeAudioContext.createGain();
       gainNode.gain.setValueAtTime(0.95, activeAudioContext.currentTime);
 
-      source.connect(lowFilter);
-      lowFilter.connect(highFilter);
-      highFilter.connect(gainNode);
+      source.connect(filter);
+      filter.connect(gainNode);
       gainNode.connect(activeAudioContext.destination);
 
       activeSourceNode = source;
 
       source.onended = () => {
-        if (!isCancelled) {
+        if (activeSourceNode === source) {
           activeSourceNode = null;
-          activeStopCallback = null;
-          onEnd?.();
         }
+        if (activeStopCallback === stopFn) {
+          activeStopCallback = null;
+        }
+        onEnd?.();
       };
 
-      source.start(0);
+      source.start();
       return stopFn;
     }
-  } catch (webAudioErr) {
-    console.warn('Web Audio TTS error, falling back to Web Speech API:', webAudioErr);
+  } catch (err) {
+    console.warn('Web Audio ElevenLabs preview failed, using speech synthesis fallback:', err);
   }
 
-  // Priority 2: Fallback to Web Speech API (if offline or Web Audio unavailable)
+  // Fallback: Browser Web Speech API
   if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
     try {
       window.speechSynthesis.cancel();
-
       const utterance = new SpeechSynthesisUtterance(voice.sampleNarration);
+      utterance.rate = Math.max(0.7, Math.min(1.5, speedMultiplier));
+      utterance.pitch = 1.0;
       utterance.lang = 'ko-KR';
-      utterance.pitch = Math.max(0.5, Math.min(2.0, voice.pitch));
-      utterance.rate = Math.max(0.7, Math.min(1.8, (voice.rate || 1.0) * speedMultiplier));
 
       utterance.onend = () => {
-        if (!isCancelled) {
+        if (activeStopCallback === stopFn) {
           activeStopCallback = null;
-          onEnd?.();
         }
+        onEnd?.();
       };
 
       utterance.onerror = () => {
-        if (!isCancelled) {
+        if (activeStopCallback === stopFn) {
           activeStopCallback = null;
-          onEnd?.();
         }
+        onEnd?.();
       };
 
       window.speechSynthesis.speak(utterance);
       return stopFn;
     } catch (e) {
       onEnd?.();
+      return () => {};
     }
   }
 

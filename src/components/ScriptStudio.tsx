@@ -77,7 +77,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
   const [targetPersona, setTargetPersona] = useState<TargetPersona>('4060_emotional');
   const [videoTone, setVideoTone] = useState<VideoMoodTone>('Cinematic');
   const [duration, setDuration] = useState<45 | 60>(60);
-  const [selectedVoiceId, setSelectedVoiceId] = useState<string>('voice-1');
+  const [selectedVoiceId, setSelectedVoiceId] = useState<string>('JBFqnCBsd6RMkjVDRZzb');
   const [activeTab, setActiveTab] = useState<'scenes' | 'script' | 'metadata' | 'copyright'>('scenes');
   const [selectedHookIndex, setSelectedHookIndex] = useState(0);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -440,7 +440,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
           <div className="flex flex-wrap items-center gap-2">
             {/* Voice Selector */}
             <div className="flex items-center space-x-1 bg-white border border-slate-200 rounded-xl px-2 py-1 shadow-2xs">
-              <span className="text-[11px] font-extrabold text-indigo-700 mr-0.5">🎙️ Fish Audio 성우 (15인)</span>
+              <span className="text-[11px] font-extrabold text-indigo-700 mr-0.5">🎙️ ElevenLabs 성우 (eleven_v4)</span>
               <select
                 value={selectedVoiceId}
                 onChange={(e) => setSelectedVoiceId(e.target.value)}

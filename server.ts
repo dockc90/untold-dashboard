@@ -1066,56 +1066,86 @@ app.post('/api/gemini/generate-viral-assets', async (req, res) => {
   }
 });
 
-// Endpoint: Fish Audio S2.1-Pro Korean TTS streamer for video rendering & voice preview
-app.get('/api/tts', async (req, res) => {
+// Voice ID aliases for backwards compatibility
+const VOICE_ALIAS_MAP: Record<string, string> = {
+  'voice-1': 'JBFqnCBsd6RMkjVDRZzb', // George (Default Warm Storyteller)
+  'voice-2': 'TX3LPaxmHKxFdv7VOQHJ', // Liam (Fast-paced Social Media)
+  'voice-3': 'cgSgspJ2msm6clMCkdW9', // Jessica (Warm & Playful)
+  'voice-4': 'CwhRBWXzGAHq8TQ4Fs17', // Roger (Casual)
+  'voice-5': 'Xb7hH8MSUJpSbSDYk0k2', // Alice (Educator)
+  'voice-6': 'pNInz6obpgDQGcFmaJgB', // Adam (Dominant / Cinematic)
+  'voice-7': 'hpp4J3VqNfWAUOO0d1Us', // Bella (Professional)
+  'voice-8': 'cjVigY5qzO86Huf0OWal', // Eric (Smooth / Business)
+  'voice-9': 'pFZP5JQG7iQjIQuC4Bku', // Lily (Velvety Actress)
+  'voice-10': 'N2lVS1w4EtoT3dr4eOWO', // Callum (Husky / Mystery)
+  'voice-11': 'FGY2WhTYpPnrIDTdsKH5', // Laura (Enthusiast)
+  'voice-12': 'IKne3meq5aSn9XLyUdCD', // Charlie (Confident / Sports)
+  'voice-13': 'nPczCjzI2devNBz1zQrb', // Brian (Deep / Documentary)
+  'voice-14': 'EXAVITQu4vr4xnSDxMaL', // Sarah (Mature / Reassuring)
+  'voice-15': 'onwK4e9ZLuTAKqWW03F9', // Daniel (Steady Broadcaster)
+};
+
+function resolveVoiceId(rawId: string | null | undefined): string {
+  if (!rawId) return 'JBFqnCBsd6RMkjVDRZzb'; // Default George
+  return VOICE_ALIAS_MAP[rawId] || rawId;
+}
+
+// Endpoint: ElevenLabs v4 High-Quality Korean TTS streamer for video rendering & voice preview
+app.all('/api/tts', async (req, res) => {
   try {
-    const rawText = (req.query.text as string) || '';
-    const cleanText = rawText.trim().slice(0, 500);
-    const referenceId = (req.query.reference_id as string) || (req.query.voice_id as string) || '';
+    const rawText = (req.method === 'POST' ? req.body?.text : req.query.text) || '';
+    const cleanText = (rawText as string).trim().slice(0, 1000);
+    const rawVoiceId = (req.method === 'POST' ? (req.body?.voice_id || req.body?.reference_id) : (req.query.voice_id || req.query.reference_id)) as string;
+    const voiceId = resolveVoiceId(rawVoiceId);
+    const modelId = ((req.method === 'POST' ? req.body?.model_id : req.query.model_id) as string) || 'eleven_v4'; // 'eleven_v4' as default!
+    const stability = parseFloat((req.method === 'POST' ? req.body?.stability : req.query.stability) ?? 0.5);
+    const similarityBoost = parseFloat((req.method === 'POST' ? req.body?.similarity_boost : req.query.similarity_boost) ?? 0.75);
+    const style = parseFloat((req.method === 'POST' ? req.body?.style : req.query.style) ?? 0.15);
+    const useSpeakerBoost = (req.method === 'POST' ? req.body?.use_speaker_boost : req.query.use_speaker_boost) !== false && (req.method === 'POST' ? req.body?.use_speaker_boost : req.query.use_speaker_boost) !== 'false';
 
     if (!cleanText) {
       return res.status(400).json({ error: 'Text is required' });
     }
 
-    // 1. Fish Audio S2.1-Pro REST API integration
-    const fishApiKey = process.env.FISH_AUDIO_API_KEY || (req.headers['x-fish-audio-key'] as string);
-    if (fishApiKey) {
+    // 1. ElevenLabs API (Priority 1 with eleven_v4 default)
+    const elevenApiKey = process.env.ELEVENLABS_API_KEY || (req.headers['xi-api-key'] as string);
+    if (elevenApiKey) {
       try {
-        const payload: Record<string, any> = {
-          text: cleanText,
-          format: 'mp3',
-          mp3_bitrate: 128,
-          normalize_loudness: true,
-        };
-        if (referenceId) {
-          payload.reference_id = referenceId;
-        }
-
-        const fishRes = await fetch('https://api.fish.audio/v1/tts', {
+        const elevenUrl = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`;
+        const elevenRes = await fetch(elevenUrl, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${fishApiKey}`,
+            'xi-api-key': elevenApiKey,
             'Content-Type': 'application/json',
-            'model': 's2.1-pro',
           },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({
+            text: cleanText,
+            model_id: modelId,
+            voice_settings: {
+              stability: isNaN(stability) ? 0.5 : stability,
+              similarity_boost: isNaN(similarityBoost) ? 0.75 : similarityBoost,
+              style: isNaN(style) ? 0.15 : style,
+              use_speaker_boost: useSpeakerBoost,
+            },
+          }),
         });
 
-        if (fishRes.ok) {
-          const arrayBuffer = await fishRes.arrayBuffer();
+        if (elevenRes.ok) {
+          const arrayBuffer = await elevenRes.arrayBuffer();
           const buffer = Buffer.from(arrayBuffer);
           res.set({
             'Content-Type': 'audio/mpeg',
             'Content-Length': buffer.length.toString(),
             'Cache-Control': 'public, max-age=86400',
-            'X-TTS-Engine': 'Fish-Audio-S2.1-Pro',
+            'X-TTS-Engine': `ElevenLabs-${modelId}`,
           });
           return res.end(buffer);
         } else {
-          console.warn('Fish Audio API returned status:', fishRes.status);
+          const errBody = await elevenRes.text();
+          console.warn('ElevenLabs API failed, using fallback:', elevenRes.status, errBody);
         }
-      } catch (fishErr: any) {
-        console.warn('Fish Audio API failed, using fallback:', fishErr.message);
+      } catch (elevenErr: any) {
+        console.warn('ElevenLabs API error, using fallback:', elevenErr.message);
       }
     }
 
