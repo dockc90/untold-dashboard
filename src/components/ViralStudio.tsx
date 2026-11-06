@@ -298,7 +298,7 @@ export const ViralStudio: React.FC<ViralStudioProps> = ({
   const currentThumb = assets?.thumbnails[selectedThumbIndex];
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8 animate-fade-in text-slate-800">
+    <div className="w-full min-w-0 max-w-full py-2 sm:py-6 space-y-5 sm:space-y-8 animate-fade-in text-slate-800">
       {/* Hidden File Input for Upload */}
       <input
         ref={thumbFileInputRef}
@@ -354,23 +354,23 @@ export const ViralStudio: React.FC<ViralStudioProps> = ({
       )}
 
       {/* Top Banner & Controller */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl sm:rounded-3xl p-5 sm:p-8 text-white shadow-2xl relative overflow-hidden border border-indigo-500/20">
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl sm:rounded-3xl p-4 sm:p-8 text-white shadow-2xl relative overflow-hidden border border-indigo-500/20 w-full min-w-0 max-w-full">
         <div className="absolute top-0 right-0 -mt-12 -mr-12 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-1/3 -mb-12 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 sm:gap-6">
-          <div className="space-y-2">
+          <div className="space-y-2 min-w-0 flex-1">
             <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold">
               <Sparkles className="w-3.5 h-3.5 text-amber-400" />
               <span>유튜브 썸네일 • 3대 플랫폼 바이럴 카피라이터</span>
             </div>
-            <h1 className="text-xl sm:text-3xl font-black tracking-tight text-white flex flex-wrap items-center gap-2 sm:gap-3">
-              <span>🎯 썸네일 & 바이럴 카피 스튜디오</span>
-              <span className="text-xs px-2.5 py-1 rounded-lg bg-indigo-500/40 text-indigo-200 border border-indigo-400/30 font-semibold">
+            <h1 className="text-lg sm:text-2xl lg:text-3xl font-black tracking-tight text-white flex flex-wrap items-center gap-2 break-words">
+              <span className="break-keep">🎯 썸네일 & 바이럴 카피 스튜디오</span>
+              <span className="text-[11px] sm:text-xs px-2.5 py-0.5 sm:py-1 rounded-lg bg-indigo-500/40 text-indigo-200 border border-indigo-400/30 font-semibold shrink-0">
                 CTR 15%+ 극대화 & 스마트 포스팅
               </span>
             </h1>
-            <p className="text-xs sm:text-sm text-slate-300 max-w-2xl">
+            <p className="text-xs sm:text-sm text-slate-300 max-w-2xl break-words leading-relaxed">
               0.5초 만에 클릭을 부르는 <strong>고화질 떡상 썸네일(16:9 / 9:16)</strong> 제작부터 인스타그램·유튜브·네이버 블로그 최적화 본문 카피와 해시태그를 원클릭으로 추출합니다.
             </p>
           </div>
@@ -450,45 +450,47 @@ export const ViralStudio: React.FC<ViralStudioProps> = ({
       </div>
 
       {/* Main 3 Feature Tabs */}
-      <div className="flex items-center space-x-2 border-b border-slate-200 pb-2 overflow-x-auto scrollbar-none whitespace-nowrap">
-        <button
-          onClick={() => setActiveTab('thumbnail')}
-          className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl font-bold text-xs sm:text-sm transition cursor-pointer shrink-0 whitespace-nowrap ${
-            activeTab === 'thumbnail'
-              ? 'bg-amber-600 text-white shadow-md shadow-amber-500/20'
-              : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <ImageIcon className="w-4 h-4" />
-          <span>1. 떡상 썸네일 제작기 (인물 사진 & CTR 15%+)</span>
-        </button>
+      <div className="w-full min-w-0 max-w-full overflow-x-auto scrollbar-none pb-2 border-b border-slate-200 touch-pan-x overscroll-x-contain">
+        <div className="flex items-center space-x-2 w-max min-w-full px-0.5">
+          <button
+            onClick={() => setActiveTab('thumbnail')}
+            className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl font-bold text-xs sm:text-sm transition cursor-pointer shrink-0 whitespace-nowrap ${
+              activeTab === 'thumbnail'
+                ? 'bg-amber-600 text-white shadow-md shadow-amber-500/20'
+                : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <ImageIcon className="w-4 h-4" />
+            <span>1. 떡상 썸네일 제작기 (인물 사진 & CTR 15%+)</span>
+          </button>
 
-        <button
-          onClick={() => setActiveTab('posts')}
-          className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl font-bold text-xs sm:text-sm transition cursor-pointer shrink-0 whitespace-nowrap ${
-            activeTab === 'posts'
-              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-              : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <FileText className="w-4 h-4" />
-          <span>2. 3대 플랫폼 바이럴 카피라이터 (2026 알고리즘 최적화)</span>
-        </button>
+          <button
+            onClick={() => setActiveTab('posts')}
+            className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl font-bold text-xs sm:text-sm transition cursor-pointer shrink-0 whitespace-nowrap ${
+              activeTab === 'posts'
+                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            <span>2. 3대 플랫폼 바이럴 카피라이터 (2026 알고리즘 최적화)</span>
+          </button>
 
-        <button
-          onClick={() => setActiveTab('triggers')}
-          className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl font-bold text-xs sm:text-sm transition cursor-pointer shrink-0 whitespace-nowrap ${
-            activeTab === 'triggers'
-              ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md shadow-indigo-500/20'
-              : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <Zap className="w-4 h-4 text-amber-300" />
-          <span>3. 🚀 알고리즘 치트키 (공유·저장 & 댓글 폭발)</span>
-          <span className="text-[10px] font-black px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-950">
-            2026 트렌드
-          </span>
-        </button>
+          <button
+            onClick={() => setActiveTab('triggers')}
+            className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl font-bold text-xs sm:text-sm transition cursor-pointer shrink-0 whitespace-nowrap ${
+              activeTab === 'triggers'
+                ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <Zap className="w-4 h-4 text-amber-300" />
+            <span>3. 🚀 알고리즘 치트키 (공유·저장 & 댓글 폭발)</span>
+            <span className="text-[10px] font-black px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-950">
+              2026 트렌드
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* ------------------------------------------------------------- */}
@@ -537,7 +539,7 @@ export const ViralStudio: React.FC<ViralStudioProps> = ({
                 )}
               </div>
 
-              <div className="flex items-center space-x-1.5">
+              <div className="flex flex-wrap items-center gap-1.5">
                 <button
                   onClick={() => thumbFileInputRef.current?.click()}
                   className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold flex items-center gap-1 shadow-xs cursor-pointer"
@@ -704,42 +706,44 @@ export const ViralStudio: React.FC<ViralStudioProps> = ({
       {activeTab === 'posts' && assets && (
         <div className="bg-white rounded-3xl p-5 sm:p-8 border border-slate-200 shadow-xl space-y-6">
           {/* Platform Selector Buttons */}
-          <div className="flex items-center space-x-2 border-b border-slate-200 pb-4 overflow-x-auto scrollbar-none whitespace-nowrap">
-            <button
-              onClick={() => setPostPlatform('instagram')}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer shrink-0 whitespace-nowrap ${
-                postPlatform === 'instagram'
-                  ? 'bg-rose-50 text-rose-700 border-2 border-rose-500 shadow-xs'
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <Instagram className="w-4 h-4 text-rose-600" />
-              <span>인스타그램 캡션 (피드/릴스)</span>
-            </button>
+          <div className="w-full min-w-0 max-w-full overflow-x-auto scrollbar-none pb-4 border-b border-slate-200 touch-pan-x overscroll-x-contain">
+            <div className="flex items-center space-x-2 w-max min-w-full px-0.5">
+              <button
+                onClick={() => setPostPlatform('instagram')}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer shrink-0 whitespace-nowrap ${
+                  postPlatform === 'instagram'
+                    ? 'bg-rose-50 text-rose-700 border-2 border-rose-500 shadow-xs'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <Instagram className="w-4 h-4 text-rose-600" />
+                <span>인스타그램 캡션 (피드/릴스)</span>
+              </button>
 
-            <button
-              onClick={() => setPostPlatform('youtube')}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer shrink-0 whitespace-nowrap ${
-                postPlatform === 'youtube'
-                  ? 'bg-red-50 text-red-700 border-2 border-red-500 shadow-xs'
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <Youtube className="w-4 h-4 text-red-600" />
-              <span>유튜브 (제목 후보 & 설명란)</span>
-            </button>
+              <button
+                onClick={() => setPostPlatform('youtube')}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer shrink-0 whitespace-nowrap ${
+                  postPlatform === 'youtube'
+                    ? 'bg-red-50 text-red-700 border-2 border-red-500 shadow-xs'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <Youtube className="w-4 h-4 text-red-600" />
+                <span>유튜브 (제목 후보 & 설명란)</span>
+              </button>
 
-            <button
-              onClick={() => setPostPlatform('naver')}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer shrink-0 whitespace-nowrap ${
-                postPlatform === 'naver'
-                  ? 'bg-emerald-50 text-emerald-700 border-2 border-emerald-500 shadow-xs'
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <FileText className="w-4 h-4 text-emerald-600" />
-              <span>네이버 블로그 (스마트에디터 상위노출)</span>
-            </button>
+              <button
+                onClick={() => setPostPlatform('naver')}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer shrink-0 whitespace-nowrap ${
+                  postPlatform === 'naver'
+                    ? 'bg-emerald-50 text-emerald-700 border-2 border-emerald-500 shadow-xs'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <FileText className="w-4 h-4 text-emerald-600" />
+                <span>네이버 블로그 (스마트에디터 상위노출)</span>
+              </button>
+            </div>
           </div>
 
           {/* Sub-view: Instagram Post (2026 Algorithm Optimized) */}

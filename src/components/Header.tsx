@@ -149,7 +149,8 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab, saved
         </div>
 
         {/* Mobile Horizontal Scrollable Tab Bar (Only visible on mobile < md) */}
-        <div className="flex md:hidden items-center space-x-1.5 overflow-x-auto scrollbar-none py-2 border-t border-slate-100 whitespace-nowrap">
+        <div className="md:hidden w-full min-w-0 max-w-full overflow-x-auto scrollbar-none py-2 border-t border-slate-100 touch-pan-x overscroll-x-contain">
+          <div className="flex items-center space-x-1.5 w-max min-w-full px-0.5">
           <button
             onClick={() => setCurrentTab('studio')}
             className={`flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition cursor-pointer ${
@@ -221,6 +222,7 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab, saved
             <FolderHeart className="w-3.5 h-3.5 text-rose-400" />
             <span>보관함 ({savedCount})</span>
           </button>
+          </div>
         </div>
       </div>
     </header>

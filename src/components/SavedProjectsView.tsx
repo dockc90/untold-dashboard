@@ -23,7 +23,7 @@ export const SavedProjectsView: React.FC<SavedProjectsViewProps> = ({
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 text-slate-800">
+    <div className="w-full min-w-0 max-w-full space-y-6 text-slate-800">
       <div className="flex items-center justify-between border-b border-slate-200 pb-4">
         <div className="flex items-center space-x-3">
           <div className="p-3 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-200">

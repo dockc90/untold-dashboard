@@ -195,7 +195,7 @@ export const DailyRoutineChecklist: React.FC = () => {
   const progressPercent = Math.round((completedCount / (tasks.length || 1)) * 100);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 animate-fadeIn pb-12">
+    <div className="w-full min-w-0 max-w-full space-y-6 animate-fadeIn pb-12">
       {/* Top Banner: 작심삼일 타파 & 스트릭 카운터 */}
       <div className="rounded-3xl bg-gradient-to-r from-rose-500 via-indigo-600 to-indigo-800 p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
         <div className="absolute right-0 top-0 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />

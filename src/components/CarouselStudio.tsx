@@ -435,7 +435,7 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
   const subDetailLen = currentSlide?.subDetail ? currentSlide.subDetail.replace(/\s+/g, '').length : 0;
 
   return (
-    <div className="space-y-6 w-full max-w-7xl mx-auto pb-12">
+    <div className="space-y-6 w-full min-w-0 max-w-full pb-12">
       {/* Top Navigation & Status Bar */}
       <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center space-x-3">

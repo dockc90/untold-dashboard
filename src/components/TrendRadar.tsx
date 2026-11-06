@@ -296,20 +296,22 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
         </div>
 
         {/* Categories Bar */}
-        <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 scrollbar-none text-[11px]">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => setCategoryFilter(cat.id)}
-              className={`whitespace-nowrap px-3 py-1.5 rounded-xl transition font-bold border shrink-0 ${
-                categoryFilter === cat.id
-                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
-                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
-              }`}
-            >
-              {cat.label}
-            </button>
-          ))}
+        <div className="w-full min-w-0 max-w-full overflow-x-auto pb-1 scrollbar-none text-[11px] touch-pan-x overscroll-x-contain">
+          <div className="flex items-center space-x-1.5 w-max min-w-full px-0.5">
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setCategoryFilter(cat.id)}
+                className={`whitespace-nowrap px-3 py-1.5 rounded-xl transition font-bold border shrink-0 ${
+                  categoryFilter === cat.id
+                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

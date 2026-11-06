@@ -80,7 +80,7 @@ export const supabase = createClient(
   const [selectedNextFile, setSelectedNextFile] = useState<string>('package.json');
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 text-slate-800">
+    <div className="w-full min-w-0 max-w-full space-y-6 text-slate-800">
       {onBackToStudio && (
         <div>
           <button

@@ -39,7 +39,7 @@ export const CpoExecutiveView: React.FC = () => {
   const hoursSaved = Math.round((totalMonthlyVideos * (180 - 20)) / 60);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 pb-16 text-slate-800 animate-fadeIn">
+    <div className="w-full min-w-0 max-w-full space-y-8 pb-16 text-slate-800 animate-fadeIn">
       {/* Header Banner */}
       <div className="p-8 rounded-3xl bg-gradient-to-br from-indigo-50/80 via-white to-amber-50/50 border border-slate-200 shadow-sm relative overflow-hidden">
         <div className="absolute right-0 top-0 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
