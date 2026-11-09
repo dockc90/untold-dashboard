@@ -32,7 +32,12 @@ import {
   Check,
   Eye,
   Share2,
-  Zap
+  Zap,
+  Edit3,
+  ExternalLink,
+  AlignLeft,
+  AlignCenter,
+  AlignRight
 } from 'lucide-react';
 import { fixWebmBlob, patchWebmBinaryDurationAndCues } from '../utils/webmFixer';
 import { ShortsSafeZoneOverlay, PlatformGuideSelector, PlatformGuideType } from './ShortsSafeZoneOverlay';
@@ -922,18 +927,45 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   const wakeLockRef = useRef<any>(null);
   const [isWakeLockActive, setIsWakeLockActive] = useState<boolean>(false);
 
-  // 1-Second Thumbnail Extractor & CTR Hooking Title Mode
+  // 1-Second Thumbnail Extractor & CTR Hooking Title Mode (Carousel-Style Full Customizer)
+  const thumbnailFileInputRef = useRef<HTMLInputElement | null>(null);
   const [thumbnailSceneIndex, setThumbnailSceneIndex] = useState<number>(0);
+  const [customThumbnailImageUrl, setCustomThumbnailImageUrl] = useState<string | null>(null);
   const [isCtrTitleEnabled, setIsCtrTitleEnabled] = useState<boolean>(true);
   const [ctrTitleText, setCtrTitleText] = useState<string>(() => {
     const firstOverlay = project.customTextOverlays?.[0]?.text;
     if (firstOverlay && firstOverlay.trim()) return firstOverlay.trim();
     return project.figureName ? `${project.figureName}의 충격 실화` : '3초 만에 몰입되는 쇼츠 이야기';
   });
-  const [ctrTitleStyle, setCtrTitleStyle] = useState<'yt_yellow' | 'netflix_red' | 'neon_cyan' | 'black_capsule'>('yt_yellow');
+  const [thumbnailSubText, setThumbnailSubText] = useState<string>(() => {
+    const s0 = project.scenes?.[0]?.narration || project.scenes?.[0]?.text;
+    if (s0 && s0.trim()) return s0.trim().slice(0, 32);
+    return project.figureName ? `정비병 출신이 미슐랭 3스타가 된 기적` : '놀라운 반전 실화';
+  });
+  const [isThumbnailSubTextEnabled, setIsThumbnailSubTextEnabled] = useState<boolean>(true);
+  const [ctrTitleStyle, setCtrTitleStyle] = useState<'yt_yellow' | 'netflix_red' | 'neon_cyan' | 'black_capsule' | 'clean_white' | 'stroke_only'>('yt_yellow');
+  const [thumbnailFont, setThumbnailFont] = useState<string>('Pretendard');
+  const [thumbnailFontSize, setThumbnailFontSize] = useState<number>(84);
+  const [thumbnailTextColor, setThumbnailTextColor] = useState<string>('#FDE047');
+  const [thumbnailTextAlign, setThumbnailTextAlign] = useState<'left' | 'center' | 'right'>('center');
   const [ctrTitleYPercent, setCtrTitleYPercent] = useState<number>(24);
   const [thumbnailToast, setThumbnailToast] = useState<string | null>(null);
   const [isExtractingThumbnail, setIsExtractingThumbnail] = useState<boolean>(false);
+
+  const handleThumbnailFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result as string;
+      if (result) {
+        setCustomThumbnailImageUrl(result);
+        setThumbnailToast('📸 표지 사진이 업로드한 이미지로 변경되었습니다!');
+        setTimeout(() => setThumbnailToast(null), 3500);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Voice Favorites (찜) saved in localStorage
   const [favoriteVoiceIds, setFavoriteVoiceIds] = useState<string[]>(() => {
@@ -1196,7 +1228,9 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   const loadImage = (url: string): Promise<HTMLImageElement> => {
     return new Promise((resolve) => {
       const img = new Image();
-      img.crossOrigin = 'anonymous';
+      if (!url.startsWith('data:') && !url.startsWith('blob:')) {
+        img.crossOrigin = 'anonymous';
+      }
       img.onload = () => resolve(img);
       img.onerror = () => {
         // Fallback procedural canvas graphic when an external image fails
@@ -1822,9 +1856,14 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       if (!ctx) return;
 
       const activeScene = scenes[previewSceneIndex] || scenes[0];
-      const previewText = activeScene?.narration || `${project.figureName}의 충격적인 인생 역전 스토리`;
+      const previewText = activeScene?.narration || activeScene?.text || `${project.figureName}의 충격적인 실화`;
+      const isThumbnailTab = activeSettingsSection === 'thumbnail';
       const previewImgUrl =
+        (isThumbnailTab && customThumbnailImageUrl) ||
+        activeScene?.userCropUrl ||
         activeScene?.uploadedImageUrl ||
+        activeScene?.imageUrl ||
+        activeScene?.image ||
         getSceneFallbackImage(project.figureName, project.category, previewSceneIndex);
 
       try {
@@ -1853,8 +1892,20 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
           }
         }
 
-        if (activeSettingsSection === 'thumbnail' && isCtrTitleEnabled && ctrTitleText.trim()) {
-          drawCtrHookingTitle(ctx, ctrTitleText.trim(), width, height, ctrTitleYPercent, ctrTitleStyle);
+        if (isThumbnailTab && isCtrTitleEnabled && ctrTitleText.trim()) {
+          drawCtrHookingTitle(
+            ctx,
+            ctrTitleText.trim(),
+            isThumbnailSubTextEnabled ? thumbnailSubText : '',
+            width,
+            height,
+            ctrTitleYPercent,
+            ctrTitleStyle,
+            thumbnailFont,
+            thumbnailFontSize,
+            thumbnailTextAlign,
+            thumbnailTextColor
+          );
         } else {
           // Draw Channel Logo & Watermark
           renderChannelLogo(ctx, width, height, previewSceneIndex, logoImageRef.current);
@@ -1900,8 +1951,15 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     activeSettingsSection,
     isCtrTitleEnabled,
     ctrTitleText,
+    thumbnailSubText,
+    isThumbnailSubTextEnabled,
     ctrTitleStyle,
+    thumbnailFont,
+    thumbnailFontSize,
+    thumbnailTextColor,
+    thumbnailTextAlign,
     ctrTitleYPercent,
+    customThumbnailImageUrl,
   ]);
 
   if (!isOpen) return null;
@@ -2248,43 +2306,78 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     return result.length > 0 ? result : [text];
   };
 
-  // Helper: Draw high-impact "대문짝 CTR 후킹 타이틀"
+  // Helper: Draw high-impact "대문짝 CTR 후킹 타이틀 & 서브 설명" (Carousel-Style rich rendering)
   const drawCtrHookingTitle = (
     c: CanvasRenderingContext2D,
     title: string,
-    w: number,
-    h: number,
-    yPercent: number,
-    style: 'yt_yellow' | 'netflix_red' | 'neon_cyan' | 'black_capsule'
+    subText: string = '',
+    w: number = 1080,
+    h: number = 1920,
+    yPercent: number = 24,
+    style: 'yt_yellow' | 'netflix_red' | 'neon_cyan' | 'black_capsule' | 'clean_white' | 'stroke_only' = 'yt_yellow',
+    fontFamily: string = 'Pretendard',
+    fontSize: number = 84,
+    textAlign: 'left' | 'center' | 'right' = 'center',
+    textColor: string = '#FDE047'
   ) => {
     c.save();
     const centerY = (h * yPercent) / 100;
-    const maxWidth = w * 0.86;
+    const maxWidth = w * 0.88;
 
-    // Font setting: ultra-bold impactful headline font
-    const fontSize = 84;
-    c.font = `900 ${fontSize}px "Pretendard", "Black Han Sans", "GmarketSans", sans-serif`;
-    c.textAlign = 'center';
+    // Font setting: ultra-bold headline font
+    c.font = `900 ${fontSize}px "${fontFamily}", "Pretendard", -apple-system, sans-serif`;
     c.textBaseline = 'middle';
 
-    const lines = wrapTitleText(c, title, maxWidth);
-    const lineHeight = fontSize * 1.28;
-    const totalBlockHeight = lines.length * lineHeight;
-    const startY = centerY - totalBlockHeight / 2 + lineHeight / 2;
+    const mainLines = wrapTitleText(c, title, maxWidth);
+    const mainLineHeight = fontSize * 1.26;
+    const mainBlockHeight = mainLines.length * mainLineHeight;
+
+    // Subtitle calculations
+    const subFontSize = Math.max(28, Math.round(fontSize * 0.44));
+    let subLines: string[] = [];
+    let subLineHeight = subFontSize * 1.35;
+    let subBlockHeight = 0;
+    if (subText && subText.trim()) {
+      c.font = `700 ${subFontSize}px "${fontFamily}", "Pretendard", sans-serif`;
+      subLines = wrapTitleText(c, subText.trim(), maxWidth);
+      subBlockHeight = subLines.length * subLineHeight + 14;
+    }
+
+    const totalHeight = mainBlockHeight + subBlockHeight;
+    const startY = centerY - totalHeight / 2 + mainLineHeight / 2;
+
+    // Measure maximum line width
+    let maxLineWidth = 0;
+    c.font = `900 ${fontSize}px "${fontFamily}", "Pretendard", sans-serif`;
+    mainLines.forEach((l) => {
+      const lw = c.measureText(l).width;
+      if (lw > maxLineWidth) maxLineWidth = lw;
+    });
+    if (subLines.length > 0) {
+      c.font = `700 ${subFontSize}px "${fontFamily}", "Pretendard", sans-serif`;
+      subLines.forEach((l) => {
+        const lw = c.measureText(l).width;
+        if (lw > maxLineWidth) maxLineWidth = lw;
+      });
+    }
+
+    const paddingX = Math.max(38, fontSize * 0.48);
+    const paddingY = Math.max(24, fontSize * 0.32);
+    const boxW = Math.min(w * 0.94, maxLineWidth + paddingX * 2);
+    const boxH = totalHeight + paddingY * 2;
+    const boxX = (w - boxW) / 2;
+    const boxY = centerY - boxH / 2;
+
+    // Calculate horizontal text anchor
+    let textX = w / 2;
+    c.textAlign = textAlign;
+    if (textAlign === 'left') {
+      textX = boxX + paddingX;
+    } else if (textAlign === 'right') {
+      textX = boxX + boxW - paddingX;
+    }
 
     if (style === 'netflix_red') {
-      const paddingX = 46;
-      const paddingY = 28;
-      let maxW = 0;
-      lines.forEach(l => {
-        const lw = c.measureText(l).width;
-        if (lw > maxW) maxW = lw;
-      });
-      const boxW = Math.min(w * 0.92, maxW + paddingX * 2);
-      const boxH = totalBlockHeight + paddingY * 2;
-      const boxX = (w - boxW) / 2;
-      const boxY = centerY - boxH / 2;
-
       c.shadowColor = 'rgba(0,0,0,0.7)';
       c.shadowBlur = 30;
       c.shadowOffsetY = 10;
@@ -2293,25 +2386,25 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       c.roundRect(boxX, boxY, boxW, boxH, 24);
       c.fill();
 
+      // Main Text
       c.shadowColor = 'rgba(0,0,0,0.85)';
       c.shadowBlur = 8;
-      c.fillStyle = '#FFFFFF';
-      lines.forEach((line, idx) => {
-        c.fillText(line, w / 2, startY + idx * lineHeight);
+      c.fillStyle = textColor || '#FFFFFF';
+      c.font = `900 ${fontSize}px "${fontFamily}", "Pretendard", sans-serif`;
+      mainLines.forEach((line, idx) => {
+        c.fillText(line, textX, startY + idx * mainLineHeight);
       });
-    } else if (style === 'neon_cyan') {
-      const paddingX = 44;
-      const paddingY = 28;
-      let maxW = 0;
-      lines.forEach(l => {
-        const lw = c.measureText(l).width;
-        if (lw > maxW) maxW = lw;
-      });
-      const boxW = Math.min(w * 0.92, maxW + paddingX * 2);
-      const boxH = totalBlockHeight + paddingY * 2;
-      const boxX = (w - boxW) / 2;
-      const boxY = centerY - boxH / 2;
 
+      // Sub Text
+      if (subLines.length > 0) {
+        c.fillStyle = '#FFE4E6';
+        c.font = `700 ${subFontSize}px "${fontFamily}", "Pretendard", sans-serif`;
+        const subStartY = startY + mainBlockHeight + 10;
+        subLines.forEach((line, idx) => {
+          c.fillText(line, textX, subStartY + idx * subLineHeight);
+        });
+      }
+    } else if (style === 'neon_cyan') {
       c.shadowColor = 'rgba(6, 182, 212, 0.9)';
       c.shadowBlur = 35;
       c.fillStyle = 'rgba(10, 15, 29, 0.92)';
@@ -2325,23 +2418,21 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
       c.shadowColor = 'rgba(6, 182, 212, 0.8)';
       c.shadowBlur = 16;
-      c.fillStyle = '#E0F2FE';
-      lines.forEach((line, idx) => {
-        c.fillText(line, w / 2, startY + idx * lineHeight);
+      c.fillStyle = textColor || '#E0F2FE';
+      c.font = `900 ${fontSize}px "${fontFamily}", "Pretendard", sans-serif`;
+      mainLines.forEach((line, idx) => {
+        c.fillText(line, textX, startY + idx * mainLineHeight);
       });
-    } else if (style === 'black_capsule') {
-      const paddingX = 44;
-      const paddingY = 28;
-      let maxW = 0;
-      lines.forEach(l => {
-        const lw = c.measureText(l).width;
-        if (lw > maxW) maxW = lw;
-      });
-      const boxW = Math.min(w * 0.92, maxW + paddingX * 2);
-      const boxH = totalBlockHeight + paddingY * 2;
-      const boxX = (w - boxW) / 2;
-      const boxY = centerY - boxH / 2;
 
+      if (subLines.length > 0) {
+        c.fillStyle = '#A5F3FC';
+        c.font = `700 ${subFontSize}px "${fontFamily}", "Pretendard", sans-serif`;
+        const subStartY = startY + mainBlockHeight + 10;
+        subLines.forEach((line, idx) => {
+          c.fillText(line, textX, subStartY + idx * subLineHeight);
+        });
+      }
+    } else if (style === 'black_capsule') {
       c.shadowColor = 'rgba(0, 0, 0, 0.8)';
       c.shadowBlur = 30;
       c.fillStyle = 'rgba(15, 23, 42, 0.94)';
@@ -2355,36 +2446,120 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
       c.shadowColor = 'rgba(0, 0, 0, 0.9)';
       c.shadowBlur = 8;
-      c.fillStyle = '#FFFFFF';
-      lines.forEach((line, idx) => {
-        c.fillText(line, w / 2, startY + idx * lineHeight);
+      c.fillStyle = textColor || '#FFFFFF';
+      c.font = `900 ${fontSize}px "${fontFamily}", "Pretendard", sans-serif`;
+      mainLines.forEach((line, idx) => {
+        c.fillText(line, textX, startY + idx * mainLineHeight);
       });
+
+      if (subLines.length > 0) {
+        c.fillStyle = '#CBD5E1';
+        c.font = `700 ${subFontSize}px "${fontFamily}", "Pretendard", sans-serif`;
+        const subStartY = startY + mainBlockHeight + 10;
+        subLines.forEach((line, idx) => {
+          c.fillText(line, textX, subStartY + idx * subLineHeight);
+        });
+      }
+    } else if (style === 'clean_white') {
+      c.shadowColor = 'rgba(0, 0, 0, 0.4)';
+      c.shadowBlur = 24;
+      c.shadowOffsetY = 8;
+      c.fillStyle = 'rgba(255, 255, 255, 0.95)';
+      c.beginPath();
+      c.roundRect(boxX, boxY, boxW, boxH, 24);
+      c.fill();
+
+      c.strokeStyle = 'rgba(0, 0, 0, 0.08)';
+      c.lineWidth = 2;
+      c.stroke();
+
+      c.shadowColor = 'rgba(0, 0, 0, 0.15)';
+      c.shadowBlur = 2;
+      c.fillStyle = textColor === '#FDE047' ? '#0F172A' : textColor;
+      c.font = `900 ${fontSize}px "${fontFamily}", "Pretendard", sans-serif`;
+      mainLines.forEach((line, idx) => {
+        c.fillText(line, textX, startY + idx * mainLineHeight);
+      });
+
+      if (subLines.length > 0) {
+        c.fillStyle = '#475569';
+        c.font = `700 ${subFontSize}px "${fontFamily}", "Pretendard", sans-serif`;
+        const subStartY = startY + mainBlockHeight + 10;
+        subLines.forEach((line, idx) => {
+          c.fillText(line, textX, subStartY + idx * subLineHeight);
+        });
+      }
+    } else if (style === 'stroke_only') {
+      c.shadowColor = 'rgba(0, 0, 0, 0.95)';
+      c.shadowBlur = 24;
+      c.shadowOffsetY = 8;
+
+      c.font = `900 ${fontSize}px "${fontFamily}", "Pretendard", sans-serif`;
+      mainLines.forEach((line, idx) => {
+        const lineY = startY + idx * mainLineHeight;
+        c.strokeStyle = '#000000';
+        c.lineWidth = Math.max(14, fontSize * 0.22);
+        c.lineJoin = 'round';
+        c.miterLimit = 2;
+        c.strokeText(line, textX, lineY);
+
+        c.fillStyle = textColor || '#FFFFFF';
+        c.fillText(line, textX, lineY);
+      });
+
+      if (subLines.length > 0) {
+        c.font = `700 ${subFontSize}px "${fontFamily}", "Pretendard", sans-serif`;
+        const subStartY = startY + mainBlockHeight + 10;
+        subLines.forEach((line, idx) => {
+          const lineY = subStartY + idx * subLineHeight;
+          c.strokeStyle = '#000000';
+          c.lineWidth = 8;
+          c.lineJoin = 'round';
+          c.strokeText(line, textX, lineY);
+          c.fillStyle = '#FFFFFF';
+          c.fillText(line, textX, lineY);
+        });
+      }
     } else {
       // 'yt_yellow' (YouTube #1 CTR Impact)
-      c.shadowColor = 'rgba(0, 0, 0, 0.95)';
+      c.shadowColor = 'rgba(0, 0, 0, 0.98)';
       c.shadowBlur = 24;
       c.shadowOffsetY = 10;
 
-      lines.forEach((line, idx) => {
-        const lineY = startY + idx * lineHeight;
-        // Stroke
+      c.font = `900 ${fontSize}px "${fontFamily}", "Pretendard", sans-serif`;
+      mainLines.forEach((line, idx) => {
+        const lineY = startY + idx * mainLineHeight;
         c.strokeStyle = '#000000';
-        c.lineWidth = 20;
+        c.lineWidth = Math.max(14, fontSize * 0.22);
         c.lineJoin = 'round';
         c.miterLimit = 2;
-        c.strokeText(line, w / 2, lineY);
+        c.strokeText(line, textX, lineY);
 
-        // Fill
-        c.fillStyle = '#FDE047';
-        c.fillText(line, w / 2, lineY);
+        c.fillStyle = textColor || '#FDE047';
+        c.fillText(line, textX, lineY);
       });
+
+      if (subLines.length > 0) {
+        c.font = `700 ${subFontSize}px "${fontFamily}", "Pretendard", sans-serif`;
+        const subStartY = startY + mainBlockHeight + 10;
+        subLines.forEach((line, idx) => {
+          const lineY = subStartY + idx * subLineHeight;
+          c.strokeStyle = '#000000';
+          c.lineWidth = 9;
+          c.lineJoin = 'round';
+          c.strokeText(line, textX, lineY);
+
+          c.fillStyle = '#FFFFFF';
+          c.fillText(line, textX, lineY);
+        });
+      }
     }
 
     c.restore();
   };
 
   // 1-Second Thumbnail Generation
-  const generateThumbnailCanvas = async (sceneIdx: number): Promise<HTMLCanvasElement | null> => {
+  const generateThumbnailCanvas = async (sceneIdx: number = thumbnailSceneIndex): Promise<HTMLCanvasElement | null> => {
     const thumbCanvas = document.createElement('canvas');
     thumbCanvas.width = 1080;
     thumbCanvas.height = 1920;
@@ -2392,11 +2567,26 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     if (!c) return null;
 
     const targetScene = scenes[sceneIdx] || scenes[0];
-    const imgSrc = targetScene?.imageUrl || targetScene?.image || getSceneFallbackImage(sceneIdx, targetScene?.keyword, targetScene?.text);
-    const img = await loadImage(imgSrc);
+    const imgSrc =
+      customThumbnailImageUrl ||
+      targetScene?.userCropUrl ||
+      targetScene?.uploadedImageUrl ||
+      targetScene?.imageUrl ||
+      targetScene?.image ||
+      getSceneFallbackImage(project.figureName, project.category, sceneIdx);
 
-    // Draw scene photo using selected aspect ratio and backdrop
-    drawSceneImage(c, img, 1080, 1920, 0, 'static');
+    try {
+      const img = await loadImage(imgSrc);
+      drawSceneImage(c, img, 1080, 1920, 0, 'static');
+    } catch (e) {
+      console.warn('Thumbnail base image load warning, fallback to gradient:', e);
+      const grad = c.createLinearGradient(0, 0, 1080, 1920);
+      grad.addColorStop(0, '#1e1b4b');
+      grad.addColorStop(0.5, '#312e81');
+      grad.addColorStop(1, '#0f172a');
+      c.fillStyle = grad;
+      c.fillRect(0, 0, 1080, 1920);
+    }
 
     // Vignette shading
     if (backdropStyle !== 'card_white' && backdropStyle !== 'card_black') {
@@ -2414,12 +2604,24 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     }
 
     if (isCtrTitleEnabled && ctrTitleText.trim()) {
-      drawCtrHookingTitle(c, ctrTitleText.trim(), 1080, 1920, ctrTitleYPercent, ctrTitleStyle);
+      drawCtrHookingTitle(
+        c,
+        ctrTitleText.trim(),
+        isThumbnailSubTextEnabled ? thumbnailSubText : '',
+        1080,
+        1920,
+        ctrTitleYPercent,
+        ctrTitleStyle,
+        thumbnailFont,
+        thumbnailFontSize,
+        thumbnailTextAlign,
+        thumbnailTextColor
+      );
     } else {
       // Draw standard overlays and subtitles
       renderChannelLogo(c, 1080, 1920, sceneIdx, logoImageRef.current);
       renderCustomTextOverlays(c, 1080, 1920, sceneIdx);
-      const chunks = getSubtitleChunks(targetScene?.text || '', subtitleTempo);
+      const chunks = getSubtitleChunks(targetScene?.text || targetScene?.narration || '', subtitleTempo);
       if (chunks.length > 0) {
         drawSubtitles(c, chunks[0], 1080, 1920);
       }
@@ -2430,19 +2632,46 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
   const handleDownloadThumbnail = async (sceneIdx: number = thumbnailSceneIndex) => {
     setIsExtractingThumbnail(true);
+    setThumbnailToast('⏳ 1080x1920 HD 썸네일 생성 중...');
     try {
       const canvas = await generateThumbnailCanvas(sceneIdx);
-      if (!canvas) return;
+      if (!canvas) {
+        setThumbnailToast('⚠️ 썸네일 생성에 실패했습니다.');
+        setTimeout(() => setThumbnailToast(null), 3000);
+        return;
+      }
       const orderNum = String(sceneIdx + 1).padStart(2, '0');
-      const fileName = `Untold_Thumbnail_Scene${orderNum}_${project.figureName}_1080x1920.png`;
-      const link = document.createElement('a');
-      link.download = fileName;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-      setThumbnailToast(`🎉 ${sceneIdx + 1}번 씬 1초 HD 썸네일 다운로드 완료!`);
-      setTimeout(() => setThumbnailToast(null), 3500);
-    } catch (err) {
+      const fileName = `Untold_Thumbnail_Scene${orderNum}_${project.figureName || 'Shorts'}_1080x1920.png`;
+
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          const dataUrl = canvas.toDataURL('image/png');
+          const link = document.createElement('a');
+          link.download = fileName;
+          link.href = dataUrl;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setThumbnailToast(`🎉 ${sceneIdx + 1}번 씬 1초 HD 썸네일 다운로드 완료!`);
+          setTimeout(() => setThumbnailToast(null), 3500);
+          return;
+        }
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.download = fileName;
+        link.href = url;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+        setThumbnailToast(`🎉 1080x1920 HD 표지 썸네일 다운로드 완료!`);
+        setTimeout(() => setThumbnailToast(null), 3500);
+      }, 'image/png');
+    } catch (err: any) {
       console.warn('Thumbnail download error:', err);
+      setThumbnailToast(`⚠️ 다운로드 실패: ${err?.message || '다시 시도해주세요'}`);
+      setTimeout(() => setThumbnailToast(null), 3500);
     } finally {
       setIsExtractingThumbnail(false);
     }
@@ -2450,16 +2679,24 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
   const handleShareThumbnail = async (sceneIdx: number = thumbnailSceneIndex) => {
     setIsExtractingThumbnail(true);
+    setThumbnailToast('⏳ 썸네일 공유 준비 중...');
     try {
       const canvas = await generateThumbnailCanvas(sceneIdx);
-      if (!canvas) return;
+      if (!canvas) {
+        setThumbnailToast('⚠️ 썸네일 생성에 실패했습니다.');
+        setTimeout(() => setThumbnailToast(null), 3000);
+        return;
+      }
       const orderNum = String(sceneIdx + 1).padStart(2, '0');
-      const fileName = `Untold_Thumbnail_Scene${orderNum}_${project.figureName}.png`;
-      const shareTitle = `${project.figureName} 쇼츠 표지 썸네일`;
-      const shareText = ctrTitleText || `${project.figureName} 쇼츠`;
+      const fileName = `Untold_Thumbnail_Scene${orderNum}_${project.figureName || 'Shorts'}.png`;
+      const shareTitle = `${project.figureName || '쇼츠'} 표지 썸네일`;
+      const shareText = ctrTitleText || `${project.figureName} 쇼츠 표지`;
 
       canvas.toBlob(async (blob) => {
-        if (!blob) return;
+        if (!blob) {
+          handleDownloadThumbnail(sceneIdx);
+          return;
+        }
         const file = new File([blob], fileName, { type: 'image/png' });
 
         if (typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -2469,9 +2706,15 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
               title: shareTitle,
               text: shareText,
             });
+            setThumbnailToast('📱 썸네일 공유창이 열렸습니다!');
+            setTimeout(() => setThumbnailToast(null), 3000);
             return;
           } catch (err: any) {
-            if (err.name === 'AbortError') return;
+            if (err.name === 'AbortError') {
+              setThumbnailToast(null);
+              return;
+            }
+            console.warn('navigator.share thumbnail error:', err);
           }
         }
 
@@ -2479,15 +2722,13 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         try {
           if (typeof navigator !== 'undefined' && navigator.clipboard) {
             await navigator.clipboard.writeText(shareText);
-            setThumbnailToast('📋 텍스트가 복사되었으며 썸네일을 다운로드합니다!');
-            setTimeout(() => setThumbnailToast(null), 3500);
           }
-        } catch (e) {
-          // ignore
-        }
+        } catch (e) {}
         handleDownloadThumbnail(sceneIdx);
+        setThumbnailToast('📋 텍스트 복사 & 썸네일 다운로드 완료 (카톡에 바로 붙여넣기 하세요!)');
+        setTimeout(() => setThumbnailToast(null), 4000);
       }, 'image/png');
-    } catch (err) {
+    } catch (err: any) {
       console.warn('Share thumbnail error:', err);
       handleDownloadThumbnail(sceneIdx);
     } finally {
@@ -2949,21 +3190,49 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   };
 
   const handleShareVideo = async () => {
-    if (!videoBlobFile) return;
+    const blobToShare = videoBlobFile || (videoBlobUrl ? await fetch(videoBlobUrl).then((r) => r.blob()).catch(() => null) : null);
+    if (!blobToShare) return;
     try {
       const isWebm = (videoBlobType || '').includes('webm');
       const ext = isWebm ? 'webm' : 'mp4';
-      const fileName = `Untold_${project.figureName}_${resolution}.${ext}`;
-      const file = new File([videoBlobFile], fileName, { type: videoBlobType || 'video/mp4' });
+      // Clean standard MIME type without RFC 2045 codec parameters (required by Web Share API)
+      const cleanMime = isWebm ? 'video/webm' : 'video/mp4';
+      const fileName = `Untold_${project.figureName || 'Shorts'}_${resolution}.${ext}`;
+      const file = new File([blobToShare], fileName, { type: cleanMime });
+
       if (typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: `Untold - ${project.figureName}`,
-          text: `Untold 쇼츠 영상: ${project.figureName}`,
-        });
-      } else {
-        handleDownload();
+        try {
+          await navigator.share({
+            files: [file],
+            title: `[Untold] ${project.figureName}`,
+            text: `${project.figureName} 쇼츠 영상입니다!`,
+          });
+          setStatusMessage('📱 SNS/카카오톡 공유창이 열렸습니다. 카카오톡 또는 인스타그램을 선택해주세요!');
+          return;
+        } catch (err: any) {
+          if (err.name === 'AbortError') {
+            return;
+          }
+          console.warn('navigator.share files error, retrying with file only:', err);
+          try {
+            await navigator.share({ files: [file] });
+            setStatusMessage('📱 SNS/카카오톡 공유창이 열렸습니다. 카카오톡을 선택해주세요!');
+            return;
+          } catch (err2: any) {
+            if (err2.name === 'AbortError') return;
+          }
+        }
       }
+
+      // Fallback if browser/platform blocks direct file share:
+      try {
+        if (typeof navigator !== 'undefined' && navigator.clipboard) {
+          await navigator.clipboard.writeText(`[Untold 쇼츠] ${project.figureName} - ${ctrTitleText}`);
+        }
+      } catch (e) {}
+
+      setStatusMessage('브라우저에서 직접 파일 전송을 지원하지 않아 영상을 다운로드했습니다. 카카오톡에 바로 공유하세요!');
+      handleDownload();
     } catch (err: any) {
       if (err.name !== 'AbortError') {
         console.warn('Share error fallback to download:', err);
@@ -2980,7 +3249,9 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     const a = document.createElement('a');
     a.href = videoBlobUrl;
     a.download = `Untold_${project.figureName}_${resolution}.${ext}`;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
   };
 
   const modalHeaderContent = (
@@ -4772,7 +5043,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
             )}
 
 
-            {/* SECTION: 1-Second Thumbnail Extractor & CTR Hooking Title Overlay */}
+            {/* SECTION: 1-Second Thumbnail Extractor & Carousel-Style Studio Editor */}
             {activeSettingsSection === 'thumbnail' && (
               <div className="space-y-4">
                 {/* Header banner */}
@@ -4780,59 +5051,110 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-black text-amber-950 flex items-center gap-1.5">
                       <Sparkles className="w-4 h-4 text-amber-500" />
-                      <span>쇼츠 표지/썸네일 1초 자동 추출 (1080x1920 세로 풀HD)</span>
+                      <span>쇼츠 표지/썸네일 캐러셀 스튜디오 편집 (1080x1920 세로 풀HD)</span>
                     </span>
                     <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-500 text-slate-950">
                       ⚡ 1초 무손실 PNG
                     </span>
                   </div>
                   <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                    복잡한 캡컷 캡처나 별도 포토샵 작업 없이, 원하는 씬의 9:16 표지 썸네일을 1초 만에 추출하고 유튜브·릴스 클릭률(CTR)을 극대화하는 대문짝 타이틀을 합성합니다.
+                    인스타 캐러셀처럼 <strong>표지 사진 교체/업로드</strong>, <strong>구글 검색</strong>, <strong>대문짝 메인 헤드라인</strong>, <strong>상세 보조 설명</strong>, <strong>폰트/컬러/정렬</strong>을 자유롭게 커스텀하여 클릭률(CTR)을 극대화합니다.
                   </p>
                 </div>
 
-                {/* 1. Scene Selection */}
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
+                {/* 1. Cover Photo & Image Customizer */}
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-black text-slate-800 flex items-center gap-1.5">
                       <ImageIcon className="w-4 h-4 text-indigo-600" />
-                      <span>표지로 추출할 씬(장면) 선택</span>
+                      <span>📸 1. 표지 사진 편집 (캐러셀 스타일)</span>
                     </label>
                     <span className="text-xs font-bold text-slate-500">
-                      {thumbnailSceneIndex + 1}번 씬 선택됨
+                      {customThumbnailImageUrl ? '커스텀 사진 적용 중' : `${thumbnailSceneIndex + 1}번 씬 사진 적용`}
                     </span>
                   </div>
-                  <div className="flex gap-2 overflow-x-auto pb-1 text-xs">
-                    {scenes.map((sc, idx) => (
+
+                  {/* Hidden file input for custom thumbnail image */}
+                  <input
+                    type="file"
+                    ref={thumbnailFileInputRef}
+                    accept="image/*"
+                    onChange={handleThumbnailFileUpload}
+                    className="hidden"
+                  />
+
+                  {/* Image Action Buttons */}
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => thumbnailFileInputRef.current?.click()}
+                      className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{customThumbnailImageUrl ? '📁 사진 다시 교체' : '📁 내 사진 직접 업로드 (파일 교체)'}</span>
+                    </button>
+
+                    <a
+                      href={`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(`${project.figureName || '쇼츠'} 고화질`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-black text-xs flex items-center gap-1.5 transition cursor-pointer"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 text-amber-600" />
+                      <span>🔍 구글 고화질 검색</span>
+                    </a>
+
+                    {customThumbnailImageUrl && (
                       <button
-                        key={idx}
                         type="button"
                         onClick={() => {
-                          setThumbnailSceneIndex(idx);
-                          setPreviewSceneIndex(idx);
+                          setCustomThumbnailImageUrl(null);
+                          setThumbnailToast('🔄 원본 씬 사진으로 복원되었습니다.');
+                          setTimeout(() => setThumbnailToast(null), 3000);
                         }}
-                        className={`px-3 py-2 rounded-xl shrink-0 font-black transition cursor-pointer border ${
-                          thumbnailSceneIndex === idx
-                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
-                        }`}
+                        className="px-3 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-black text-xs transition cursor-pointer"
                       >
-                        <span>{idx === 0 ? '⭐ 1번 씬 (추천 도입부)' : `${idx + 1}번 씬`}</span>
+                        🔄 원본 씬 사진으로 복원
                       </button>
-                    ))}
+                    )}
+                  </div>
+
+                  {/* Scene selection buttons */}
+                  <div className="space-y-1.5 pt-1">
+                    <span className="text-[11px] font-bold text-slate-500">또는 영상 내 다른 씬 사진 가져오기:</span>
+                    <div className="flex gap-2 overflow-x-auto pb-1 text-xs">
+                      {scenes.map((sc, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            setThumbnailSceneIndex(idx);
+                            setPreviewSceneIndex(idx);
+                            setCustomThumbnailImageUrl(null);
+                          }}
+                          className={`px-3 py-2 rounded-xl shrink-0 font-black transition cursor-pointer border ${
+                            thumbnailSceneIndex === idx && !customThumbnailImageUrl
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          <span>{idx === 0 ? '⭐ 1번 씬 (추천 도입부)' : `${idx + 1}번 씬`}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
-                {/* 2. CTR Hooking Title Toggle & Customizer */}
+                {/* 2. Main Headline & Sub-detail Text Customizer */}
                 <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3.5">
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-xs font-black text-slate-900 block flex items-center gap-1.5">
                         <Tag className="w-4 h-4 text-rose-500" />
-                        <span>대문짝 CTR 후킹 타이틀 합성 모드</span>
+                        <span>✍️ 2. 메인 헤드라인 (대문짝 후킹 타이틀)</span>
                       </span>
                       <span className="text-[11px] text-slate-500 font-medium">
-                        유튜브 쇼츠 탐색 피드에서 시선을 한 번에 사로잡는 대문짝 텍스트를 합성합니다.
+                        쇼츠 피드에서 스크롤을 멈추게 만드는 3초 대문짝 타이틀을 합성합니다.
                       </span>
                     </div>
                     <button
@@ -4853,7 +5175,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                       {/* Title text input */}
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between">
-                          <label className="text-xs font-bold text-slate-700">후킹 타이틀 문구 입력 (줄바꿈 가능)</label>
+                          <label className="text-xs font-bold text-slate-700">메인 헤드라인 문구 (줄바꿈 가능)</label>
                           <span className="text-[10px] text-slate-400">{ctrTitleText.length}자</span>
                         </div>
                         <textarea
@@ -4870,6 +5192,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                             `3초 만에 밝혀진 ${project.figureName}의 비밀`,
                             `미슐랭 3스타의 감춰진 기적`,
                             `절대 모르면 후회하는 반전`,
+                            `모두가 불가능하다고 했던 기적`,
                           ].map((suggestion, sIdx) => (
                             <button
                               key={sIdx}
@@ -4883,15 +5206,168 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                         </div>
                       </div>
 
+                      {/* 3. Sub-detail Text Customizer */}
+                      <div className="space-y-2 pt-2 border-t border-slate-100">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                            <span>📝 상세 보조 설명 (서브 카피)</span>
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setIsThumbnailSubTextEnabled(!isThumbnailSubTextEnabled)}
+                            className={`px-2.5 py-1 rounded-full text-[10px] font-black transition border cursor-pointer ${
+                              isThumbnailSubTextEnabled
+                                ? 'bg-indigo-600 text-white border-indigo-700 shadow-2xs'
+                                : 'bg-slate-100 text-slate-400 border-slate-200'
+                            }`}
+                          >
+                            {isThumbnailSubTextEnabled ? 'ON (보조 설명 표시)' : 'OFF (숨김)'}
+                          </button>
+                        </div>
+
+                        {isThumbnailSubTextEnabled && (
+                          <div className="space-y-1.5">
+                            <input
+                              type="text"
+                              value={thumbnailSubText}
+                              onChange={(e) => setThumbnailSubText(e.target.value)}
+                              placeholder="예: 정비병 출신 흙수저가 미슐랭 3스타가 된 기적"
+                              className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                            <div className="flex flex-wrap gap-1.5">
+                              {[
+                                project.figureName ? `${project.figureName}의 숨겨진 비하인드 스토리` : '놀라운 반전 실화',
+                                '당신의 생각을 완전히 뒤바꿀 1분',
+                                '지금 바로 확인해보세요',
+                              ].map((subSug, subIdx) => (
+                                <button
+                                  key={subIdx}
+                                  type="button"
+                                  onClick={() => setThumbnailSubText(subSug)}
+                                  className="px-2 py-0.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold transition cursor-pointer"
+                                >
+                                  ✨ {subSug}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 4. Font & Typography Customizer */}
+                      <div className="space-y-2.5 pt-2 border-t border-slate-100">
+                        <label className="text-xs font-bold text-slate-700 block">🎨 폰트 및 텍스트 정렬 커스텀</label>
+                        {/* Font Family selector */}
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            { id: 'Pretendard', name: '프리텐다드 (기본/모던)' },
+                            { id: 'Black Han Sans', name: '블랙한산스 (볼드)' },
+                            { id: 'Do Hyeon', name: '도현체 (레트로)' },
+                            { id: 'Gowun Dodum', name: '고운돋움 (감성)' },
+                            { id: 'Song Myung', name: '송명체 (정통 다큐)' },
+                          ].map((f) => (
+                            <button
+                              key={f.id}
+                              type="button"
+                              onClick={() => setThumbnailFont(f.id)}
+                              className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-bold transition cursor-pointer ${
+                                thumbnailFont === f.id
+                                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              {f.name}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Text Alignment */}
+                        <div className="flex items-center justify-between pt-1">
+                          <span className="text-[11px] font-bold text-slate-600">텍스트 정렬</span>
+                          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+                            {[
+                              { id: 'left', icon: AlignLeft, label: '좌측' },
+                              { id: 'center', icon: AlignCenter, label: '중앙' },
+                              { id: 'right', icon: AlignRight, label: '우측' },
+                            ].map((al) => {
+                              const IconComponent = al.icon;
+                              return (
+                                <button
+                                  key={al.id}
+                                  type="button"
+                                  onClick={() => setThumbnailTextAlign(al.id as any)}
+                                  className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition cursor-pointer ${
+                                    thumbnailTextAlign === al.id
+                                      ? 'bg-white text-indigo-700 shadow-2xs'
+                                      : 'text-slate-500 hover:text-slate-800'
+                                  }`}
+                                >
+                                  <IconComponent className="w-3 h-3" />
+                                  <span>{al.label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Font size slider */}
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="font-bold text-slate-600">메인 타이틀 글자 크기</span>
+                            <span className="font-extrabold text-indigo-600">{thumbnailFontSize}px</span>
+                          </div>
+                          <input
+                            type="range"
+                            min={60}
+                            max={110}
+                            step={2}
+                            value={thumbnailFontSize}
+                            onChange={(e) => setThumbnailFontSize(parseInt(e.target.value))}
+                            className="w-full accent-indigo-600 cursor-pointer"
+                          />
+                        </div>
+
+                        {/* Color palette */}
+                        <div className="space-y-1.5 pt-1">
+                          <span className="text-[11px] font-bold text-slate-600 block">메인 타이틀 컬러</span>
+                          <div className="flex flex-wrap gap-2">
+                            {[
+                              { id: '#FDE047', name: '🟡 옐로우' },
+                              { id: '#FFFFFF', name: '⚪ 화이트' },
+                              { id: '#38BDF8', name: '💎 네온시안' },
+                              { id: '#F87171', name: '🔴 핫레드' },
+                              { id: '#FB923C', name: '🟠 오렌지' },
+                              { id: '#4ADE80', name: '🟢 라임' },
+                            ].map((col) => (
+                              <button
+                                key={col.id}
+                                type="button"
+                                onClick={() => setThumbnailTextColor(col.id)}
+                                className={`px-2.5 py-1 rounded-lg border text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                                  thumbnailTextColor === col.id
+                                    ? 'border-indigo-600 ring-2 ring-indigo-400 bg-indigo-50/50'
+                                    : 'border-slate-200 bg-white hover:bg-slate-50'
+                                }`}
+                              >
+                                <span className="w-3 h-3 rounded-full border border-slate-300 inline-block" style={{ backgroundColor: col.id }} />
+                                <span>{col.name}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
                       {/* Style presets */}
-                      <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-700 block">CTR 극대화 스타일 프리셋</label>
+                      <div className="space-y-2 pt-2 border-t border-slate-100">
+                        <label className="text-xs font-bold text-slate-700 block">CTR 극대화 디자인 스타일 프리셋</label>
                         <div className="grid grid-cols-2 gap-2">
                           {[
                             { id: 'yt_yellow', name: '🟡 유튜브 옐로우', desc: '두꺼운 블랙 테두리 + 노랑 (CTR 1위)' },
                             { id: 'netflix_red', name: '🔴 넷플릭스 레드', desc: '강렬한 레드 박스 + 화이트 볼드' },
                             { id: 'neon_cyan', name: '💎 사이버 네온', desc: '시안 네온 글로우 + 딥 다크 박스' },
-                            { id: 'black_capsule', name: '⚫ 블랙 매트 볼드', desc: '고대비 다크 캡슐 + 화이트 폰트' },
+                            { id: 'black_capsule', name: '⚫ 블랙 매트 캡슐', desc: '고대비 다크 캡슐 + 화이트 폰트' },
+                            { id: 'clean_white', name: '⚪ 클린 화이트', desc: '모던 화이트 볼드 + 섀도우 박스' },
+                            { id: 'stroke_only', name: '🔲 스트로크 온리', desc: '깔끔한 블랙 외곽선 테두리' },
                           ].map((st) => (
                             <button
                               key={st.id}
@@ -4911,7 +5387,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                       </div>
 
                       {/* Title Y-Position */}
-                      <div className="space-y-2">
+                      <div className="space-y-2 pt-2 border-t border-slate-100">
                         <div className="flex items-center justify-between">
                           <label className="text-xs font-bold text-slate-700">타이틀 Y축 높이 위치 ({ctrTitleYPercent}%)</label>
                           <div className="flex gap-1 text-[10px]">
@@ -5116,36 +5592,64 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                   </div>
 
                   {/* 1-Second Thumbnail Quick Action after Video Render */}
-                  <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200 flex items-center justify-between gap-2 shadow-xs">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl">🖼️</span>
-                      <div className="text-left">
-                        <div className="font-black text-xs text-amber-950 flex items-center gap-1">
-                          <span>쇼츠 표지 썸네일 (1080x1920)</span>
-                          <span className="px-1.5 py-0.2 rounded bg-amber-200 text-amber-900 text-[9px] font-bold">1초 완성</span>
-                        </div>
-                        <div className="text-[10px] text-amber-700 font-medium">
-                          {isCtrTitleEnabled ? `CTR 대문짝 타이틀 적용됨` : `1번 씬 원본 고화질`}
+                  <div className="space-y-1.5">
+                    {thumbnailToast && (
+                      <div className="p-2.5 rounded-xl bg-emerald-500 text-white font-black text-xs text-center animate-fade-in shadow-md">
+                        {thumbnailToast}
+                      </div>
+                    )}
+                    <div className="p-3.5 rounded-2xl bg-amber-50/90 border border-amber-200 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
+                      <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                        <span className="text-2xl">🖼️</span>
+                        <div className="text-left flex-1">
+                          <div className="font-black text-xs text-amber-950 flex items-center gap-1.5">
+                            <span>쇼츠 표지 썸네일 (1080x1920)</span>
+                            <span className="px-1.5 py-0.2 rounded bg-amber-200 text-amber-900 text-[9px] font-bold">1초 완성</span>
+                          </div>
+                          <div className="text-[10px] text-amber-700 font-medium">
+                            {customThumbnailImageUrl
+                              ? '📸 커스텀 사진 및 텍스트 적용됨'
+                              : isCtrTitleEnabled
+                              ? `CTR 대문짝 타이틀 적용됨`
+                              : `${thumbnailSceneIndex + 1}번 씬 원본 고화질`}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => handleDownloadThumbnail(thumbnailSceneIndex)}
-                        disabled={isExtractingThumbnail}
-                        className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-50"
-                      >
-                        HD 다운로드
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleShareThumbnail(thumbnailSceneIndex)}
-                        disabled={isExtractingThumbnail}
-                        className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-50"
-                      >
-                        📱 공유
-                      </button>
+
+                      <div className="flex items-center gap-1.5 w-full sm:w-auto shrink-0 justify-end">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveSettingsSection('thumbnail');
+                            setPreviewViewMode('live');
+                          }}
+                          className="flex-1 sm:flex-initial px-3 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 font-black text-xs shadow-2xs transition cursor-pointer active:scale-95 flex items-center justify-center gap-1"
+                          title="캐러셀 스타일로 사진, 메인 헤드라인, 보조 설명, 폰트/스타일 편집"
+                        >
+                          <Edit3 className="w-3.5 h-3.5 text-indigo-600" />
+                          <span>✏️ 썸네일 편집</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadThumbnail(thumbnailSceneIndex)}
+                          disabled={isExtractingThumbnail}
+                          className="flex-1 sm:flex-initial px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1"
+                        >
+                          <Download className="w-3.5 h-3.5 text-slate-950" />
+                          <span>{isExtractingThumbnail ? '추출 중...' : 'HD 다운로드'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleShareThumbnail(thumbnailSceneIndex)}
+                          disabled={isExtractingThumbnail}
+                          className="flex-1 sm:flex-initial px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1"
+                        >
+                          <Share2 className="w-3.5 h-3.5 text-white" />
+                          <span>📱 공유</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
 
