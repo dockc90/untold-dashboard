@@ -295,10 +295,10 @@ export const fixMp4Duration = async (blob: Blob, durationSec: number): Promise<B
   if (!durationSec || durationSec <= 0 || isNaN(durationSec)) return blob;
   try {
     const arrayBuffer = await blob.arrayBuffer();
-    const view = new DataView(arrayBuffer);
     const bytes = new Uint8Array(arrayBuffer);
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 
-    const findBox = (tag: string, startOffset = 0, endOffset = arrayBuffer.byteLength): number => {
+    const findBox = (tag: string, startOffset = 0, endOffset = bytes.length): number => {
       const c0 = tag.charCodeAt(0), c1 = tag.charCodeAt(1), c2 = tag.charCodeAt(2), c3 = tag.charCodeAt(3);
       const limit = Math.min(endOffset - 4, bytes.length - 4);
       for (let i = startOffset; i <= limit; i++) {

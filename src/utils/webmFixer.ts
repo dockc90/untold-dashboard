@@ -1,3 +1,5 @@
+import fixWebmDuration from 'fix-webm-duration';
+
 /**
  * webmFixer.ts - Industrial-grade EBML metadata patcher for WebM recordings
  * 
@@ -210,12 +212,24 @@ export function patchWebmBinaryDurationAndCues(bytes: Uint8Array, targetDuration
         newBytes.set(durElem, infoStart);
         newBytes.set(workBytes.subarray(infoStart), infoStart + 11);
 
-        // Update Info container VINT size
+        // Update Info container VINT size (supports 1-byte, 2-byte, 3-byte, and 4-byte VINTs)
         const vint = readVint(workBytes, infoOffset + 4);
-        if (vint && vint.length === 1 && (workBytes[infoOffset + 4] & 0x80)) {
-          const oldVal = workBytes[infoOffset + 4] & 0x7F;
-          if (oldVal + 11 < 0x7F) {
-            newBytes[infoOffset + 4] = 0x80 | (oldVal + 11);
+        if (vint) {
+          if (vint.length === 1 && (workBytes[infoOffset + 4] & 0x80)) {
+            const oldVal = workBytes[infoOffset + 4] & 0x7F;
+            if (oldVal + 11 < 0x7F) {
+              newBytes[infoOffset + 4] = 0x80 | (oldVal + 11);
+            }
+          } else if (vint.length === 4) {
+            const oldVal = ((workBytes[infoOffset + 4] & 0x0F) << 24) |
+                           (workBytes[infoOffset + 5] << 16) |
+                           (workBytes[infoOffset + 6] << 8) |
+                           workBytes[infoOffset + 7];
+            const newVal = oldVal + 11;
+            newBytes[infoOffset + 4] = 0x10 | ((newVal >> 24) & 0x0F);
+            newBytes[infoOffset + 5] = (newVal >> 16) & 0xFF;
+            newBytes[infoOffset + 6] = (newVal >> 8) & 0xFF;
+            newBytes[infoOffset + 7] = newVal & 0xFF;
           }
         }
 
@@ -302,12 +316,22 @@ export function patchWebmBinaryDurationAndCues(bytes: Uint8Array, targetDuration
 
 export async function fixWebmBlob(blob: Blob, durationMs: number): Promise<Blob> {
   try {
-    const arrayBuffer = await blob.arrayBuffer();
+    // 1. Run fixWebmDuration to ensure clean standard EBML structure
+    const fixed = await (typeof fixWebmDuration === 'function' ? fixWebmDuration(blob, durationMs) : Promise.resolve(blob));
+    const arrayBuffer = await fixed.arrayBuffer();
     const bytes = new Uint8Array(arrayBuffer);
     const patchedBytes = patchWebmBinaryDurationAndCues(bytes, durationMs);
     return new Blob([patchedBytes], { type: blob.type || 'video/webm' });
   } catch (err) {
-    console.warn('[webmFixer] fixWebmBlob error, returning original blob:', err);
-    return blob;
+    console.warn('[webmFixer] fixWebmBlob primary failed, trying direct binary patcher:', err);
+    try {
+      const arrayBuffer = await blob.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      const patchedBytes = patchWebmBinaryDurationAndCues(bytes, durationMs);
+      return new Blob([patchedBytes], { type: blob.type || 'video/webm' });
+    } catch (e2) {
+      console.warn('[webmFixer] direct binary patcher fallback failed:', e2);
+      return blob;
+    }
   }
 }
