@@ -2,6 +2,46 @@ import { TrendingFigure } from '../types';
 
 export const INITIAL_TRENDING_FIGURES: TrendingFigure[] = [
   {
+    id: 'fig-jensen-huang',
+    name: '젠슨 황 (Jensen Huang)',
+    title: '식당 설거지 소년에서 4,000조 엔비디아 황제가 된 가죽자켓의 신화',
+    category: 'economy',
+    viralityScore: 100,
+    timeframe: '24h',
+    buzzSummary: '전 세계 시가총액 1위 등극! 10대 시절 화장실 청소와 접시 닦기로 시작해 30년간 버텨낸 끝에 AI 혁명을 지배한 가죽자켓 CEO의 전설적 실화',
+    controversyOrIssue: '창업 초기 3번의 부도 위기와 30세 청년 시절의 무모한 도전, "더 많이 살수록 더 많이 번다"는 역발상 승부수',
+    suggestedAngle: '시련은 나를 더 단단하게 만든다, 매일 실패할 각오로 일하는 60대 억만장자의 뼈 때리는 조언',
+    tags: ['젠슨황', '엔비디아', 'AI혁명', '가죽자켓', '시총1위', '인생역전', 'H100'],
+    sourceArticlesCount: 680,
+    isHot: true,
+    primaryChannel: 'multi',
+    channelMetrics: {
+      naverRank: '네이버 글로벌 인물 1위 (+650%)',
+      youtubeViews: '유튜브 쇼츠 누적 8,900만 뷰',
+      instaReels: '글로벌 릴스 바이럴 75만 개'
+    }
+  },
+  {
+    id: 'fig-elon-musk',
+    name: '일론 머스크 (Elon Musk)',
+    title: '전 재산 털어 로켓 3번 폭발시키고 기적을 쏜 미치광이 천재',
+    category: 'global',
+    viralityScore: 99,
+    timeframe: '24h',
+    buzzSummary: '스페이스X 우주선 발사대 젓가락 포획 성공과 테슬라 로보택시, xAI 슈퍼컴퓨터로 전 세계 숏폼 알고리즘을 독식 중인 혁신의 아이콘',
+    controversyOrIssue: '2008년 크리스마스 이브 파산 직전까지 몰렸던 극한의 공포와 주변의 조롱을 극복한 집념',
+    suggestedAngle: '모두가 미쳤다고 비웃었지만 결국 인류의 미래를 바꾼 불굴의 멘탈',
+    tags: ['일론머스크', '테슬라', '스페이스X', 'xAI', '로보택시', '도전정신'],
+    sourceArticlesCount: 720,
+    isHot: true,
+    primaryChannel: 'youtube',
+    channelMetrics: {
+      naverRank: '네이버 경제/해외 1위',
+      youtubeViews: '유튜브 쇼츠 9,500만 뷰',
+      instaReels: '인스타 릴스 90만 개'
+    }
+  },
+  {
     id: 'fig-1',
     name: '안성재 셰프',
     title: '이라크 파병 정비병에서 미슐랭 3스타까지',

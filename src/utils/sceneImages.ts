@@ -121,9 +121,17 @@ export function getSceneFallbackImage(
     poolKey = 'sports';
   } else if (
     normFigure.includes('머스크') ||
+    normFigure.includes('젠슨') ||
+    normFigure.includes('황') ||
+    normFigure.includes('jensen') ||
+    normFigure.includes('엔비디아') ||
+    normFigure.includes('nvidia') ||
+    normFigure.includes('알트만') ||
     normFigure.includes('잡스') ||
     normFigure.includes('대표') ||
+    normFigure.includes('회장') ||
     category === 'business' ||
+    category === 'economy' ||
     category === 'tech'
   ) {
     poolKey = 'business';
