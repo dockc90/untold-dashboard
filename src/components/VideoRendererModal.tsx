@@ -928,6 +928,8 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   // Screen Wake Lock API for zero sleep during video render
   const wakeLockRef = useRef<any>(null);
   const [isWakeLockActive, setIsWakeLockActive] = useState<boolean>(false);
+  const pregeneratedVideoFileRef = useRef<File | null>(null);
+  const [isSnsShareModalOpen, setIsSnsShareModalOpen] = useState<boolean>(false);
 
   // 1-Second Thumbnail Extractor & CTR Hooking Title Mode (Carousel-Style Full Customizer)
   const thumbnailFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -3191,6 +3193,10 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
       setVideoBlobFile(blob);
       setVideoBlobType(finalBlobType);
+      try {
+        const shareFileName = `Untold_${project.figureName || 'Shorts'}_${resolution}.mp4`;
+        pregeneratedVideoFileRef.current = new File([blob], shareFileName, { type: 'video/mp4' });
+      } catch (e) {}
       const url = URL.createObjectURL(blob);
       setVideoBlobUrl(url);
       setPreviewViewMode('video');
@@ -3455,53 +3461,54 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   const handleShareVideo = async () => {
     const blobToShare = videoBlobFile || (videoBlobUrl ? await fetch(videoBlobUrl).then((r) => r.blob()).catch(() => null) : null);
     if (!blobToShare) return;
-    try {
-      const isWebm = (videoBlobType || '').includes('webm');
-      const ext = isWebm ? 'webm' : 'mp4';
-      // Clean standard MIME type without RFC 2045 codec parameters (required by Web Share API)
-      const cleanMime = isWebm ? 'video/webm' : 'video/mp4';
-      const fileName = `Untold_${project.figureName || 'Shorts'}_${resolution}.${ext}`;
-      const file = new File([blobToShare], fileName, { type: cleanMime });
 
-      if (typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files: [file] })) {
+    const fileName = `Untold_${project.figureName || 'Shorts'}_${resolution}.mp4`;
+    let file = pregeneratedVideoFileRef.current;
+    if (!file) {
+      try {
+        file = new File([blobToShare], fileName, { type: 'video/mp4' });
+        pregeneratedVideoFileRef.current = file;
+      } catch (e) {}
+    }
+
+    // 1. Mobile Native Web Share Level 2 (Direct Share to KakaoTalk, Instagram, Reels, etc.)
+    // Specifying type: 'video/mp4' guarantees navigator.canShare evaluates to true on Android Chrome
+    if (file && typeof navigator !== 'undefined' && navigator.canShare) {
+      const shareDataCandidates = [
+        { files: [file] }, // Best compatibility for KakaoTalk and Instagram on Android
+        { files: [file], title: `[Untold] ${project.figureName}` },
+      ];
+
+      for (const shareCandidate of shareDataCandidates) {
         try {
-          await navigator.share({
-            files: [file],
-            title: `[Untold] ${project.figureName}`,
-            text: `${project.figureName} 쇼츠 영상입니다!`,
-          });
-          setStatusMessage('📱 SNS/카카오톡 공유창이 열렸습니다. 카카오톡 또는 인스타그램을 선택해주세요!');
-          return;
+          if (navigator.canShare(shareCandidate)) {
+            await navigator.share(shareCandidate);
+            setStatusMessage('📱 카카오톡/SNS 공유창이 열렸습니다. 카카오톡 또는 인스타그램을 선택해주세요!');
+            return;
+          }
         } catch (err: any) {
           if (err.name === 'AbortError') {
+            // User cancelled native share sheet
             return;
           }
-          console.warn('navigator.share files error, retrying with file only:', err);
-          try {
-            await navigator.share({ files: [file] });
-            setStatusMessage('📱 SNS/카카오톡 공유창이 열렸습니다. 카카오톡을 선택해주세요!');
-            return;
-          } catch (err2: any) {
-            if (err2.name === 'AbortError') return;
-          }
+          console.warn('Native share candidate attempt warning:', err);
         }
-      }
-
-      // Fallback if browser/platform blocks direct file share:
-      try {
-        if (typeof navigator !== 'undefined' && navigator.clipboard) {
-          await navigator.clipboard.writeText(`[Untold 쇼츠] ${project.figureName} - ${ctrTitleText}`);
-        }
-      } catch (e) {}
-
-      setStatusMessage('브라우저에서 직접 파일 전송을 지원하지 않아 영상을 다운로드했습니다. 카카오톡에 바로 공유하세요!');
-      handleDownload();
-    } catch (err: any) {
-      if (err.name !== 'AbortError') {
-        console.warn('Share error fallback to download:', err);
-        handleDownload();
       }
     }
+
+    // 2. PC Desktop or unsupported browser environment (Windows Chrome, Kakao In-App Browser, etc.)
+    // Trigger download so the video is ready on device, copy text to clipboard, and open helpful quick-share modal!
+    handleDownload('mp4');
+
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        const copyContent = `[${project.figureName}] ${ctrTitleText || project.topic || '쇼츠'}\n\n#쇼츠 #릴스 #shorts #유튜브쇼츠`;
+        await navigator.clipboard.writeText(copyContent);
+      }
+    } catch (e) {}
+
+    setIsSnsShareModalOpen(true);
+    setStatusMessage('카카오톡 & SNS 바로 공유 안내창이 열렸습니다.');
   };
 
   const handleDownload = (preferredExt?: 'mp4' | 'webm') => {
@@ -6129,6 +6136,151 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       </div>
   );
 
+  const renderSnsShareModal = () => {
+    if (!isSnsShareModalOpen) return null;
+
+    const copyShareText = async () => {
+      try {
+        const textToCopy = `[Untold 쇼츠] ${project.figureName}\n${ctrTitleText || project.topic || ''}\n\n#쇼츠 #릴스 #shorts #유튜브쇼츠`;
+        await navigator.clipboard.writeText(textToCopy);
+        setStatusMessage('📋 쇼츠 제목과 추천 해시태그가 클립보드에 복사되었습니다!');
+      } catch {}
+    };
+
+    return (
+      <div 
+        className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-slate-900/80 backdrop-blur-md animate-fade-in"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) setIsSnsShareModalOpen(false);
+        }}
+      >
+        <div className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-slate-200 space-y-4 animate-scale-in text-slate-800">
+          {/* Header */}
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center space-x-2.5">
+              <span className="text-2xl">📱</span>
+              <div className="text-left">
+                <h3 className="text-base font-black text-slate-900">카카오톡 & SNS 바로 전송</h3>
+                <p className="text-[11px] text-slate-500 font-semibold">채팅방 또는 SNS에 1초 만에 전송하세요</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsSnsShareModalOpen(false)}
+              className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Status Box */}
+          <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-left space-y-1.5 shadow-2xs">
+            <div className="text-xs font-black text-emerald-900 flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>1080p MP4 영상이 다운로드 폴더에 준비되었습니다!</span>
+            </div>
+            <div className="text-[11px] text-emerald-700 font-medium">
+              카카오톡이나 SNS 채팅창에 바로 드래그하거나 첨부하여 전송하실 수 있습니다.
+            </div>
+          </div>
+
+          {/* Quick Share Apps */}
+          <div className="space-y-2 pt-1 text-left">
+            <label className="text-xs font-bold text-slate-700 block">원하는 앱으로 바로가기</label>
+
+            {/* KakaoTalk */}
+            <a
+              href="kakaotalk://"
+              onClick={() => {
+                setTimeout(() => {
+                  window.open('https://talk.kakao.com', '_blank');
+                }, 600);
+              }}
+              className="flex items-center justify-between p-3.5 rounded-2xl bg-[#FEE500] hover:bg-[#FADA0A] text-[#191919] font-black text-xs shadow-xs transition cursor-pointer active:scale-98"
+            >
+              <div className="flex items-center space-x-2.5">
+                <span className="text-xl">💬</span>
+                <div className="text-left">
+                  <div className="font-extrabold text-sm text-[#191919]">카카오톡 앱 열기</div>
+                  <div className="text-[10px] text-[#191919]/70 font-semibold">채팅방에 영상을 드래그하거나 전송하세요</div>
+                </div>
+              </div>
+              <ExternalLink className="w-4 h-4 text-[#191919]/70 shrink-0" />
+            </a>
+
+            {/* YouTube Shorts */}
+            <a
+              href="https://studio.youtube.com/channel/UC/videos/upload?d=ud"
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center justify-between p-3.5 rounded-2xl bg-red-50 hover:bg-red-100 text-red-900 border border-red-200 font-black text-xs transition cursor-pointer active:scale-98"
+            >
+              <div className="flex items-center space-x-2.5">
+                <span className="text-xl">▶️</span>
+                <div className="text-left">
+                  <div className="font-extrabold text-sm text-red-950">유튜브 쇼츠 업로드</div>
+                  <div className="text-[10px] text-red-700 font-semibold">유튜브 스튜디오 업로드 화면 바로가기</div>
+                </div>
+              </div>
+              <ExternalLink className="w-4 h-4 text-red-600 shrink-0" />
+            </a>
+
+            {/* Instagram Reels */}
+            <a
+              href="https://www.instagram.com/"
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center justify-between p-3.5 rounded-2xl bg-gradient-to-r from-pink-50 to-purple-50 hover:from-pink-100 hover:to-purple-100 text-purple-900 border border-purple-200 font-black text-xs transition cursor-pointer active:scale-98"
+            >
+              <div className="flex items-center space-x-2.5">
+                <span className="text-xl">📸</span>
+                <div className="text-left">
+                  <div className="font-extrabold text-sm text-purple-950">인스타그램 릴스 올리기</div>
+                  <div className="text-[10px] text-purple-700 font-semibold">인스타그램 피드 및 릴스 바로가기</div>
+                </div>
+              </div>
+              <ExternalLink className="w-4 h-4 text-purple-600 shrink-0" />
+            </a>
+          </div>
+
+          {/* Friendly Tip Box */}
+          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600 space-y-1.5 text-left">
+            <div className="font-bold text-slate-800 flex items-center justify-between">
+              <span className="flex items-center gap-1">
+                <span>💡</span>
+                <span>카카오톡 1초 전송 꿀팁</span>
+              </span>
+              <button
+                type="button"
+                onClick={copyShareText}
+                className="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold underline cursor-pointer"
+              >
+                제목/태그 복사
+              </button>
+            </div>
+            <ul className="list-disc list-inside space-y-1 text-slate-600">
+              <li>
+                <strong className="text-slate-800">PC 카카오톡</strong>: 채팅방을 열고 다운로드된 영상 파일을 마우스로 <strong>채팅창에 쓱 끌어다 놓으면(드래그)</strong> 즉시 동영상으로 전송됩니다!
+              </li>
+              <li>
+                <strong className="text-slate-800">모바일 카카오톡</strong>: 채팅방 하단 <strong>[+] 버튼 → [앨범]</strong>을 누르면 방금 제작된 영상이 맨 위에 나타납니다.
+              </li>
+            </ul>
+          </div>
+
+          {/* Close Button */}
+          <button
+            type="button"
+            onClick={() => setIsSnsShareModalOpen(false)}
+            className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs rounded-2xl shadow-xs transition cursor-pointer"
+          >
+            확인 완료
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   if (isPageMode) {
     return (
       <div className="flex-1 flex flex-col min-h-0 space-y-4">
@@ -6192,6 +6344,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
           {modalHeaderContent}
           {modalBodyContent}
         </div>
+        {renderSnsShareModal()}
       </div>
     );
   }
@@ -6220,6 +6373,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         {modalHeaderContent}
         {modalBodyContent}
       </div>
+      {renderSnsShareModal()}
     </div>
   );
 };
