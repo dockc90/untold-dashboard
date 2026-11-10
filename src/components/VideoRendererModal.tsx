@@ -38,7 +38,8 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
-  Bookmark
+  Bookmark,
+  Save
 } from 'lucide-react';
 import { fixWebmBlob, patchWebmBinaryDurationAndCues } from '../utils/webmFixer';
 import { ShortsSafeZoneOverlay, PlatformGuideSelector, PlatformGuideType } from './ShortsSafeZoneOverlay';
@@ -56,7 +57,9 @@ import {
   VideoMoodTone,
   CustomTextOverlay,
   ChannelLogoOverlay,
-  SubtitleTempo
+  SubtitleTempo,
+  CustomOverlayPreset,
+  CustomSubtitlePreset
 } from '../types';
 import { VOICE_OPTIONS } from '../data/voices';
 import { playDistinctVoicePreview, stopAllVoicePreviews } from '../utils/voicePlayer';
@@ -871,6 +874,124 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   // Step 3 Vault Save States
   const [isSavingToVault, setIsSavingToVault] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+
+  // Custom Presets for Overlay & Subtitles (사용자 커스텀 셋팅 영구 보관)
+  const OVERLAY_PRESETS_STORAGE_KEY = 'autoshorts_custom_overlay_presets_v1';
+  const SUBTITLE_PRESETS_STORAGE_KEY = 'autoshorts_custom_subtitle_presets_v1';
+
+  const [overlayPresets, setOverlayPresets] = useState<CustomOverlayPreset[]>(() => {
+    try {
+      const saved = localStorage.getItem(OVERLAY_PRESETS_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [newOverlayPresetName, setNewOverlayPresetName] = useState<string>('');
+
+  const [subtitlePresets, setSubtitlePresets] = useState<CustomSubtitlePreset[]>(() => {
+    try {
+      const saved = localStorage.getItem(SUBTITLE_PRESETS_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [newSubtitlePresetName, setNewSubtitlePresetName] = useState<string>('');
+  const [presetToastMessage, setPresetToastMessage] = useState<string | null>(null);
+
+  const showPresetToast = (msg: string) => {
+    setPresetToastMessage(msg);
+    setTimeout(() => {
+      setPresetToastMessage((prev) => (prev === msg ? null : prev));
+    }, 2800);
+  };
+
+  const handleSaveOverlayPreset = (customName?: string) => {
+    const finalName = customName?.trim() || `오버레이 세팅 ${overlayPresets.length + 1}`;
+    const newPreset: CustomOverlayPreset = {
+      id: `ov-preset-${Date.now()}`,
+      name: finalName,
+      createdAt: new Date().toISOString(),
+      channelLogo: { ...channelLogo },
+      customTextOverlays: customTextOverlays.map(t => ({ ...t })),
+      backdropStyle,
+      photoAspectRatio,
+    };
+    const updated = [newPreset, ...overlayPresets.filter(p => p.name !== finalName)];
+    setOverlayPresets(updated);
+    try {
+      localStorage.setItem(OVERLAY_PRESETS_STORAGE_KEY, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Failed to save overlay preset:', e);
+    }
+    showPresetToast(`💾 '${finalName}' 오버레이 설정이 저장되었습니다!`);
+  };
+
+  const handleApplyOverlayPreset = (preset: CustomOverlayPreset) => {
+    if (preset.channelLogo) setChannelLogo(preset.channelLogo);
+    if (preset.customTextOverlays) setCustomTextOverlays(preset.customTextOverlays);
+    if (preset.backdropStyle) setBackdropStyle(preset.backdropStyle);
+    if (preset.photoAspectRatio) setPhotoAspectRatio(preset.photoAspectRatio);
+    showPresetToast(`✨ '${preset.name}' 오버레이 설정이 적용되었습니다!`);
+  };
+
+  const handleDeleteOverlayPreset = (id: string) => {
+    const updated = overlayPresets.filter(p => p.id !== id);
+    setOverlayPresets(updated);
+    try {
+      localStorage.setItem(OVERLAY_PRESETS_STORAGE_KEY, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Failed to delete overlay preset:', e);
+    }
+    showPresetToast('🗑️ 오버레이 프리셋이 삭제되었습니다.');
+  };
+
+  const handleSaveSubtitlePreset = (customName?: string) => {
+    const finalName = customName?.trim() || `자막 스타일 ${subtitlePresets.length + 1}`;
+    const newPreset: CustomSubtitlePreset = {
+      id: `sub-preset-${Date.now()}`,
+      name: finalName,
+      createdAt: new Date().toISOString(),
+      subtitleFont,
+      subtitleStyle,
+      subtitleSizeScale,
+      subtitleXPercent,
+      subtitleYPercent,
+      subtitleRotationDeg,
+      subtitleTempo,
+    };
+    const updated = [newPreset, ...subtitlePresets.filter(p => p.name !== finalName)];
+    setSubtitlePresets(updated);
+    try {
+      localStorage.setItem(SUBTITLE_PRESETS_STORAGE_KEY, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Failed to save subtitle preset:', e);
+    }
+    showPresetToast(`💾 '${finalName}' 자막 스타일이 저장되었습니다!`);
+  };
+
+  const handleApplySubtitlePreset = (preset: CustomSubtitlePreset) => {
+    if (preset.subtitleFont) setSubtitleFont(preset.subtitleFont);
+    if (preset.subtitleStyle) setSubtitleStyle(preset.subtitleStyle);
+    if (preset.subtitleSizeScale !== undefined) setSubtitleSizeScale(preset.subtitleSizeScale);
+    if (preset.subtitleXPercent !== undefined) setSubtitleXPercent(preset.subtitleXPercent);
+    if (preset.subtitleYPercent !== undefined) setSubtitleYPercent(preset.subtitleYPercent);
+    if (preset.subtitleRotationDeg !== undefined) setSubtitleRotationDeg(preset.subtitleRotationDeg);
+    if (preset.subtitleTempo) setSubtitleTempo(preset.subtitleTempo);
+    showPresetToast(`✨ '${preset.name}' 자막 스타일이 적용되었습니다!`);
+  };
+
+  const handleDeleteSubtitlePreset = (id: string) => {
+    const updated = subtitlePresets.filter(p => p.id !== id);
+    setSubtitlePresets(updated);
+    try {
+      localStorage.setItem(SUBTITLE_PRESETS_STORAGE_KEY, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Failed to delete subtitle preset:', e);
+    }
+    showPresetToast('🗑️ 자막 프리셋이 삭제되었습니다.');
+  };
 
   const handleSaveToVault = async () => {
     if (!onSaveProject) return;
@@ -3627,7 +3748,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
               }`}
             >
               <Layers className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-              <span className="truncate">오버레이 ({customTextOverlays.length})</span>
+              <span className="truncate">오버레이</span>
             </button>
 
             <button
@@ -3878,6 +3999,112 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                     </button>
                   </div>
 
+                  {/* Toast Alert for Preset Save/Apply */}
+                  {presetToastMessage && (
+                    <div className="p-3 rounded-xl bg-indigo-600 text-white text-xs font-black shadow-md flex items-center justify-between animate-bounce">
+                      <div className="flex items-center space-x-2">
+                        <Sparkles className="w-4 h-4 text-yellow-300" />
+                        <span>{presetToastMessage}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setPresetToastMessage(null)}
+                        className="text-white/80 hover:text-white text-xs font-bold px-1"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+
+                  {/* 💾 나만의 커스텀 오버레이 프리셋 저장 / 관리 */}
+                  <div className="p-4 rounded-2xl bg-indigo-50/90 border border-indigo-200 shadow-2xs space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-1.5 text-xs font-black text-indigo-950">
+                        <Bookmark className="w-4 h-4 text-indigo-600" />
+                        <span>내 오버레이 세팅 보관함 (커스텀 저장)</span>
+                      </div>
+                      <span className="text-[10px] text-indigo-700 font-bold bg-indigo-100 px-2 py-0.5 rounded-full">
+                        {overlayPresets.length}개 보관 중
+                      </span>
+                    </div>
+
+                    <p className="text-[11px] text-indigo-900/80 leading-relaxed font-medium">
+                      현재 세팅된 <strong>채널 로고 위치·크기, 상단 타이틀 레이아웃, 프레임 비율</strong>을 저장해두고 언제든 원클릭으로 불러올 수 있습니다.
+                    </p>
+
+                    {/* 프리셋 이름 입력 및 저장 */}
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={newOverlayPresetName}
+                        onChange={(e) => setNewOverlayPresetName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleSaveOverlayPreset(newOverlayPresetName);
+                            setNewOverlayPresetName('');
+                          }
+                        }}
+                        placeholder="저장할 프리셋 이름 (예: Untold 릴스 전용, 기업IR 화이트)"
+                        className="flex-1 text-xs bg-white border border-indigo-200 focus:border-indigo-500 rounded-xl px-3 py-2 text-slate-800 placeholder:text-slate-400 font-bold focus:outline-none shadow-2xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleSaveOverlayPreset(newOverlayPresetName);
+                          setNewOverlayPresetName('');
+                        }}
+                        className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs transition shadow-xs cursor-pointer flex items-center space-x-1 shrink-0"
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                        <span>현재 세팅 저장</span>
+                      </button>
+                    </div>
+
+                    {/* 저장된 오버레이 프리셋 목록 */}
+                    {overlayPresets.length > 0 && (
+                      <div className="space-y-1.5 pt-2 border-t border-indigo-200/70">
+                        <span className="text-[10px] font-black text-indigo-700 uppercase tracking-wider block">
+                          저장된 내 프리셋 목록 (클릭 시 즉시 적용)
+                        </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {overlayPresets.map((preset) => (
+                            <div
+                              key={preset.id}
+                              className="p-2.5 rounded-xl bg-white border border-indigo-100 hover:border-indigo-300 shadow-2xs flex items-center justify-between gap-2 transition"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <span className="font-extrabold text-xs text-slate-900 truncate block">
+                                  {preset.name}
+                                </span>
+                                <p className="text-[10px] text-slate-500 truncate mt-0.5">
+                                  {preset.channelLogo?.channelName || 'Untold'} • {preset.photoAspectRatio} • {preset.backdropStyle}
+                                </p>
+                              </div>
+                              <div className="flex items-center space-x-1 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => handleApplyOverlayPreset(preset)}
+                                  className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-700 font-black text-[11px] transition cursor-pointer"
+                                  title="현재 영상에 이 오버레이 설정 적용"
+                                >
+                                  적용
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteOverlayPreset(preset.id)}
+                                  className="p-1 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition cursor-pointer"
+                                  title="프리셋 삭제"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   {/* 2. Channel Logo & Branding Section */}
                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
                     <div className="flex items-center justify-between">
@@ -4105,7 +4332,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                       <div>
                         <label className="text-xs font-black text-slate-800 flex items-center gap-1.5">
                           <Layers className="w-4 h-4 text-indigo-600" />
-                          <span>캡컷 스타일 자유 자막 레이어 ({customTextOverlays.length}개)</span>
+                          <span>캡컷 스타일 자유 텍스트 레이어</span>
                         </label>
                         <p className="text-[10px] text-slate-500 mt-0.5">
                           상단 타이틀 헤드라인이나 강조 문구를 무제한 추가하고 구간을 연장하세요.
@@ -4578,6 +4805,95 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                       </div>
                     );
                   })()}
+                </div>
+
+                {/* 💾 나만의 커스텀 자막 프리셋 저장 / 관리 */}
+                <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-200 shadow-2xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-1.5 text-xs font-black text-amber-950">
+                      <Bookmark className="w-4 h-4 text-amber-600" />
+                      <span>내 자막 스타일 보관함 (커스텀 저장)</span>
+                    </div>
+                    <span className="text-[10px] text-amber-800 font-bold bg-amber-200/80 px-2 py-0.5 rounded-full">
+                      {subtitlePresets.length}개 보관 중
+                    </span>
+                  </div>
+
+                  <p className="text-[11px] text-amber-900/80 leading-relaxed font-medium">
+                    현재 세팅된 <strong>자막 폰트, 크기, 스타일 효과, Y축 상하 위치, 템포</strong>를 저장해두고 언제든 원클릭으로 바로 적용하세요.
+                  </p>
+
+                  {/* 프리셋 이름 입력 & 저장 버튼 */}
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={newSubtitlePresetName}
+                      onChange={(e) => setNewSubtitlePresetName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleSaveSubtitlePreset(newSubtitlePresetName);
+                          setNewSubtitlePresetName('');
+                        }
+                      }}
+                      placeholder="저장할 프리셋 이름 (예: 노란박스 81% 하단, 네온글로우 센터)"
+                      className="flex-1 text-xs bg-white border border-amber-200 focus:border-amber-500 rounded-xl px-3 py-2 text-slate-800 placeholder:text-slate-400 font-bold focus:outline-none shadow-2xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleSaveSubtitlePreset(newSubtitlePresetName);
+                        setNewSubtitlePresetName('');
+                      }}
+                      className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs transition shadow-xs cursor-pointer flex items-center space-x-1 shrink-0"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      <span>현재 자막 저장</span>
+                    </button>
+                  </div>
+
+                  {/* 저장된 자막 프리셋 목록 */}
+                  {subtitlePresets.length > 0 && (
+                    <div className="space-y-1.5 pt-2 border-t border-amber-200/70">
+                      <span className="text-[10px] font-black text-amber-800 uppercase tracking-wider block">
+                        저장된 내 프리셋 목록 (클릭 시 즉시 적용)
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {subtitlePresets.map((preset) => (
+                          <div
+                            key={preset.id}
+                            className="p-2.5 rounded-xl bg-white border border-amber-100 hover:border-amber-300 shadow-2xs flex items-center justify-between gap-2 transition"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <span className="font-extrabold text-xs text-slate-900 truncate block">
+                                {preset.name}
+                              </span>
+                              <p className="text-[10px] text-slate-500 truncate mt-0.5">
+                                {preset.subtitleFont} • {preset.subtitleStyle} • Y {preset.subtitleYPercent}% • {preset.subtitleTempo}
+                              </p>
+                            </div>
+                            <div className="flex items-center space-x-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handleApplySubtitlePreset(preset)}
+                                className="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-500 hover:text-white text-amber-700 font-black text-[11px] transition cursor-pointer"
+                                title="현재 영상에 이 자막 스타일 적용"
+                              >
+                                적용
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteSubtitlePreset(preset.id)}
+                                className="p-1 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition cursor-pointer"
+                                title="프리셋 삭제"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* 1. Commercial Free Font Selector */}

@@ -41,7 +41,7 @@ import { saveDraftToServer } from '../lib/supabase';
 interface ScriptStudioProps {
   selectedFigure: TrendingFigure | null;
   currentProject: ShortsProject | null;
-  onGenerateScript: (persona: TargetPersona, duration: 45 | 60, videoTone: VideoMoodTone, storyAngle?: string) => Promise<void>;
+  onGenerateScript: (persona: TargetPersona, duration: 45 | 60, videoTone: VideoMoodTone, storyAngle?: string, customKeyword?: string) => Promise<void>;
   onSaveProject: (project: ShortsProject) => void;
   onUpdateProject?: (project: ShortsProject) => void;
   onOpenVideoRenderer: (project: ShortsProject) => void;
@@ -84,6 +84,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
   const [targetPersona, setTargetPersona] = useState<TargetPersona>('4060_emotional');
   const [videoTone, setVideoTone] = useState<VideoMoodTone>('Cinematic');
   const [duration, setDuration] = useState<45 | 60>(60);
+  const [customKeyword, setCustomKeyword] = useState<string>('');
   const [selectedVoiceId, setSelectedVoiceId] = useState<string>('JBFqnCBsd6RMkjVDRZzb');
   const [activeTab, setActiveTab] = useState<'scenes' | 'script' | 'metadata' | 'copyright'>('scenes');
   const [selectedHookIndex, setSelectedHookIndex] = useState(0);
@@ -651,7 +652,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
             <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:ml-auto w-full sm:w-auto min-w-0">
               <button
                 type="button"
-                onClick={() => onGenerateScript(targetPersona, duration, videoTone, 'random')}
+                onClick={() => onGenerateScript(targetPersona, duration, videoTone, 'random', customKeyword)}
                 disabled={isGenerating || !selectedFigure}
                 className="flex items-center justify-center space-x-1.5 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs rounded-xl shadow-xs transition disabled:opacity-50 cursor-pointer min-w-0"
               >
@@ -661,13 +662,65 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
 
               <button
                 type="button"
-                onClick={() => onGenerateScript(targetPersona, duration, videoTone)}
+                onClick={() => onGenerateScript(targetPersona, duration, videoTone, 'random', customKeyword)}
                 disabled={isGenerating || !selectedFigure}
                 className="flex items-center justify-center space-x-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition disabled:opacity-50 cursor-pointer min-w-0"
               >
                 <Sparkles className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
                 <span className="truncate">{isGenerating ? '생성 중...' : '대본 생성'}</span>
               </button>
+            </div>
+          </div>
+
+          {/* 🎯 원하는 키워드 / 핵심 주제 입력 바 */}
+          <div className="mt-2.5 pt-2.5 border-t border-slate-200/80 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <div className="flex items-center space-x-1.5 text-xs font-black text-indigo-700 shrink-0">
+              <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+              <span>강조 키워드:</span>
+            </div>
+            <div className="flex-1 relative min-w-0">
+              <input
+                type="text"
+                value={customKeyword}
+                onChange={(e) => setCustomKeyword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !isGenerating && selectedFigure) {
+                    onGenerateScript(targetPersona, duration, videoTone, 'random', customKeyword);
+                  }
+                }}
+                placeholder="대본에 반영할 핵심 키워드 입력 (예: 성공 방정식, 독점 기술, 포기 없는 끈기, 30대 창업 실패)"
+                className="w-full text-xs bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-indigo-500 rounded-xl px-3 py-1.5 text-slate-900 placeholder:text-slate-400 font-medium focus:outline-none transition shadow-2xs"
+              />
+              {customKeyword && (
+                <button
+                  type="button"
+                  onClick={() => setCustomKeyword('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-xs font-bold"
+                  title="키워드 지우기"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            {/* Quick keyword chips */}
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 shrink-0">
+              {['성공 방정식', '위기 극복', '독점 기술', '인생 역전', '기업 철학'].map((kw) => (
+                <button
+                  key={kw}
+                  type="button"
+                  onClick={() => {
+                    setCustomKeyword(kw);
+                    onGenerateScript(targetPersona, duration, videoTone, 'random', kw);
+                  }}
+                  className={`text-[11px] px-2 py-0.5 rounded-lg border transition font-bold cursor-pointer whitespace-nowrap ${
+                    customKeyword === kw
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                      : 'bg-white hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 border-slate-200'
+                  }`}
+                >
+                  #{kw}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -746,7 +799,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
               <button
                 key={angle.id}
                 type="button"
-                onClick={() => onGenerateScript(targetPersona, duration, videoTone, angle.id)}
+                onClick={() => onGenerateScript(targetPersona, duration, videoTone, angle.id, customKeyword)}
                 disabled={isGenerating}
                 className="px-2.5 py-1 rounded-xl bg-white hover:bg-amber-500 hover:text-white border border-slate-200 hover:border-amber-400 text-slate-700 font-bold text-[11px] transition shadow-2xs cursor-pointer flex items-center space-x-1 disabled:opacity-50 shrink-0"
                 title={angle.desc}
@@ -1181,7 +1234,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                   </div>
                   <button
                     type="button"
-                    onClick={() => onGenerateScript(targetPersona, duration, videoTone, 'random')}
+                    onClick={() => onGenerateScript(targetPersona, duration, videoTone, 'random', customKeyword)}
                     disabled={isGenerating}
                     className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs shadow-xs transition cursor-pointer disabled:opacity-50 shrink-0"
                     title="다른 대본으로 즉시 새로고침"

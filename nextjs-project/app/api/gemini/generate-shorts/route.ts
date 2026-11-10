@@ -31,6 +31,7 @@ export async function POST(request: Request) {
     videoTone = 'Cinematic',
     storyAngle = 'random',
     refreshCounter = 0,
+    customKeyword = '',
   } = body;
 
   const personaDescriptions: Record<string, string> = {
@@ -79,6 +80,7 @@ export async function POST(request: Request) {
 - 화제 배경: ${buzzSummary || ''}
 - 숨겨진 역경/서사: ${controversyOrIssue || ''}
 - 기획 방향(스토리텔링 앵글): ${suggestedAngle || ''}
+${customKeyword ? `\n[★ 사용자 지정 최우선 강조 키워드 / 핵심 주제: "${customKeyword}"]\n- 대본 전체의 전개와 3초 후킹 문구, 씬별 나레이션에 반드시 위 키워드("${customKeyword}")의 내용과 교훈, 의미를 핵심 주제로 깊이 녹여내어 스토리를 극적으로 풀어내세요.` : ''}
 - 목표 영상 길이: 반드시 정확히 ${targetDuration}초에 도달해야 합니다!
 - [매우 중요] 나레이션 글자수: 공백 제외 ${targetCharMin}~${targetCharMax}자 (절대로 15초나 30초 분량으로 짧게 요약하지 마십시오. 일반 낭독 속도 6.5자/초 기준으로 ${targetDuration}초를 꽉 채우는 충실한 서사를 작성하세요).
 - 타겟 페르소나 및 어투: ${targetToneText}

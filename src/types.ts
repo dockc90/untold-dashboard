@@ -168,6 +168,33 @@ export interface ChannelLogoOverlay {
   yPercent?: number; // Y축 상하 위치 (0%~50%)
 }
 
+// 오버레이 커스텀 저장 프리셋
+export interface CustomOverlayPreset {
+  id: string;
+  name: string;
+  createdAt: string;
+  isDefault?: boolean;
+  channelLogo: ChannelLogoOverlay;
+  customTextOverlays: CustomTextOverlay[];
+  backdropStyle: BackdropStyle;
+  photoAspectRatio: PhotoAspectRatio;
+}
+
+// 자막 커스텀 저장 프리셋
+export interface CustomSubtitlePreset {
+  id: string;
+  name: string;
+  createdAt: string;
+  isDefault?: boolean;
+  subtitleFont: SubtitleFontFamily;
+  subtitleStyle: SubtitleEffectStyle;
+  subtitleSizeScale: number;
+  subtitleXPercent: number;
+  subtitleYPercent: number;
+  subtitleRotationDeg: number;
+  subtitleTempo: SubtitleTempo;
+}
+
 export interface SceneItem {
   sceneNumber: number;
   timeRange: string; // e.g. "00:00 - 00:04"

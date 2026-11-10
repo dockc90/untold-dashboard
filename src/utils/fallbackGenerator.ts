@@ -5,7 +5,8 @@ export function generateClientFallbackScript(
   targetDuration: 45 | 60 = 60,
   refreshCounter: number = 0,
   storyAngle: string = 'random',
-  targetPersona: string = '4060_emotional'
+  targetPersona: string = '4060_emotional',
+  customKeyword: string = ''
 ) {
   const variationIdx = Math.abs((refreshCounter || 0) + (storyAngle === 'twist' ? 1 : storyAngle === 'success' ? 2 : 0)) % 3;
 
@@ -13,30 +14,32 @@ export function generateClientFallbackScript(
   let fallbackHooks = [];
   let fallbackTitles = [];
 
+  const kw = customKeyword ? customKeyword.trim() : '';
+
   if (targetPersona === 'ceo_branding' || storyAngle === 'ceo_hero' || storyAngle === 'corporate_pr') {
     fallbackHooks = [
-      { type: 'question', label: '혁신 질문형', text: `모두가 불가능하다고 손가락질했던 순간, ${figureName} 대표는 왜 전 재산을 걸었을까요?` },
-      { type: 'provocative', label: '비즈니스 반전', text: `기존 대기업들이 절대 바꾸지 못했던 시장의 낡은 관행, ${figureName} 님이 완전히 뒤집어버렸습니다.` },
-      { type: 'emotional', label: 'CEO 철학', text: `수많은 적자와 파산 위기 속에서도 ${figureName} 님이 끝까지 타협하지 않았던 단 하나의 원칙.` }
+      { type: 'question', label: '혁신 질문형', text: kw ? `모두가 불가능하다고 했던 '${kw}', ${figureName} 대표는 왜 전 재산을 걸었을까요?` : `모두가 불가능하다고 손가락질했던 순간, ${figureName} 대표는 왜 전 재산을 걸었을까요?` },
+      { type: 'provocative', label: '비즈니스 반전', text: kw ? `대기업조차 손대지 못했던 '${kw}'의 시장, ${figureName} 님이 완전히 뒤집었습니다.` : `기존 대기업들이 절대 바꾸지 못했던 시장의 낡은 관행, ${figureName} 님이 완전히 뒤집어버렸습니다.` },
+      { type: 'emotional', label: 'CEO 철학', text: kw ? `수많은 위기 속에서도 ${figureName} 님이 끝까지 증명해낸 '${kw}'의 진정한 가치.` : `수많은 적자와 파산 위기 속에서도 ${figureName} 님이 끝까지 타협하지 않았던 단 하나의 원칙.` }
     ];
     fallbackTitles = [
-      `모두가 망할 거라 했던 시장을 뒤집은 ${figureName}의 충격 실화 #CEO #성공`,
-      `대기업도 쩔쩔맨 ${figureName}의 독점 기술과 역전 스토리 #비즈니스 #shorts`,
-      `단 한 명의 창업가가 세상을 바꾼 방법: ${figureName}의 집념 #다큐멘터리`
+      kw ? `${figureName}의 '${kw}' 대역전 실화 #CEO #비즈니스` : `모두가 망할 거라 했던 시장을 뒤집은 ${figureName}의 충격 실화 #CEO #성공`,
+      kw ? `대기업도 무릎 꿇린 ${figureName}의 '${kw}' 비밀 #shorts` : `대기업도 쩔쩔맨 ${figureName}의 독점 기술과 역전 스토리 #비즈니스 #shorts`,
+      kw ? `세상을 바꾼 ${figureName}의 '${kw}' 집념 #다큐멘터리` : `단 한 명의 창업가가 세상을 바꾼 방법: ${figureName}의 집념 #다큐멘터리`
     ];
     fallback60Scenes = [
-      { sceneNumber: 1, timeRange: '00:00 - 00:05', narration: `모두가 불가능하다고 손가락질했던 순간, ${figureName} 대표는 전 재산을 걸었습니다.`, visualGuide: '창업 초기 고뇌하는 CEO의 진중한 다큐 실루엣', imageSearchKeyword: `${figureName} 대표 인터뷰 사진`, visualEffect: '슬로우 줌인', bgmSuggestion: '웅장한 앰비언트 신스' },
+      { sceneNumber: 1, timeRange: '00:00 - 00:05', narration: kw ? `모두가 불가능하다고 손가락질했던 '${kw}', ${figureName} 대표는 전 재산을 걸었습니다.` : `모두가 불가능하다고 손가락질했던 순간, ${figureName} 대표는 전 재산을 걸었습니다.`, visualGuide: '창업 초기 고뇌하는 CEO의 진중한 다큐 실루엣', imageSearchKeyword: `${figureName} 대표 인터뷰 사진`, visualEffect: '슬로우 줌인', bgmSuggestion: '웅장한 앰비언트 신스' },
       { sceneNumber: 2, timeRange: '00:05 - 00:10', narration: '"그 아이템은 절대 안 된다", 수많은 투자자들의 냉대와 거절이 이어졌습니다.', visualGuide: '거절당한 사업계획서와 텅 빈 사무실', imageSearchKeyword: `${figureName} 창업 초기`, visualEffect: '흑백 컷전환', bgmSuggestion: '긴장감 넘치는 피아노' },
-      { sceneNumber: 3, timeRange: '00:10 - 00:15', narration: '하지만 그는 기존 시장의 낡은 모순을 그냥 지나칠 수 없었습니다.', visualGuide: '심야 연구실에서 불을 밝힌 채 모니터를 응시하는 모습', imageSearchKeyword: `${figureName} 연구개발 R&D`, visualEffect: '미세 줌인', bgmSuggestion: '몰입감 있는 스트링' },
+      { sceneNumber: 3, timeRange: '00:10 - 00:15', narration: kw ? `하지만 그는 '${kw}'이라는 본질을 절대 포기하지 않았습니다.` : '하지만 그는 기존 시장의 낡은 모순을 그냥 지나칠 수 없었습니다.', visualGuide: '심야 연구실에서 불을 밝힌 채 모니터를 응시하는 모습', imageSearchKeyword: `${figureName} 연구개발 R&D`, visualEffect: '미세 줌인', bgmSuggestion: '몰입감 있는 스트링' },
       { sceneNumber: 4, timeRange: '00:15 - 00:20', narration: '자본금이 바닥나고 수개월간 적자가 이어지며 파산의 문턱까지 내몰렸지만,', visualGuide: '위기 속에서도 팀원들을 독려하는 현장', imageSearchKeyword: `${figureName} 위기 극복`, visualEffect: '좌측 패닝' },
       { sceneNumber: 5, timeRange: '00:20 - 00:25', narration: '그는 품질과 기술에 대한 타협만큼은 결코 허락하지 않았습니다.', visualGuide: '정밀한 기술 공정과 독점 특허 데이터', imageSearchKeyword: `${figureName} 기술력 특허`, visualEffect: '슬로우 줌인' },
-      { sceneNumber: 6, timeRange: '00:25 - 00:30', narration: '밤낮없는 집념 끝에 완성된 독보적인 솔루션, 마침내 고객들의 반응이 터졌습니다.', visualGuide: '가파르게 상승하는 성장 그래프와 고객 리뷰', imageSearchKeyword: `${figureName} 제품 출시 혁신`, visualEffect: '다이내믹 줌' },
+      { sceneNumber: 6, timeRange: '00:25 - 00:30', narration: kw ? `밤낮없는 집념 끝에 완성된 '${kw}' 솔루션, 마침내 시장의 폭발적 반응이 터졌습니다.` : '밤낮없는 집념 끝에 완성된 독보적인 솔루션, 마침내 고객들의 반응이 터졌습니다.', visualGuide: '가파르게 상승하는 성장 그래프와 고객 리뷰', imageSearchKeyword: `${figureName} 제품 출시 혁신`, visualEffect: '다이내믹 줌' },
       { sceneNumber: 7, timeRange: '00:30 - 00:35', narration: '입소문만으로 업계의 판도를 바꾸며, 시장 점유율 1위를 거머쥐게 된 것입니다.', visualGuide: '글로벌 무대에서 프레젠테이션하는 모습', imageSearchKeyword: `${figureName} 기조연설 컨퍼런스`, visualEffect: '우측 패닝' },
       { sceneNumber: 8, timeRange: '00:35 - 00:40', narration: '기존 대기업들조차 그의 혁신적인 방식에 주목하기 시작했습니다.', visualGuide: '유명 언론 보도와 경제지 헤드라인', imageSearchKeyword: `${figureName} 언론 보도 인터뷰`, visualEffect: '슬로우 줌아웃' },
       { sceneNumber: 9, timeRange: '00:40 - 00:45', narration: '단순히 돈을 버는 회사가 아니라, 세상을 더 편리하게 만드는 기업.', visualGuide: '기업의 밝은 비전과 임직원들의 미소', imageSearchKeyword: `${figureName} 기업 문화`, visualEffect: '시네마틱 페이드' },
-      { sceneNumber: 10, timeRange: '00:45 - 00:50', narration: `지금도 ${figureName} 대표는 "혁신은 결코 타협하지 않는 태도에서 나온다"고 말합니다.`, visualGuide: '신뢰감 있는 CEO의 온화하고 당당한 시선', imageSearchKeyword: `${figureName} 최근 인터뷰 사진`, visualEffect: '정적 포커스' },
+      { sceneNumber: 10, timeRange: '00:45 - 00:50', narration: kw ? `지금도 ${figureName} 대표는 "'${kw}'은 타협하지 않는 태도에서 완성된다"고 말합니다.` : `지금도 ${figureName} 대표는 "혁신은 결코 타협하지 않는 태도에서 나온다"고 말합니다.`, visualGuide: '신뢰감 있는 CEO의 온화하고 당당한 시선', imageSearchKeyword: `${figureName} 최근 인터뷰 사진`, visualEffect: '정적 포커스' },
       { sceneNumber: 11, timeRange: '00:50 - 00:55', narration: '멈추지 않는 도전으로 다음 세대의 미래를 열어갈 그의 여정은 이제 시작입니다.', visualGuide: '글로벌 시장으로 뻗어나가는 기업의 비전 그래픽', imageSearchKeyword: `${figureName} 미래 비전`, visualEffect: '상승 틸트' },
-      { sceneNumber: 12, timeRange: '00:55 - 01:00', narration: '불가능을 혁신으로 바꾼 그 신념에 여러분은 어떤 영감을 얻으셨습니까?', visualGuide: '기업 로고와 함께 신뢰감 있는 엔딩 컷', imageSearchKeyword: `${figureName} 공식 프로필 고화질`, visualEffect: '슬로우 줌아웃', bgmSuggestion: '웅장하고 희망찬 피날레' }
+      { sceneNumber: 12, timeRange: '00:55 - 01:00', narration: kw ? `불가능을 기적으로 바꾼 '${kw}'의 교훈, 여러분은 어떤 영감을 얻으셨습니까?` : '불가능을 혁신으로 바꾼 그 신념에 여러분은 어떤 영감을 얻으셨습니까?', visualGuide: '기업 로고와 함께 신뢰감 있는 엔딩 컷', imageSearchKeyword: `${figureName} 공식 프로필 고화질`, visualEffect: '슬로우 줌아웃', bgmSuggestion: '웅장하고 희망찬 피날레' }
     ];
   } else if (variationIdx === 1) {
     fallbackHooks = [

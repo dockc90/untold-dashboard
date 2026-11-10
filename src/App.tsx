@@ -426,7 +426,8 @@ export default function App() {
     targetPersona: TargetPersona,
     duration: 45 | 60,
     videoTone: VideoMoodTone = 'Cinematic',
-    storyAngle: string = 'random'
+    storyAngle: string = 'random',
+    customKeyword: string = ''
   ) => {
     if (!selectedFigure) return;
     setIsGeneratingScript(true);
@@ -456,6 +457,7 @@ export default function App() {
             targetDuration: duration,
             videoTone,
             storyAngle,
+            customKeyword,
             refreshCounter: nextCount,
           }),
         });
@@ -476,7 +478,7 @@ export default function App() {
 
       // If API was unavailable or returned empty data, use robust client fallback generator
       if (!data || !data.scenes || data.scenes.length === 0) {
-        data = generateClientFallbackScript(selectedFigure.name, duration, nextCount, storyAngle, targetPersona);
+        data = generateClientFallbackScript(selectedFigure.name, duration, nextCount, storyAngle, targetPersona, customKeyword);
       }
       const charCount = (data.fullScript || '').replace(/\s+/g, '').length;
       const estimatedSeconds = Math.round(charCount / 6.5);
