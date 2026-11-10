@@ -85,6 +85,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
   const [videoTone, setVideoTone] = useState<VideoMoodTone>('Cinematic');
   const [duration, setDuration] = useState<45 | 60>(60);
   const [customKeyword, setCustomKeyword] = useState<string>('');
+  const [activeStoryAngle, setActiveStoryAngle] = useState<string>('random');
   const [selectedVoiceId, setSelectedVoiceId] = useState<string>('JBFqnCBsd6RMkjVDRZzb');
   const [activeTab, setActiveTab] = useState<'scenes' | 'script' | 'metadata' | 'copyright'>('scenes');
   const [selectedHookIndex, setSelectedHookIndex] = useState(0);
@@ -672,50 +673,63 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
             </div>
           </div>
 
-          {/* 🎯 원하는 키워드 / 핵심 주제 입력 바 */}
-          <div className="mt-2.5 pt-2.5 border-t border-slate-200/80 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-            <div className="flex items-center space-x-1.5 text-xs font-black text-indigo-700 shrink-0">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-              <span>강조 키워드:</span>
+          {/* 🎯 원하는 키워드 / 핵심 주제 입력 바 (Full Width & Expansive) */}
+          <div className="mt-3 pt-3 border-t border-slate-200/80 space-y-2 w-full">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full">
+              <div className="flex items-center space-x-1.5 text-xs font-black text-indigo-700 shrink-0">
+                <Sparkles className="w-4 h-4 text-indigo-600 animate-pulse" />
+                <span>강조 키워드:</span>
+              </div>
+              <div className="flex-1 relative w-full min-w-0">
+                <input
+                  type="text"
+                  value={customKeyword}
+                  onChange={(e) => setCustomKeyword(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !isGenerating && selectedFigure) {
+                      onGenerateScript(targetPersona, duration, videoTone, activeStoryAngle, customKeyword);
+                    }
+                  }}
+                  placeholder="대본에 반영할 핵심 키워드 직접 입력 (예: 30대 창업 실패, 1993년 부도 위기, 세가 사장의 500만 달러 투자 등)"
+                  className="w-full text-xs sm:text-sm bg-white border-2 border-indigo-200 focus:border-indigo-600 rounded-xl px-3.5 py-2 text-slate-900 placeholder:text-slate-400 font-bold focus:outline-none transition shadow-2xs pr-8"
+                />
+                {customKeyword && (
+                  <button
+                    type="button"
+                    onClick={() => setCustomKeyword('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-xs font-black p-1"
+                    title="키워드 지우기"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => onGenerateScript(targetPersona, duration, videoTone, activeStoryAngle, customKeyword)}
+                disabled={isGenerating || !selectedFigure}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs transition shadow-xs cursor-pointer flex items-center justify-center space-x-1 shrink-0 disabled:opacity-50"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>키워드 반영 대본 생성</span>
+              </button>
             </div>
-            <div className="flex-1 relative min-w-0">
-              <input
-                type="text"
-                value={customKeyword}
-                onChange={(e) => setCustomKeyword(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !isGenerating && selectedFigure) {
-                    onGenerateScript(targetPersona, duration, videoTone, 'random', customKeyword);
-                  }
-                }}
-                placeholder="대본에 반영할 핵심 키워드 입력 (예: 성공 방정식, 독점 기술, 포기 없는 끈기, 30대 창업 실패)"
-                className="w-full text-xs bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-indigo-500 rounded-xl px-3 py-1.5 text-slate-900 placeholder:text-slate-400 font-medium focus:outline-none transition shadow-2xs"
-              />
-              {customKeyword && (
-                <button
-                  type="button"
-                  onClick={() => setCustomKeyword('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-xs font-bold"
-                  title="키워드 지우기"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
+
             {/* Quick keyword chips */}
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 shrink-0">
-              {['성공 방정식', '위기 극복', '독점 기술', '인생 역전', '기업 철학'].map((kw) => (
+            <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+              <span className="text-[11px] font-bold text-slate-500 mr-1">추천 태그:</span>
+              {['성공 방정식', '위기 극복', '독점 기술', '인생 역전', '기업 철학', '단칸방 무명시절', '기적의 한마디'].map((kw) => (
                 <button
                   key={kw}
                   type="button"
                   onClick={() => {
                     setCustomKeyword(kw);
-                    onGenerateScript(targetPersona, duration, videoTone, 'random', kw);
+                    onGenerateScript(targetPersona, duration, videoTone, activeStoryAngle, kw);
                   }}
-                  className={`text-[11px] px-2 py-0.5 rounded-lg border transition font-bold cursor-pointer whitespace-nowrap ${
+                  className={`text-[11px] px-2.5 py-1 rounded-lg border transition font-bold cursor-pointer whitespace-nowrap ${
                     customKeyword === kw
                       ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
-                      : 'bg-white hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 border-slate-200'
+                      : 'bg-white hover:bg-indigo-50 text-slate-700 hover:text-indigo-600 border-slate-200 shadow-2xs'
                   }`}
                 >
                   #{kw}
@@ -725,10 +739,10 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
           </div>
 
           {isGenerating && (
-            <div className="mt-3 p-2.5 rounded-xl bg-indigo-50/90 border border-indigo-200 flex items-center space-x-2 text-xs text-indigo-800 animate-pulse">
+            <div className="mt-3 p-3 rounded-xl bg-gradient-to-r from-indigo-50 via-purple-50 to-amber-50 border border-indigo-200 flex items-center space-x-2 text-xs text-indigo-900 shadow-2xs animate-pulse">
               <Sparkles className="w-4 h-4 text-indigo-600 animate-spin shrink-0" />
-              <span className="font-bold">
-                ⚡ AI가 {duration}초 숏폼 씬별 맞춤 대본을 고속 생성 중입니다... (약 1~3초 소요)
+              <span className="font-extrabold">
+                🧠 AI가 [Gemini Pro / Flash] 엔진으로 뜬구름 잡지 않는 극사실주의 팩트 대본({duration}초)을 작성 중입니다...
               </span>
             </div>
           )}
@@ -795,18 +809,28 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto min-w-0">
-            {STORY_ANGLES.map((angle) => (
-              <button
-                key={angle.id}
-                type="button"
-                onClick={() => onGenerateScript(targetPersona, duration, videoTone, angle.id, customKeyword)}
-                disabled={isGenerating}
-                className="px-2.5 py-1 rounded-xl bg-white hover:bg-amber-500 hover:text-white border border-slate-200 hover:border-amber-400 text-slate-700 font-bold text-[11px] transition shadow-2xs cursor-pointer flex items-center space-x-1 disabled:opacity-50 shrink-0"
-                title={angle.desc}
-              >
-                <span>{angle.label}</span>
-              </button>
-            ))}
+            {STORY_ANGLES.map((angle) => {
+              const isActive = activeStoryAngle === angle.id;
+              return (
+                <button
+                  key={angle.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveStoryAngle(angle.id);
+                    onGenerateScript(targetPersona, duration, videoTone, angle.id, customKeyword);
+                  }}
+                  disabled={isGenerating}
+                  className={`px-3 py-1.5 rounded-xl font-black text-xs transition shadow-2xs cursor-pointer flex items-center space-x-1 disabled:opacity-50 shrink-0 ${
+                    isActive
+                      ? 'bg-amber-500 text-white border border-amber-600 ring-2 ring-amber-300 shadow-xs'
+                      : 'bg-white hover:bg-amber-500 hover:text-white border border-slate-200 hover:border-amber-400 text-slate-800'
+                  }`}
+                  title={angle.desc}
+                >
+                  <span>{angle.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>

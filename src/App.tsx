@@ -440,7 +440,7 @@ export default function App() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
         controller.abort();
-      }, 8000);
+      }, 15000);
 
       try {
         const res = await fetch('/api/gemini/generate-shorts', {
@@ -527,12 +527,14 @@ export default function App() {
       handleSaveProject(newProject);
 
       const angleLabel = 
-        storyAngle === 'adversity' ? '역경 극복 감동 실화' :
-        storyAngle === 'twist' ? '충격 반전 비하인드' :
-        storyAngle === 'success' ? '성공 공식 & 명언' :
-        storyAngle === 'legend' ? '전설의 결정적 명장면' : '새로운 스토리 앵글';
+        storyAngle === 'adversity' ? '💧 역경 극복 감동 실화' :
+        storyAngle === 'twist' ? '⚡ 충격 반전 비하인드' :
+        storyAngle === 'success' ? '💼 성공 스토리 & 원칙' :
+        storyAngle === 'legend' ? '🏆 전설의 결정적 명장면' :
+        storyAngle === 'ceo_hero' ? '🏛️ CEO 혁신 서사' :
+        storyAngle === 'corporate_pr' ? '💎 기업 홍보 & 비전' : '🎲 새로운 스토리 각도';
 
-      setSuccessToast(`✨ [${angleLabel}] 쇼츠 대본 생성 및 Supabase DB 자동 저장 완료!`);
+      setSuccessToast(`✨ [${angleLabel}] 맞춤 대본 생성이 완료되었습니다!`);
       setTimeout(() => setSuccessToast(null), 3500);
     } catch (err: any) {
       console.error('Error generating script:', err);
