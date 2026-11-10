@@ -34,7 +34,7 @@ export async function POST(request: Request) {
       controversyOrIssue: '창업 초기 3번의 부도 위기와 30세 청년 시절의 무모한 도전, "더 많이 살수록 더 많이 번다"는 역발상 승부수',
       suggestedAngle: '시련은 나를 더 단단하게 만든다, 매일 실패할 각오로 일하는 60대 억만장자의 뼈 때리는 조언',
       tags: ['젠슨황', '엔비디아', 'AI혁명', '가죽자켓', '시총1위', '인생역전', 'H100'],
-      primaryChannel: 'youtube',
+      primaryChannel: 'multi',
       channelMetrics: {
         naverRank: '네이버 글로벌 인물 1위 (+650%)',
         youtubeViews: '유튜브 쇼츠 누적 8,900만 뷰',
@@ -61,6 +61,60 @@ export async function POST(request: Request) {
     },
     {
       id: `fig-fall-${Date.now()}-3`,
+      name: '로제 (BLACKPINK)',
+      title: '한국 술자리 게임 ‘아파트’로 빌보드를 정복한 천재성',
+      category: 'global',
+      viralityScore: 99,
+      timeframe,
+      buzzSummary: '브루노 마스와 협업한 아파트(APT.)가 전 세계 음원 차트 1위를 휩쓸며 K-컬처 신기록 달성',
+      controversyOrIssue: '전통적인 K팝 공식을 깨고 가장 한국적인 놀이를 가장 힙한 팝 음악으로 재창조한 감각',
+      suggestedAngle: '한국 술자리 게임 하나로 전 세계를 춤추게 만든 소녀의 번뜩이는 감각',
+      tags: ['로제', '아파트', '브루노마스', '빌보드', 'K컬처'],
+      primaryChannel: 'multi',
+      channelMetrics: {
+        naverRank: '네이버 뮤직 1위',
+        youtubeViews: '유튜브 MV/쇼츠 1.8억 뷰',
+        instaReels: '릴스 음원 사용 120만 건'
+      }
+    },
+    {
+      id: `fig-fall-${Date.now()}-4`,
+      name: '페이커 (이상혁)',
+      title: '손목 부상과 7년의 암흑기를 딛고 롤드컵 5회 우승 신화를 쓴 불멸의 대마왕',
+      category: 'sports',
+      viralityScore: 99,
+      timeframe,
+      buzzSummary: '전 세계 e스포츠 역사상 유일무이한 롤드컵 5회 우승 달성! 슬럼프와 은퇴 권유를 비웃듯 정점에 선 살아있는 전설',
+      controversyOrIssue: '손목 통증으로 키보드를 치지 못했던 순간에도 팀원들을 이끌며 다시 일어선 눈물겨운 집념',
+      suggestedAngle: '"모든 길은 저를 통합니다." 10년 넘게 정상에서 자신을 증명한 거인의 품격',
+      tags: ['페이커', 'T1', '롤드컵우승', '대마왕', '불사대마왕', 'e스포츠'],
+      primaryChannel: 'youtube',
+      channelMetrics: {
+        naverRank: '네이버 스포츠 1위 (+780%)',
+        youtubeViews: '유튜브 하이라이트 4,500만 뷰',
+        instaReels: '글로벌 릴스 50만 개'
+      }
+    },
+    {
+      id: `fig-fall-${Date.now()}-5`,
+      name: '손흥민',
+      title: '아시아 최초 프리미어리그 득점왕 뒤에 숨겨진 아버지의 10년 맹훈련',
+      category: 'sports',
+      viralityScore: 98,
+      timeframe,
+      buzzSummary: '세계 최고 리그에서 증명한 월드클래스 실력과 겸손함, 손웅정 감독의 혹독한 기본기 훈련 일화',
+      controversyOrIssue: '매일 볼 리프팅 4시간, 눈에 실핏줄이 터질 때까지 기본기만 반복했던 유년기',
+      suggestedAngle: '천재가 아니라 피와 땀으로 완성된 영웅의 눈물겨운 여정',
+      tags: ['손흥민', '토트넘', '손웅정', '기본기', '국위선양'],
+      primaryChannel: 'youtube',
+      channelMetrics: {
+        naverRank: '네이버 해외축구 1위',
+        youtubeViews: '유튜브 하이라이트 3,200만 뷰',
+        instaReels: '릴스 챌린지 21만 개'
+      }
+    },
+    {
+      id: `fig-fall-${Date.now()}-6`,
       name: '안성재 셰프',
       title: '이라크 파병 정비병에서 대한민국 유일 미슐랭 3스타가 된 기적',
       category: 'entertainment',
@@ -70,7 +124,7 @@ export async function POST(request: Request) {
       controversyOrIssue: '어려웠던 이민 생활과 혹독한 주방 밑바닥에서 피눈물 흘리며 버텨낸 15년의 치열한 집념',
       suggestedAngle: '이라크 전장의 총 대신 주방 칼을 잡고 세계 최정상에 오른 기적의 인간 승리',
       tags: ['안성재', '흑백요리사', '미슐랭3스타', '모수', '감동실화'],
-      primaryChannel: 'youtube',
+      primaryChannel: 'multi',
       channelMetrics: {
         naverRank: '네이버 인물 검색 1위',
         youtubeViews: '유튜브 하이라이트 2,800만 뷰',
@@ -78,25 +132,79 @@ export async function POST(request: Request) {
       }
     },
     {
-      id: `fig-fall-${Date.now()}-4`,
-      name: '로제',
-      title: '술자리 게임 하나로 전 세계 차트를 올킬한 천재성',
-      category: 'global',
+      id: `fig-fall-${Date.now()}-7`,
+      name: '지드래곤 (G-DRAGON)',
+      title: '7년의 침묵을 깨고 독보적 신곡 파워로 컴백한 K-POP의 제왕',
+      category: 'entertainment',
       viralityScore: 99,
       timeframe,
-      buzzSummary: '브루노 마스와 합작한 아파트(APT.)가 전 세계 음원 차트 1위를 휩쓸며 K-컬처 신기록 달성',
-      controversyOrIssue: '전통적인 K팝 공식을 깨고 가장 한국적인 놀이를 가장 힙한 팝 음악으로 재창조한 감각',
-      suggestedAngle: '한국의 술자리 게임으로 빌보드를 정복한 20대 소녀의 번뜩이는 크리에이티브',
-      tags: ['로제', '아파트', '브루노마스', '빌보드', 'K컬처'],
-      primaryChannel: 'instagram',
+      buzzSummary: '신곡 POWER로 음원 차트 올킬 및 유퀴즈 출연으로 폭발적인 대중적 환호와 패션 트렌드 독점',
+      controversyOrIssue: '억울했던 루머와 공백기를 예술과 음악으로 완벽하게 제압한 진짜 아티스트의 품격',
+      suggestedAngle: '세상이 나를 흔들어도 나는 음악으로 답한다, 지드래곤의 불멸의 영향력',
+      tags: ['지드래곤', 'GD', 'POWER', '빅뱅', '패션아이콘'],
+      primaryChannel: 'multi',
       channelMetrics: {
-        naverRank: '네이버 뮤직 1위',
-        youtubeViews: '유튜브 MV/쇼츠 1.8억 뷰',
-        instaReels: '릴스 음원 사용 120만 건'
+        naverRank: '네이버 연예 종합 1위',
+        youtubeViews: '유튜브 MV 5,200만 뷰',
+        instaReels: '릴스 챌린지 85만 개'
       }
     },
     {
-      id: `fig-fall-${Date.now()}-5`,
+      id: `fig-fall-${Date.now()}-8`,
+      name: '오타니 쇼헤이 (Shohei Ohtani)',
+      title: '만화도 이렇게 쓰면 욕먹는다! MLB 최초 50홈런-50도루 신화',
+      category: 'sports',
+      viralityScore: 100,
+      timeframe,
+      buzzSummary: '메이저리그 148년 역사상 최초로 50-50을 달성하고 월드시리즈 우승 트로피를 들어올린 야구 천재',
+      controversyOrIssue: '고교 시절 쓰레기 줍기까지 운의 영역으로 계획했던 만다라트 계획표와 철저한 자기관리',
+      suggestedAngle: '불가능을 목표로 삼았기에 역사가 되었다, 오타니의 위대한 멘탈리티',
+      tags: ['오타니', '50-50', 'LA다저스', 'MLB', '만다라트'],
+      primaryChannel: 'youtube',
+      channelMetrics: {
+        naverRank: '네이버 해외스포츠 1위',
+        youtubeViews: '유튜브 쇼츠 7,200만 뷰',
+        instaReels: '글로벌 릴스 60만 개'
+      }
+    },
+    {
+      id: `fig-fall-${Date.now()}-9`,
+      name: '샘 알트만 (Sam Altman)',
+      title: 'ChatGPT로 인류의 지능을 바꾼 OpenAI 창립자의 거침없는 승부수',
+      category: 'economy',
+      viralityScore: 97,
+      timeframe,
+      buzzSummary: '이사회의 기습 해임 쿠데타를 5일 만에 뒤집고 완벽하게 복귀한 실리콘밸리의 실세',
+      controversyOrIssue: '인류를 위협할 수 있는 초지능(AGI) 개발과 기업 상업화 사이의 살얼음판 갈등',
+      suggestedAngle: '모두가 안 된다고 할 때 전 재산과 미래를 베팅하는 빅테크 거물의 결단력',
+      tags: ['샘알트만', 'OpenAI', 'ChatGPT', '인공지능', '실리콘밸리'],
+      primaryChannel: 'youtube',
+      channelMetrics: {
+        naverRank: '네이버 IT/테크 1위',
+        youtubeViews: '유튜브 인터뷰 3,400만 뷰',
+        instaReels: '테크 릴스 20만 개'
+      }
+    },
+    {
+      id: `fig-fall-${Date.now()}-10`,
+      name: '카리나 (aespa)',
+      title: '쇠맛 신드롬 ‘슈퍼노바’와 ‘아마겟돈’으로 가요계를 평정한 AI 비주얼 리더',
+      category: 'entertainment',
+      viralityScore: 98,
+      timeframe,
+      buzzSummary: '독보적인 콘셉트와 라이브 실력으로 걸그룹 음원 차트 장기 집권 및 챌린지 열풍 주도',
+      controversyOrIssue: '비주얼뿐만 아니라 밤낮없는 연습으로 다져진 보컬과 댄스 실력의 재평가',
+      suggestedAngle: '완벽한 외모 뒤에 숨겨진 치열한 노력과 그룹을 이끄는 단단한 리더십',
+      tags: ['카리나', '에스파', '슈퍼노바', '아마겟돈', 'KPOP리더'],
+      primaryChannel: 'instagram',
+      channelMetrics: {
+        naverRank: '네이버 엔터 2위',
+        youtubeViews: '유튜브 쇼츠 6,100만 뷰',
+        instaReels: '릴스 챌린지 110만 개'
+      }
+    },
+    {
+      id: `fig-fall-${Date.now()}-11`,
       name: '변우석',
       title: '오디션 100번 탈락을 딛고 10년 만에 맞이한 기적',
       category: 'actor',
@@ -114,21 +222,93 @@ export async function POST(request: Request) {
       }
     },
     {
-      id: `fig-fall-${Date.now()}-6`,
-      name: '손흥민',
-      title: '아시아 최초 득점왕 뒤에 숨겨진 아버지의 10년 맹훈련',
-      category: 'sports',
-      viralityScore: 97,
+      id: `fig-fall-${Date.now()}-12`,
+      name: '미스터비스트 (MrBeast)',
+      title: '하루 16시간 유튜브만 분석해 3억 구독자 제국을 세운 집념',
+      category: 'global',
+      viralityScore: 100,
       timeframe,
-      buzzSummary: '세계 최고 리그에서 증명한 월드클래스 실력과 겸손함, 손웅정 감독의 혹독한 기본기 훈련 일화',
-      controversyOrIssue: '매일 볼 리프팅 4시간, 눈에 실핏줄이 터질 때까지 기본기만 반복했던 유년기',
-      suggestedAngle: '천재가 아니라 피와땀으로 완성된 영웅의 눈물겨운 여정',
-      tags: ['손흥민', '토트넘', '손웅정', '기본기', '국위선양'],
+      buzzSummary: '전 세계 유튜브 구독자 1위! 벌어들인 수익의 100%를 다시 다음 영상에 재투자하는 미친 스케일',
+      controversyOrIssue: '학창 시절 친구들과 작은 방에 모여 1,000개의 썸네일과 인트로를 초단위로 뜯어보며 연구한 일화',
+      suggestedAngle: '천재 크리에이터는 없다, 오직 미치도록 집요한 분석과 실행만이 있을 뿐이다',
+      tags: ['미스터비스트', '유튜브1위', '3억구독자', '챌린지', '성공방정식'],
       primaryChannel: 'youtube',
       channelMetrics: {
-        naverRank: '네이버 해외축구 1위',
-        youtubeViews: '유튜브 하이라이트 3,200만 뷰',
-        instaReels: '릴스 챌린지 21만 개'
+        naverRank: '네이버 해외이슈 2위',
+        youtubeViews: '유튜브 본편 및 쇼츠 누적 500억 뷰',
+        instaReels: '글로벌 릴스 200만 개'
+      }
+    },
+    {
+      id: `fig-fall-${Date.now()}-13`,
+      name: '백종원',
+      title: '통영 어촌 살리기부터 축제 혁신까지, 위기의 자영업을 살리는 장사의 신',
+      category: 'social',
+      viralityScore: 97,
+      timeframe,
+      buzzSummary: '지역 축제 바가지 요금 근절과 전통시장 재생 프로젝트로 전 국민적 신뢰와 박수를 받는 외식업계 거물',
+      controversyOrIssue: '과거 IMF 시절 17억 빚더미에 앉아 유서까지 썼던 극한의 위기를 극복한 인생 실화',
+      suggestedAngle: '바닥을 쳐본 사람만이 진정한 장사의 본질을 안다, 백종원의 눈물겨운 빚더미 탈출기',
+      tags: ['백종원', '더본코리아', '골목식당', '지역축제', '인생역전'],
+      primaryChannel: 'youtube',
+      channelMetrics: {
+        naverRank: '네이버 경제/사회 1위',
+        youtubeViews: '유튜브 채널 600만 구독자 & 쇼츠 4,000만 뷰',
+        instaReels: '릴스 35만 개'
+      }
+    },
+    {
+      id: `fig-fall-${Date.now()}-14`,
+      name: '워런 버핏 (Warren Buffett)',
+      title: '94세 오마하의 현인이 전하는 "가장 중요한 인생의 1가지 원칙"',
+      category: 'economy',
+      viralityScore: 96,
+      timeframe,
+      buzzSummary: '현금 보유액 사상 최대치 경신! 단 하루도 일희일비하지 않고 80년간 세계 부호 1위를 지킨 투자 황제',
+      controversyOrIssue: '남들이 탐욕을 부릴 때 두려워하고, 남들이 두려워할 때 탐욕을 부리는 역발상 가치투자',
+      suggestedAngle: '돈보다 중요한 것은 평생을 지킬 평판이다, 90대 거인이 청년들에게 전하는 뼈 때리는 조언',
+      tags: ['워런버핏', '버크셔해서웨이', '가치투자', '오마하의현인', '인생교훈'],
+      primaryChannel: 'naver',
+      channelMetrics: {
+        naverRank: '네이버 경제 인물 1위',
+        youtubeViews: '유튜브 다큐/쇼츠 2,500만 뷰',
+        instaReels: '릴스 18만 개'
+      }
+    },
+    {
+      id: `fig-fall-${Date.now()}-15`,
+      name: '이강인',
+      title: '파리 생제르맹(PSG)의 핵심으로 거듭난 축구 천재의 승부욕',
+      category: 'sports',
+      viralityScore: 96,
+      timeframe,
+      buzzSummary: '날카로운 킬패스와 택배 크로스로 프랑스 리그앙과 챔피언스리그를 뒤흔드는 에이스 활약',
+      controversyOrIssue: '날아라 슛돌이 시절부터 스페인 발렌시아 유학까지 언어 장벽과 인종차별을 뚫고 버틴 유년기',
+      suggestedAngle: '어린 나이에 홀로 떠난 스페인 유학길, 눈물로 축구화를 묶었던 소년의 당찬 반란',
+      tags: ['이강인', 'PSG', '슛돌이', '국가대표', '골든보이'],
+      primaryChannel: 'youtube',
+      channelMetrics: {
+        naverRank: '네이버 축구 검색 2위',
+        youtubeViews: '유튜브 하이라이트 2,900만 뷰',
+        instaReels: '릴스 19만 개'
+      }
+    },
+    {
+      id: `fig-fall-${Date.now()}-16`,
+      name: '마동석',
+      title: '미국 헬스트레이너에서 한국 영화계 천만 관객 4회 돌파의 괴물 배우',
+      category: 'actor',
+      viralityScore: 97,
+      timeframe,
+      buzzSummary: '범죄도시 시리즈로 한국 영화 역사상 최다 관객 동원 기록! 마크 콜먼 개인 트레이너 출신의 묵직한 액션',
+      controversyOrIssue: '계단에서 추락해 척추와 어깨가 부러지는 대수술을 겪고도 진통제를 맞으며 촬영한 투혼',
+      suggestedAngle: '온몸이 쇠조각투성이지만 액션을 멈출 수 없다, 불사조 마동석의 진짜 액션 인생',
+      tags: ['마동석', '범죄도시', '천만배우', '액션히어로', '마블영화'],
+      primaryChannel: 'multi',
+      channelMetrics: {
+        naverRank: '네이버 영화 인물 1위',
+        youtubeViews: '유튜브 액션 명장면 4,200만 뷰',
+        instaReels: '릴스 28만 개'
       }
     }
   ];
@@ -149,13 +329,15 @@ export async function POST(request: Request) {
       : '현재 전 세계와 대한민국 숏폼(유튜브 쇼츠, 릴스, 틱톡)에서 가장 도파민과 조회수가 폭발적인 인물들을 추천하세요. 특히 전 세계 시총 1위 AI 황제 젠슨 황(엔비디아)과 일론 머스크 등 글로벌 테크 신화 인물을 반드시 상위권에 포함하고, 셰프·가수·배우·스포츠 영웅 등 다채로운 감동 실화 인물을 조합하세요.';
 
   const prompt = `당신은 대한민국 최고 유튜브 쇼츠 & 인스타 릴스 바이럴 트렌드 레이더입니다.
-현재 (${timeframe}) 네이버 실시간 검색, 유튜브 급상승 쇼츠, 인스타그램 릴스에서 가장 폭발적으로 조회수를 견인하는 최신 화제의 인물 6명을 추천하세요.
+현재 (${timeframe}) 네이버 실시간 검색, 유튜브 급상승 쇼츠, 인스타그램 릴스에서 가장 폭발적으로 조회수를 견인하는 최신 화제의 인물 16~20명을 추천하세요.
 
 [★ 트렌드 선별 알고리즘 및 가중치 원칙]
 1. ${categoryInstruction}
-2. 숏폼 리텐션 최우선: 단순 인지도가 아니라, "밑바닥에서 정상까지의 극적인 인생 역전(Underdog)", "3초 만에 스크롤을 멈추게 하는 충격 반전"이 있는 인물에게 viralityScore(90~100점)를 최우선 부여하세요.
-3. 100% 사실(Fact) 기반: 공인된 실제 인터뷰, 보도, 일화만을 다루고 절대 허위사실을 창작하지 마세요.
-4. 채널(${channel}) 및 시간대(${timeframe})의 반응 지표(channelMetrics)를 현실감 있게 작성하세요.
+2. 전 카테고리 균형: 연예·가수, 배우·드라마, 스포츠, 경제·기업, 글로벌·셀럽, 사회·이슈 전 분야에서 화제성 높은 인물을 골고루 추천하세요.
+3. primaryChannel 필드는 반드시 'youtube', 'naver', 'instagram', 'multi' 중 하나의 소문자 영문 값으로만 지정하세요.
+4. 숏폼 리텐션 최우선: 단순 인지도가 아니라, "밑바닥에서 정상까지의 극적인 인생 역전(Underdog)", "3초 만에 스크롤을 멈추게 하는 충격 반전"이 있는 인물에게 viralityScore(90~100점)를 최우선 부여하세요.
+5. 100% 사실(Fact) 기반: 공인된 실제 인터뷰, 보도, 일화만을 다루고 절대 허위사실을 창작하지 마세요.
+6. 채널(${channel}) 및 시간대(${timeframe})의 반응 지표(channelMetrics: naverRank, youtubeViews, instaReels)를 반드시 실감나게 포함하세요.
 반드시 아래 JSON 스키마 형식의 배열로 응답하세요.`;
 
   const candidateModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash'];
@@ -196,7 +378,7 @@ export async function POST(request: Request) {
                 },
                 sourceArticlesCount: { type: Type.INTEGER }
               },
-              required: ['name', 'title', 'category', 'viralityScore', 'buzzSummary', 'controversyOrIssue', 'suggestedAngle', 'tags']
+              required: ['name', 'title', 'category', 'viralityScore', 'buzzSummary', 'controversyOrIssue', 'suggestedAngle', 'tags', 'primaryChannel']
             }
           }
         }

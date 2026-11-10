@@ -105,6 +105,15 @@ export const FigureAvatar: React.FC<{ name: string; category: CategoryType; imag
   );
 };
 
+export const normalizeChannel = (ch?: string): 'youtube' | 'naver' | 'instagram' | 'multi' => {
+  if (!ch) return 'multi';
+  const lower = ch.toLowerCase().trim();
+  if (lower.includes('you') || lower.includes('유튜브') || lower.includes('쇼츠') || lower.includes('shorts') || lower.includes('yt')) return 'youtube';
+  if (lower.includes('nav') || lower.includes('네이버') || lower.includes('블로그') || lower.includes('카페') || lower.includes('검색')) return 'naver';
+  if (lower.includes('insta') || lower.includes('인스타') || lower.includes('릴스') || lower.includes('reels') || lower.includes('ig')) return 'instagram';
+  return 'multi';
+};
+
 export const TrendRadar: React.FC<TrendRadarProps> = ({
   figures,
   selectedFigure,
@@ -134,7 +143,7 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
       const now = new Date();
       const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
       setLastUpdatedTime(timeStr);
-      setRefreshToast('✨ 최신 화제성 인물이 실시간으로 최신화되었습니다! (젠슨 황, 일론 머스크 등 1티어 랭킹 반영)');
+      setRefreshToast('✨ 최신 화제성 인물이 실시간으로 최신화되었습니다! (전 세계 트렌드 랭킹 반영)');
       setTimeout(() => setRefreshToast(null), 4000);
     } catch (err: any) {
       setRefreshToast('✨ 최신 화제 인물 데이터로 갱신되었습니다!');
@@ -142,18 +151,41 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
     }
   };
 
-  // Filter figures
+  // Filter figures (유튜브·네이버·인스타 및 24h·48h·7d 완벽 필터링 보장)
   const filteredFigures = figures.filter((fig) => {
-    const matchesChannel = 
-      sourceChannel === 'all' ? true : 
-      fig.primaryChannel === sourceChannel || fig.primaryChannel === 'multi';
-    const matchesTime = timeFilter === '24h' ? true : fig.timeframe === timeFilter;
+    const norm = normalizeChannel(fig.primaryChannel);
+
+    // 플랫폼 채널 매칭:
+    // 1) 'all': 전체 표시
+    // 2) 'multi': 모든 플랫폼 탭에서 공통 표시
+    // 3) norm이 해당 채널과 일치하거나, 해당 플랫폼 지표(youtubeViews, naverRank, instaReels)가 있으면 포함!
+    const matchesChannel = (() => {
+      if (sourceChannel === 'all') return true;
+      if (norm === 'multi') return true;
+      if (norm === sourceChannel) return true;
+      if (sourceChannel === 'youtube' && (fig.channelMetrics?.youtubeViews || norm === 'youtube')) return true;
+      if (sourceChannel === 'naver' && (fig.channelMetrics?.naverRank || norm === 'naver')) return true;
+      if (sourceChannel === 'instagram' && (fig.channelMetrics?.instaReels || norm === 'instagram')) return true;
+      return false;
+    })();
+
+    // 시간대 필터 매칭:
+    // - 7d: 주간 전체 인물 (24h, 48h, 7d 모두 포함)
+    // - 48h: 24h 및 48h 인물 포함
+    // - 24h: 24h 급상승 인물 및 실시간 핫(isHot) 인물 포함
+    const matchesTime = (() => {
+      if (timeFilter === '7d') return true;
+      if (timeFilter === '48h') return fig.timeframe === '24h' || fig.timeframe === '48h' || !fig.timeframe;
+      return fig.timeframe === '24h' || !fig.timeframe || fig.isHot;
+    })();
+
     const matchesCategory = categoryFilter === 'all' ? true : fig.category === categoryFilter;
     const matchesQuery =
       searchQuery === '' ||
       fig.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       fig.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       fig.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()));
+
     return matchesChannel && matchesTime && matchesCategory && matchesQuery;
   });
 

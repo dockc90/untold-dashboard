@@ -760,6 +760,206 @@ export const INITIAL_TRENDING_FIGURES: TrendingFigure[] = [
       youtubeViews: '유튜브 쇼츠 360만 뷰',
       instaReels: '릴스 골 하이라이트 5.9만 개'
     }
+  },
+  {
+    id: 'fig-37',
+    name: '지드래곤 (G-DRAGON)',
+    title: '7년의 침묵을 깨고 독보적 신곡 파워로 컴백한 K-POP의 제왕',
+    category: 'entertainment',
+    viralityScore: 99,
+    timeframe: '24h',
+    buzzSummary: '신곡 POWER로 음원 차트 올킬 및 유퀴즈 출연으로 폭발적인 대중적 환호와 패션 트렌드 독점',
+    controversyOrIssue: '억울했던 루머와 공백기를 예술과 음악으로 완벽하게 제압한 진짜 아티스트의 품격',
+    suggestedAngle: '세상이 나를 흔들어도 나는 음악으로 답한다, 지드래곤의 불멸의 영향력',
+    tags: ['지드래곤', 'GD', 'POWER', '빅뱅', '패션아이콘'],
+    sourceArticlesCount: 420,
+    isHot: true,
+    primaryChannel: 'multi',
+    channelMetrics: {
+      naverRank: '네이버 연예 종합 1위',
+      youtubeViews: '유튜브 MV 5,200만 뷰',
+      instaReels: '릴스 챌린지 85만 개'
+    }
+  },
+  {
+    id: 'fig-38',
+    name: '오타니 쇼헤이 (Shohei Ohtani)',
+    title: '만화도 이렇게 쓰면 욕먹는다! MLB 최초 50홈런-50도루 신화',
+    category: 'sports',
+    viralityScore: 100,
+    timeframe: '24h',
+    buzzSummary: '메이저리그 148년 역사상 최초로 50-50을 달성하고 월드시리즈 우승 트로피를 들어올린 야구 천재',
+    controversyOrIssue: '고교 시절 쓰레기 줍기까지 운의 영역으로 계획했던 만다라트 계획표와 철저한 자기관리',
+    suggestedAngle: '불가능을 목표로 삼았기에 역사가 되었다, 오타니의 위대한 멘탈리티',
+    tags: ['오타니', '50-50', 'LA다저스', 'MLB', '만다라트'],
+    sourceArticlesCount: 550,
+    isHot: true,
+    primaryChannel: 'youtube',
+    channelMetrics: {
+      naverRank: '네이버 해외스포츠 1위',
+      youtubeViews: '유튜브 쇼츠 7,200만 뷰',
+      instaReels: '글로벌 릴스 60만 개'
+    }
+  },
+  {
+    id: 'fig-39',
+    name: '샘 알트만 (Sam Altman)',
+    title: 'ChatGPT로 인류의 지능을 바꾼 OpenAI 창립자의 거침없는 승부수',
+    category: 'economy',
+    viralityScore: 97,
+    timeframe: '24h',
+    buzzSummary: '이사회의 기습 해임 쿠데타를 5일 만에 뒤집고 완벽하게 복귀한 실리콘밸리의 실세',
+    controversyOrIssue: '인류를 위협할 수 있는 초지능(AGI) 개발과 기업 상업화 사이의 살얼음판 갈등',
+    suggestedAngle: '모두가 안 된다고 할 때 전 재산과 미래를 베팅하는 빅테크 거물의 결단력',
+    tags: ['샘알트만', 'OpenAI', 'ChatGPT', '인공지능', '실리콘밸리'],
+    sourceArticlesCount: 380,
+    isHot: true,
+    primaryChannel: 'youtube',
+    channelMetrics: {
+      naverRank: '네이버 IT/테크 1위',
+      youtubeViews: '유튜브 인터뷰 3,400만 뷰',
+      instaReels: '테크 릴스 20만 개'
+    }
+  },
+  {
+    id: 'fig-40',
+    name: '카리나 (aespa)',
+    title: '쇠맛 신드롬 ‘슈퍼노바’와 ‘아마겟돈’으로 가요계를 평정한 AI 비주얼 리더',
+    category: 'entertainment',
+    viralityScore: 98,
+    timeframe: '24h',
+    buzzSummary: '독보적인 콘셉트와 라이브 실력으로 걸그룹 음원 차트 장기 집권 및 챌린지 열풍 주도',
+    controversyOrIssue: '비주얼뿐만 아니라 밤낮없는 연습으로 다져진 보컬과 댄스 실력의 재평가',
+    suggestedAngle: '완벽한 외모 뒤에 숨겨진 치열한 노력과 그룹을 이끄는 단단한 리더십',
+    tags: ['카리나', '에스파', '슈퍼노바', '아마겟돈', 'KPOP리더'],
+    sourceArticlesCount: 390,
+    isHot: true,
+    primaryChannel: 'instagram',
+    channelMetrics: {
+      naverRank: '네이버 엔터 2위',
+      youtubeViews: '유튜브 쇼츠 6,100만 뷰',
+      instaReels: '릴스 챌린지 110만 개'
+    }
+  },
+  {
+    id: 'fig-41',
+    name: '미스터비스트 (MrBeast)',
+    title: '하루 16시간 유튜브만 분석해 3억 구독자 제국을 세운 집념',
+    category: 'global',
+    viralityScore: 100,
+    timeframe: '24h',
+    buzzSummary: '전 세계 유튜브 구독자 1위! 벌어들인 수익의 100%를 다시 다음 영상에 재투자하는 미친 스케일',
+    controversyOrIssue: '학창 시절 친구들과 작은 방에 모여 1,000개의 썸네일과 인트로를 초단위로 뜯어보며 연구한 일화',
+    suggestedAngle: '천재 크리에이터는 없다, 오직 미치도록 집요한 분석과 실행만이 있을 뿐이다',
+    tags: ['미스터비스트', '유튜브1위', '3억구독자', '챌린지', '성공방정식'],
+    sourceArticlesCount: 610,
+    isHot: true,
+    primaryChannel: 'youtube',
+    channelMetrics: {
+      naverRank: '네이버 해외이슈 2위',
+      youtubeViews: '유튜브 본편 및 쇼츠 누적 500억 뷰',
+      instaReels: '글로벌 릴스 200만 개'
+    }
+  },
+  {
+    id: 'fig-42',
+    name: '백종원',
+    title: '통영 어촌 살리기부터 축제 혁신까지, 위기의 자영업을 살리는 장사의 신',
+    category: 'social',
+    viralityScore: 97,
+    timeframe: '24h',
+    buzzSummary: '지역 축제 바가지 요금 근절과 전통시장 재생 프로젝트로 전 국민적 신뢰와 박수를 받는 외식업계 거물',
+    controversyOrIssue: '과거 IMF 시절 17억 빚더미에 앉아 유서까지 썼던 극한의 위기를 극복한 인생 실화',
+    suggestedAngle: '바닥을 쳐본 사람만이 진정한 장사의 본질을 안다, 백종원의 눈물겨운 빚더미 탈출기',
+    tags: ['백종원', '더본코리아', '골목식당', '지역축제', '인생역전'],
+    sourceArticlesCount: 310,
+    isHot: true,
+    primaryChannel: 'youtube',
+    channelMetrics: {
+      naverRank: '네이버 경제/사회 1위',
+      youtubeViews: '유튜브 채널 600만 구독자 & 쇼츠 4,000만 뷰',
+      instaReels: '릴스 35만 개'
+    }
+  },
+  {
+    id: 'fig-43',
+    name: '워런 버핏 (Warren Buffett)',
+    title: '94세 오마하의 현인이 전하는 "가장 중요한 인생의 1가지 원칙"',
+    category: 'economy',
+    viralityScore: 96,
+    timeframe: '48h',
+    buzzSummary: '현금 보유액 사상 최대치 경신! 단 하루도 일희일비하지 않고 80년간 세계 부호 1위를 지킨 투자 황제',
+    controversyOrIssue: '남들이 탐욕을 부릴 때 두려워하고, 남들이 두려워할 때 탐욕을 부리는 역발상 가치투자',
+    suggestedAngle: '돈보다 중요한 것은 평생을 지킬 평판이다, 90대 거인이 청년들에게 전하는 뼈 때리는 조언',
+    tags: ['워런버핏', '버크셔해서웨이', '가치투자', '오마하의현인', '인생교훈'],
+    sourceArticlesCount: 290,
+    isHot: false,
+    primaryChannel: 'naver',
+    channelMetrics: {
+      naverRank: '네이버 경제 인물 1위',
+      youtubeViews: '유튜브 다큐/쇼츠 2,500만 뷰',
+      instaReels: '릴스 18만 개'
+    }
+  },
+  {
+    id: 'fig-44',
+    name: '마동석',
+    title: '미국 헬스트레이너에서 한국 영화계 천만 관객 4회 돌파의 괴물 배우',
+    category: 'actor',
+    viralityScore: 97,
+    timeframe: '24h',
+    buzzSummary: '범죄도시 시리즈로 한국 영화 역사상 최다 관객 동원 기록! 마크 콜먼 개인 트레이너 출신의 묵직한 액션',
+    controversyOrIssue: '계단에서 추락해 척추와 어깨가 부러지는 대수술을 겪고도 진통제를 맞으며 촬영한 투혼',
+    suggestedAngle: '온몸이 쇠조각투성이지만 액션을 멈출 수 없다, 불사조 마동석의 진짜 액션 인생',
+    tags: ['마동석', '범죄도시', '천만배우', '액션히어로', '마블영화'],
+    sourceArticlesCount: 350,
+    isHot: true,
+    primaryChannel: 'multi',
+    channelMetrics: {
+      naverRank: '네이버 영화 인물 1위',
+      youtubeViews: '유튜브 액션 명장면 4,200만 뷰',
+      instaReels: '릴스 28만 개'
+    }
+  },
+  {
+    id: 'fig-45',
+    name: '김연경',
+    title: '세계 최고 연봉을 거절하고 고국 리그로 돌아와 배구 부흥을 이끈 식빵언니',
+    category: 'sports',
+    viralityScore: 96,
+    timeframe: '48h',
+    buzzSummary: '도쿄올림픽 4강 신화와 V리그 전 경기 매진 돌풍을 일으킨 세계 배구계의 리빙 레전드',
+    controversyOrIssue: '고교 시절 키가 작아 벤치에만 앉아 울던 무명 시절과 피나는 성장통을 견뎌낸 일화',
+    suggestedAngle: '포기하지 않는 자에게 기적은 온다, 키 170cm 벤치 멤버에서 세계 1위가 된 식빵언니의 투혼',
+    tags: ['김연경', '배구여제', '식빵언니', '도쿄올림픽', '걸크러시'],
+    sourceArticlesCount: 240,
+    isHot: false,
+    primaryChannel: 'youtube',
+    channelMetrics: {
+      naverRank: '네이버 배구 1위',
+      youtubeViews: '유튜브 쇼츠 1,800만 뷰',
+      instaReels: '릴스 15만 개'
+    }
+  },
+  {
+    id: 'fig-46',
+    name: '임영웅',
+    title: '단칸방 군고구마 장사에서 전 세대를 울리는 영웅이 된 기적의 목소리',
+    category: 'entertainment',
+    viralityScore: 98,
+    timeframe: '24h',
+    buzzSummary: '상암 월드컵경기장 콘서트 10만 관객 올킬! 음원 차트 장기 독점과 중장년층 팬덤의 절대적 지지',
+    controversyOrIssue: '어릴 적 아버지를 여의고 어머니와 단둘이 보일러도 안 들어오는 방에서 군고구마를 팔던 유년기',
+    suggestedAngle: '시련은 나를 무너뜨리지 못한다, 눈물로 빚어낸 따뜻한 위로의 목소리',
+    tags: ['임영웅', '영웅시대', '상암콘서트', '트로트황제', '효도의아이콘'],
+    sourceArticlesCount: 460,
+    isHot: true,
+    primaryChannel: 'naver',
+    channelMetrics: {
+      naverRank: '네이버 검색 인물 1위',
+      youtubeViews: '유튜브 뮤직 누적 25억 뷰',
+      instaReels: '릴스 30만 개'
+    }
   }
 ];
 

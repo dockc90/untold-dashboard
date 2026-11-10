@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Header, AppTab } from './components/Header';
-import { TrendRadar } from './components/TrendRadar';
+import { TrendRadar, normalizeChannel } from './components/TrendRadar';
 import { ScriptStudio } from './components/ScriptStudio';
 import { CpoExecutiveView } from './components/CpoExecutiveView';
 import { DailyRoutineChecklist } from './components/DailyRoutineChecklist';
@@ -368,8 +368,20 @@ export default function App() {
           id: item.id || `fig-gen-${Date.now()}-${idx}`,
           category: (item.category as CategoryType) || category,
           timeframe: (item.timeframe as TimeFilter) || timeframe,
+          primaryChannel: normalizeChannel(item.primaryChannel),
+          isHot: item.isHot ?? true,
         }));
-        setFigures(formatted);
+
+        // 새로 발굴된 실시간 트렌드 인물을 상단에 배치하고 기존 38+명 풍성한 DB와 자동 병합(중복 제거)
+        setFigures((prev) => {
+          const baseFigures = prev && prev.length > 0 ? prev : INITIAL_TRENDING_FIGURES;
+          const newNames = new Set(formatted.map((f) => f.name.replace(/[^가-힣a-zA-Z0-9]/g, '').toLowerCase()));
+          const kept = baseFigures.filter((p) => {
+            const cleanName = p.name.replace(/[^가-힣a-zA-Z0-9]/g, '').toLowerCase();
+            return !newNames.has(cleanName);
+          });
+          return [...formatted, ...kept];
+        });
         setSelectedFigure(formatted[0]);
       }
     } catch (err: any) {
