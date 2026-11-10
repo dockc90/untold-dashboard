@@ -541,10 +541,12 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
 
   return (
     <div className="flex flex-col h-full bg-white border border-slate-200 rounded-2xl sm:rounded-3xl overflow-hidden shadow-sm w-full max-w-full min-w-0">
-      {/* Top Banner / Selected Figure Info */}
-      <div className="p-3 sm:p-4 bg-slate-50/80 border-b border-slate-200 w-full max-w-full min-w-0 overflow-hidden">
+      {/* Top Banner / Selected Figure Info & Planning Studio */}
+      <div className="p-3 sm:p-4 bg-slate-50/80 border-b border-slate-200 w-full max-w-full min-w-0 overflow-hidden space-y-3">
+        {/* ROW 1: 인물 프로필 정보 & 상단 주요 컨트롤 바 (2단 분리 레이아웃) */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 w-full min-w-0 max-w-full">
-          <div className="flex items-center space-x-2.5 sm:space-x-3 min-w-0 max-w-full">
+          {/* Left: 인물 정보 */}
+          <div className="flex items-center space-x-2.5 sm:space-x-3 min-w-0">
             {onBackToTrends && (
               <button
                 type="button"
@@ -577,31 +579,29 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
             </div>
           </div>
 
-          {/* Persona, Duration & Voice Selectors & Generate Button (Mobile-first Clean Grid) */}
-          <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 w-full lg:w-auto min-w-0 max-w-full">
+          {/* Right: 성우, 페르소나, 45/60초, 생성 버튼 */}
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
             {/* Voice Selector */}
-            <div className="flex items-center justify-between bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 shadow-2xs w-full sm:w-auto min-w-0 max-w-full gap-2">
+            <div className="flex items-center bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 shadow-2xs gap-1.5 shrink-0">
               <span className="text-[11px] font-extrabold text-indigo-700 shrink-0">성우</span>
-              <div className="flex-1 min-w-0 overflow-hidden">
-                <select
-                  value={selectedVoiceId}
-                  onChange={(e) => setSelectedVoiceId(e.target.value)}
-                  className="w-full bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer truncate"
-                >
-                  {VOICE_OPTIONS.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.name} ({v.role})
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <select
+                value={selectedVoiceId}
+                onChange={(e) => setSelectedVoiceId(e.target.value)}
+                className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer max-w-[130px] truncate"
+              >
+                {VOICE_OPTIONS.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name} ({v.role})
+                  </option>
+                ))}
+              </select>
               <button
                 type="button"
                 onClick={() => {
                   const voice = VOICE_OPTIONS.find((v) => v.id === selectedVoiceId) || VOICE_OPTIONS[0];
                   playVoiceSample(voice);
                 }}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition flex items-center space-x-1 shrink-0 ${
+                className={`px-2 py-0.5 rounded-lg text-[10px] font-black transition flex items-center space-x-1 shrink-0 ${
                   isPlayingVoiceSample
                     ? 'bg-rose-500 text-white'
                     : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
@@ -613,144 +613,150 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
               </button>
             </div>
 
-            {/* Persona & Duration in 2-col on mobile */}
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center w-full sm:w-auto min-w-0">
-              <select
-                value={targetPersona}
-                onChange={(e) => setTargetPersona(e.target.value as TargetPersona)}
-                className="bg-white border border-slate-200 text-xs font-bold text-slate-700 rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-indigo-500 shadow-2xs w-full min-w-0"
-              >
-                <option value="4060_emotional">4060 감동</option>
-                <option value="1020_dopamine">1020 도파민</option>
-                <option value="3040_success">3040 동기부여</option>
-                <option value="mystery_twist">반전 미스터리</option>
-                <option value="ceo_branding">🏛️ CEO/기업인 브랜딩</option>
-              </select>
+            {/* Persona Selector */}
+            <select
+              value={targetPersona}
+              onChange={(e) => setTargetPersona(e.target.value as TargetPersona)}
+              className="bg-white border border-slate-200 text-xs font-bold text-slate-700 rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-indigo-500 shadow-2xs shrink-0 cursor-pointer"
+            >
+              <option value="4060_emotional">4060 감동</option>
+              <option value="1020_dopamine">1020 도파민</option>
+              <option value="3040_success">3040 동기부여</option>
+              <option value="mystery_twist">반전 미스터리</option>
+              <option value="ceo_branding">🏛️ CEO/기업인 브랜딩</option>
+            </select>
 
-              <div className="flex items-center bg-slate-200/70 rounded-xl border border-slate-200 p-0.5 text-xs font-bold w-full justify-center min-w-0">
-                <button
-                  type="button"
-                  onClick={() => setDuration(45)}
-                  className={`flex-1 px-2.5 py-1 rounded-lg transition text-center ${
-                    duration === 45 ? 'bg-white text-slate-900 shadow-2xs font-black' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  45초
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDuration(60)}
-                  className={`flex-1 px-2.5 py-1 rounded-lg transition text-center ${
-                    duration === 60 ? 'bg-white text-slate-900 shadow-2xs font-black' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  60초
-                </button>
-              </div>
-            </div>
-
-            {/* Action Buttons in 2-col on mobile */}
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:ml-auto w-full sm:w-auto min-w-0">
+            {/* Duration Selector */}
+            <div className="flex items-center bg-slate-200/70 rounded-xl border border-slate-200 p-0.5 text-xs font-bold shrink-0">
               <button
                 type="button"
-                onClick={() => onGenerateScript(targetPersona, duration, videoTone, 'random', customKeyword)}
-                disabled={isGenerating || !selectedFigure}
-                className="flex items-center justify-center space-x-1.5 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs rounded-xl shadow-xs transition disabled:opacity-50 cursor-pointer min-w-0"
+                onClick={() => setDuration(45)}
+                className={`px-2.5 py-1 rounded-lg transition text-center cursor-pointer ${
+                  duration === 45 ? 'bg-white text-slate-900 shadow-2xs font-black' : 'text-slate-600 hover:text-slate-900'
+                }`}
               >
-                <RotateCw className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
-                <span className="truncate">대본 새로고침</span>
+                45초
               </button>
-
               <button
                 type="button"
-                onClick={() => onGenerateScript(targetPersona, duration, videoTone, 'random', customKeyword)}
-                disabled={isGenerating || !selectedFigure}
-                className="flex items-center justify-center space-x-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition disabled:opacity-50 cursor-pointer min-w-0"
+                onClick={() => setDuration(60)}
+                className={`px-2.5 py-1 rounded-lg transition text-center cursor-pointer ${
+                  duration === 60 ? 'bg-white text-slate-900 shadow-2xs font-black' : 'text-slate-600 hover:text-slate-900'
+                }`}
               >
-                <Sparkles className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
-                <span className="truncate">{isGenerating ? '생성 중...' : '대본 생성'}</span>
+                60초
               </button>
             </div>
-          </div>
 
-          {/* 🎯 원하는 키워드 / 핵심 주제 입력 바 (Full Width & Expansive) */}
-          <div className="mt-3 pt-3 border-t border-slate-200/80 space-y-2 w-full">
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full">
-              <div className="flex items-center space-x-1.5 text-xs font-black text-indigo-700 shrink-0">
-                <Sparkles className="w-4 h-4 text-indigo-600 animate-pulse" />
-                <span>강조 키워드:</span>
-              </div>
-              <div className="flex-1 relative w-full min-w-0">
-                <input
-                  type="text"
-                  value={customKeyword}
-                  onChange={(e) => setCustomKeyword(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !isGenerating && selectedFigure) {
-                      onGenerateScript(targetPersona, duration, videoTone, activeStoryAngle, customKeyword);
-                    }
-                  }}
-                  placeholder="대본에 반영할 핵심 키워드 직접 입력 (예: 30대 창업 실패, 1993년 부도 위기, 세가 사장의 500만 달러 투자 등)"
-                  className="w-full text-xs sm:text-sm bg-white border-2 border-indigo-200 focus:border-indigo-600 rounded-xl px-3.5 py-2 text-slate-900 placeholder:text-slate-400 font-bold focus:outline-none transition shadow-2xs pr-8"
-                />
-                {customKeyword && (
-                  <button
-                    type="button"
-                    onClick={() => setCustomKeyword('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-xs font-black p-1"
-                    title="키워드 지우기"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
+            {/* Action Buttons */}
+            <div className="flex items-center gap-1.5 shrink-0">
               <button
                 type="button"
                 onClick={() => onGenerateScript(targetPersona, duration, videoTone, activeStoryAngle, customKeyword)}
                 disabled={isGenerating || !selectedFigure}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs transition shadow-xs cursor-pointer flex items-center justify-center space-x-1 shrink-0 disabled:opacity-50"
+                className="flex items-center justify-center space-x-1 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs rounded-xl shadow-xs transition disabled:opacity-50 cursor-pointer"
+                title="설정된 키워드와 컨셉으로 대본 새로고침"
               >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>키워드 반영 대본 생성</span>
+                <RotateCw className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
+                <span>대본 새로고침</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onGenerateScript(targetPersona, duration, videoTone, activeStoryAngle, customKeyword)}
+                disabled={isGenerating || !selectedFigure}
+                className="flex items-center justify-center space-x-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition disabled:opacity-50 cursor-pointer"
+              >
+                <Sparkles className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
+                <span>{isGenerating ? '생성 중...' : '대본 생성'}</span>
               </button>
             </div>
+          </div>
+        </div>
 
-            {/* Quick keyword chips */}
-            <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-              <span className="text-[11px] font-bold text-slate-500 mr-1">추천 태그:</span>
-              {['성공 방정식', '위기 극복', '독점 기술', '인생 역전', '기업 철학', '단칸방 무명시절', '기적의 한마디'].map((kw) => (
+        {/* ROW 2: 원하는 키워드 & 추천 태그 기획 카드 (독립된 세련된 박스) */}
+        <div className="p-3 bg-white rounded-2xl border border-indigo-100 shadow-2xs space-y-2.5 w-full">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full">
+            <div className="flex items-center space-x-1.5 text-xs font-black text-indigo-700 shrink-0">
+              <Sparkles className="w-4 h-4 text-indigo-600" />
+              <span>강조 키워드:</span>
+            </div>
+            <div className="flex-1 relative w-full min-w-0">
+              <input
+                type="text"
+                value={customKeyword}
+                onChange={(e) => setCustomKeyword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !isGenerating && selectedFigure) {
+                    onGenerateScript(targetPersona, duration, videoTone, activeStoryAngle, customKeyword);
+                  }
+                }}
+                placeholder="대본에 반영할 핵심 키워드 직접 입력 (예: 30대 창업 실패, 1993년 부도 위기, 세가 사장의 500만 달러 투자 등)"
+                className="w-full text-xs sm:text-sm bg-slate-50 focus:bg-white border border-indigo-200 focus:border-indigo-600 rounded-xl px-3.5 py-2 text-slate-900 placeholder:text-slate-400 font-bold focus:outline-none transition shadow-2xs pr-8"
+              />
+              {customKeyword && (
+                <button
+                  type="button"
+                  onClick={() => setCustomKeyword('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-xs font-black p-1 cursor-pointer"
+                  title="키워드 지우기"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => onGenerateScript(targetPersona, duration, videoTone, activeStoryAngle, customKeyword)}
+              disabled={isGenerating || !selectedFigure}
+              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs transition shadow-xs cursor-pointer flex items-center justify-center space-x-1 shrink-0 disabled:opacity-50"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>키워드 반영 대본 생성</span>
+            </button>
+          </div>
+
+          {/* Quick keyword chips (클릭 시 자동 생성되지 않고 선택/해제만 동작!) */}
+          <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+            <span className="text-[11px] font-bold text-slate-500 mr-1 shrink-0">추천 태그 (클릭하여 선택):</span>
+            {['성공 방정식', '위기 극복', '독점 기술', '인생 역전', '기업 철학', '단칸방 무명시절', '기적의 한마디'].map((kw) => {
+              const isSelected = customKeyword === kw;
+              return (
                 <button
                   key={kw}
                   type="button"
                   onClick={() => {
-                    setCustomKeyword(kw);
-                    onGenerateScript(targetPersona, duration, videoTone, activeStoryAngle, kw);
+                    // 태그 클릭 시 대본을 즉시 생성하지 않고, 키워드만 선택/토글함
+                    setCustomKeyword(isSelected ? '' : kw);
                   }}
-                  className={`text-[11px] px-2.5 py-1 rounded-lg border transition font-bold cursor-pointer whitespace-nowrap ${
-                    customKeyword === kw
+                  className={`text-[11px] px-2.5 py-1 rounded-lg border transition font-bold cursor-pointer whitespace-nowrap flex items-center space-x-1 ${
+                    isSelected
                       ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
                       : 'bg-white hover:bg-indigo-50 text-slate-700 hover:text-indigo-600 border-slate-200 shadow-2xs'
                   }`}
+                  title={isSelected ? '클릭하여 선택 해제' : '클릭하여 키워드 선택'}
                 >
-                  #{kw}
+                  {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                  <span>#{kw}</span>
                 </button>
-              ))}
-            </div>
+              );
+            })}
           </div>
-
-          {isGenerating && (
-            <div className="mt-3 p-3 rounded-xl bg-gradient-to-r from-indigo-50 via-purple-50 to-amber-50 border border-indigo-200 flex items-center space-x-2 text-xs text-indigo-900 shadow-2xs animate-pulse">
-              <Sparkles className="w-4 h-4 text-indigo-600 animate-spin shrink-0" />
-              <span className="font-extrabold">
-                🧠 AI가 [Gemini Pro / Flash] 엔진으로 뜬구름 잡지 않는 극사실주의 팩트 대본({duration}초)을 작성 중입니다...
-              </span>
-            </div>
-          )}
         </div>
 
-        {/* 3초 후킹(Hook) 선택기 */}
+        {/* AI 작성 중 알림 배너 */}
+        {isGenerating && (
+          <div className="p-3 rounded-xl bg-gradient-to-r from-indigo-50 via-purple-50 to-amber-50 border border-indigo-200 flex items-center space-x-2 text-xs text-indigo-900 shadow-2xs animate-pulse">
+            <Sparkles className="w-4 h-4 text-indigo-600 animate-spin shrink-0" />
+            <span className="font-extrabold">
+              🧠 AI가 [Gemini Pro / Flash] 엔진으로 뜬구름 잡지 않는 극사실주의 팩트 대본({duration}초)을 작성 중입니다...
+            </span>
+          </div>
+        )}
+
+        {/* ROW 3: 3초 후킹(Hook) 선택기 */}
         {currentProject && currentProject.hooks && currentProject.hooks.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-slate-200 w-full max-w-full min-w-0">
+          <div className="pt-2 border-t border-slate-200/80 w-full max-w-full min-w-0">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center space-x-1.5 text-xs font-extrabold text-amber-600">
                 <Flame className="w-4 h-4 fill-amber-500 text-amber-500 shrink-0" />
@@ -796,15 +802,15 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
           </div>
         )}
 
-        {/* 대본 새로고침 & 다양한 스토리 각도 선택 배너 */}
-        <div className="mt-3.5 p-3 rounded-2xl bg-gradient-to-r from-amber-50/90 via-indigo-50/70 to-rose-50/90 border border-amber-200/90 flex flex-col md:flex-row items-start md:items-center justify-between gap-2.5 text-xs shadow-2xs w-full max-w-full min-w-0 overflow-hidden">
+        {/* ROW 4: 대본 컨셉 테마 선택 바 (클릭 시 선택만 되고, 우측 버튼을 눌러야 생성됨!) */}
+        <div className="p-3 rounded-2xl bg-gradient-to-r from-amber-50/90 via-indigo-50/70 to-rose-50/90 border border-amber-200/90 flex flex-col md:flex-row items-start md:items-center justify-between gap-2.5 text-xs shadow-2xs w-full max-w-full min-w-0 overflow-hidden">
           <div className="flex items-center space-x-2 min-w-0">
             <div className="p-1.5 rounded-xl bg-amber-500 text-white shadow-2xs shrink-0">
-              <RotateCw className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
+              <RotateCw className="w-3.5 h-3.5" />
             </div>
             <div className="min-w-0">
-              <span className="font-extrabold text-slate-900 block sm:inline">다른 테마로 즉시 대본 새로고침</span>{' '}
-              <span className="text-[11px] text-slate-600 font-medium hidden sm:inline">원하는 테마를 클릭하면 새로운 각도의 대본으로 변경됩니다.</span>
+              <span className="font-extrabold text-slate-900 block sm:inline">대본 컨셉 테마 선택</span>{' '}
+              <span className="text-[11px] text-slate-600 font-medium hidden sm:inline">컨셉을 선택한 후 [선택 컨셉으로 대본 생성] 버튼을 누르세요.</span>
             </div>
           </div>
 
@@ -816,21 +822,32 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                   key={angle.id}
                   type="button"
                   onClick={() => {
+                    // 클릭 시 선택만 되고 즉시 대본 생성을 실행하지 않음!
                     setActiveStoryAngle(angle.id);
-                    onGenerateScript(targetPersona, duration, videoTone, angle.id, customKeyword);
                   }}
-                  disabled={isGenerating}
-                  className={`px-3 py-1.5 rounded-xl font-black text-xs transition shadow-2xs cursor-pointer flex items-center space-x-1 disabled:opacity-50 shrink-0 ${
+                  className={`px-3 py-1.5 rounded-xl font-black text-xs transition shadow-2xs cursor-pointer flex items-center space-x-1 shrink-0 ${
                     isActive
                       ? 'bg-amber-500 text-white border border-amber-600 ring-2 ring-amber-300 shadow-xs'
-                      : 'bg-white hover:bg-amber-500 hover:text-white border border-slate-200 hover:border-amber-400 text-slate-800'
+                      : 'bg-white hover:bg-amber-100 border border-slate-200 text-slate-800'
                   }`}
                   title={angle.desc}
                 >
+                  {isActive && <Check className="w-3 h-3 stroke-[3]" />}
                   <span>{angle.label}</span>
                 </button>
               );
             })}
+
+            {/* 선택된 컨셉으로 생성 실행 버튼 */}
+            <button
+              type="button"
+              onClick={() => onGenerateScript(targetPersona, duration, videoTone, activeStoryAngle, customKeyword)}
+              disabled={isGenerating || !selectedFigure}
+              className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs transition shadow-xs cursor-pointer flex items-center space-x-1 shrink-0 disabled:opacity-50 ml-1"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>선택 컨셉으로 대본 생성</span>
+            </button>
           </div>
         </div>
       </div>
