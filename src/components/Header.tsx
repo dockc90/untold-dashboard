@@ -113,30 +113,6 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab, saved
             </button>
 
             <button
-              onClick={() => setCurrentTab('todo')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
-                currentTab === 'todo'
-                  ? 'bg-rose-500 text-white shadow-sm shadow-rose-500/20'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-              }`}
-            >
-              <CheckSquare className="w-4 h-4 text-rose-500" />
-              <span>데일리 루틴</span>
-            </button>
-
-            <button
-              onClick={() => setCurrentTab('roadmap')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
-                currentTab === 'roadmap'
-                  ? 'bg-gradient-to-r from-amber-500 to-rose-500 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-              }`}
-            >
-              <TrendingUp className="w-4 h-4 text-amber-500" />
-              <span>수익 로드맵</span>
-            </button>
-
-            <button
               onClick={() => setCurrentTab('saved')}
               className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
                 currentTab === 'saved'
@@ -196,40 +172,16 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab, saved
           </button>
 
           <button
-            onClick={() => setCurrentTab('todo')}
+            onClick={() => setCurrentTab('saved')}
             className={`flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition cursor-pointer ${
-              currentTab === 'todo'
-                ? 'bg-rose-500 text-white shadow-xs'
+              currentTab === 'saved'
+                ? 'bg-slate-900 text-white shadow-xs'
                 : 'bg-slate-100 text-slate-700'
             }`}
           >
-            <CheckSquare className="w-3.5 h-3.5 text-rose-500" />
-            <span>데일리 루틴</span>
+            <FolderHeart className="w-3.5 h-3.5 text-rose-400" />
+            <span>보관함 ({savedCount})</span>
           </button>
-
-          <button
-            onClick={() => setCurrentTab('roadmap')}
-            className={`flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition cursor-pointer ${
-              currentTab === 'roadmap'
-                ? 'bg-amber-500 text-white shadow-xs'
-                : 'bg-slate-100 text-slate-700'
-            }`}
-          >
-            <TrendingUp className="w-3.5 h-3.5 text-amber-500" />
-            <span>수익 로드맵</span>
-          </button>
-
-            <button
-              onClick={() => setCurrentTab('saved')}
-              className={`flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition cursor-pointer ${
-                currentTab === 'saved'
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-700'
-              }`}
-            >
-              <FolderHeart className="w-3.5 h-3.5 text-rose-400" />
-              <span>보관함 ({savedCount})</span>
-            </button>
             </div>
           </div>
           <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent" />
