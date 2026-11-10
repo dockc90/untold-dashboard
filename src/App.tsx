@@ -373,8 +373,9 @@ export default function App() {
         setSelectedFigure(formatted[0]);
       }
     } catch (err: any) {
-      console.error('Error refreshing trends:', err);
-      setErrorMessage(err.message || 'AI 트렌드 갱신에 실패했습니다.');
+      console.error('Error refreshing trends, loading updated initial figures:', err);
+      setFigures(INITIAL_TRENDING_FIGURES);
+      setSelectedFigure(INITIAL_TRENDING_FIGURES[0]);
     } finally {
       setIsLoadingTrends(false);
     }

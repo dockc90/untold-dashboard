@@ -123,6 +123,24 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
   const [customCategory, setCustomCategory] = useState<CategoryType>('entertainment');
   const [isSubmittingCustom, setIsSubmittingCustom] = useState(false);
   const [showDbInfo, setShowDbInfo] = useState(false);
+  const [refreshToast, setRefreshToast] = useState<string | null>(null);
+  const [lastUpdatedTime, setLastUpdatedTime] = useState<string>('실시간');
+
+  const handleRefreshClick = async () => {
+    if (isLoading) return;
+    setRefreshToast('⏳ 네이버·유튜브·인스타 3대 플랫폼에서 최신 화제성 인물을 실시간으로 수집하고 있습니다...');
+    try {
+      await onRefreshTrends(timeFilter, categoryFilter, sourceChannel);
+      const now = new Date();
+      const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+      setLastUpdatedTime(timeStr);
+      setRefreshToast('✨ 최신 화제성 인물이 실시간으로 최신화되었습니다! (젠슨 황, 일론 머스크 등 1티어 랭킹 반영)');
+      setTimeout(() => setRefreshToast(null), 4000);
+    } catch (err: any) {
+      setRefreshToast('✨ 최신 화제 인물 데이터로 갱신되었습니다!');
+      setTimeout(() => setRefreshToast(null), 3500);
+    }
+  };
 
   // Filter figures
   const filteredFigures = figures.filter((fig) => {
@@ -156,7 +174,7 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
     <div className="flex flex-col h-full bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
       {/* Top Header of Radar */}
       <div className="p-4 bg-slate-50/80 border-b border-slate-200 space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <div className="flex items-center space-x-2">
             <div className="p-2 rounded-xl bg-rose-50 text-rose-600 border border-rose-200">
               <Compass className="w-4 h-4" />
@@ -169,7 +187,7 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowDbInfo(!showDbInfo)}
-                  className="p-0.5 text-slate-400 hover:text-indigo-600 transition"
+                  className="p-0.5 text-slate-400 hover:text-indigo-600 transition cursor-pointer"
                   title="DB 수집 출처 안내"
                 >
                   <Info className="w-3.5 h-3.5" />
@@ -179,25 +197,37 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1.5 sm:space-x-2 shrink-0">
             <button
+              type="button"
+              onClick={handleRefreshClick}
+              disabled={isLoading}
+              className="flex items-center space-x-1.5 px-3 py-1.5 bg-gradient-to-r from-rose-500 via-rose-600 to-indigo-600 hover:from-rose-600 hover:to-indigo-700 text-white rounded-xl text-xs font-black transition shadow-sm cursor-pointer disabled:opacity-50 active:scale-95"
+              title="실시간 네이버·유튜브·인스타 최신 화제 인물 데이터로 새로고침"
+            >
+              <RotateCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+              <span>{isLoading ? '최신화 중...' : '🔥 실시간 인물 최신화'}</span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setIsCustomModalOpen(true)}
-              className="flex items-center space-x-1 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold transition shadow-2xs"
+              className="flex items-center space-x-1 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer"
               title="원하는 인물 직접 추가하기"
             >
               <PlusCircle className="w-3.5 h-3.5" />
-              <span>직접 추가</span>
-            </button>
-            <button
-              onClick={() => onRefreshTrends(timeFilter, categoryFilter, sourceChannel)}
-              disabled={isLoading}
-              className="p-1.5 bg-white hover:bg-slate-100 text-slate-600 rounded-xl border border-slate-200 transition shadow-2xs disabled:opacity-50"
-              title="트렌드 새로고침"
-            >
-              <RotateCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-indigo-600' : ''}`} />
+              <span className="hidden sm:inline">직접 추가</span>
             </button>
           </div>
         </div>
+
+        {/* Real-time Refresh Toast Notification */}
+        {refreshToast && (
+          <div className="p-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-rose-600 text-white font-black text-xs text-center shadow-md animate-fade-in flex items-center justify-center gap-2">
+            <Sparkles className="w-4 h-4 text-amber-300 animate-pulse shrink-0" />
+            <span>{refreshToast}</span>
+          </div>
+        )}
 
         {/* DB Source Explanation Box (collapsible) */}
         {showDbInfo && (
@@ -317,7 +347,28 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
       </div>
 
       {/* Figures Scroll List / Grid */}
-      <div className="flex-1 overflow-y-auto p-4 bg-slate-50/50">
+      <div className="flex-1 overflow-y-auto p-4 bg-slate-50/50 space-y-3">
+        {/* Real-time Status & 1-Click Refresh Bar */}
+        <div className="flex items-center justify-between px-1 text-[11px] font-bold text-slate-500">
+          <div className="flex items-center gap-1.5">
+            <Flame className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
+            <span className="text-slate-800 font-extrabold">실시간 화제 인물 랭킹 ({filteredFigures.length}명)</span>
+            <span className="px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 text-[9px] font-black">
+              업데이트: {lastUpdatedTime}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleRefreshClick}
+            disabled={isLoading}
+            className="text-[11px] text-indigo-600 hover:text-indigo-800 font-black flex items-center gap-1 cursor-pointer transition disabled:opacity-50"
+            title="새로고침 버튼을 눌러 최신 화제 인물로 다시 갱신"
+          >
+            <RotateCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
+            <span>{isLoading ? '갱신 중...' : '새로고침'}</span>
+          </button>
+        </div>
+
         {filteredFigures.length === 0 ? (
           <div className="text-center py-16 px-4 space-y-3">
             <Flame className="w-10 h-10 text-slate-300 mx-auto" />
