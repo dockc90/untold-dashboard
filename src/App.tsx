@@ -368,7 +368,7 @@ export default function App() {
           return {
             ...item,
             id: item.id || `fig-gen-${Date.now()}-${idx}`,
-            category: (item.category as CategoryType) || category,
+            category: (category !== 'all' ? category : item.category) as CategoryType || 'all',
             timeframe: (item.timeframe as TimeFilter) || timeframe,
             primaryChannel: normalizeChannel(item.primaryChannel),
             viralityScore: dynamicScore,
