@@ -33,6 +33,7 @@ interface TrendRadarProps {
 
 const CATEGORIES: { id: CategoryType; label: string }[] = [
   { id: 'all', label: '전체' },
+  { id: 'viral', label: '🔥 SNS 바이럴·밈' },
   { id: 'entertainment', label: '연예·가수' },
   { id: 'actor', label: '배우·드라마' },
   { id: 'sports', label: '스포츠' },
@@ -43,6 +44,7 @@ const CATEGORIES: { id: CategoryType; label: string }[] = [
 
 const CATEGORY_ICONS: Record<CategoryType, string> = {
   all: '🔥',
+  viral: '⚡',
   sports: '⚽',
   entertainment: '🍳',
   actor: '🎬',
@@ -53,6 +55,7 @@ const CATEGORY_ICONS: Record<CategoryType, string> = {
 
 const CATEGORY_GRADIENTS: Record<CategoryType, string> = {
   all: 'from-rose-500 to-indigo-600',
+  viral: 'from-orange-500 to-amber-500',
   sports: 'from-blue-600 to-indigo-600',
   entertainment: 'from-amber-500 to-rose-500',
   actor: 'from-purple-600 to-indigo-600',

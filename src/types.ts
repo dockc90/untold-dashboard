@@ -2,6 +2,7 @@ export type SourceChannel = 'all' | 'naver' | 'youtube' | 'instagram';
 
 export type CategoryType = 
   | 'all'
+  | 'viral'
   | 'entertainment'
   | 'actor'
   | 'sports'

@@ -2,6 +2,46 @@ import { TrendingFigure } from '../types';
 
 export const INITIAL_TRENDING_FIGURES: TrendingFigure[] = [
   {
+    id: 'fig-namdaemun-scarf',
+    name: '남대문 스카프 아저씨 (이종석)',
+    title: '현란한 손기술과 최면급 말솜씨로 전 세계 관광객을 홀린 남대문 매직 스카프 장인',
+    category: 'viral',
+    viralityScore: 100,
+    timeframe: '24h',
+    buzzSummary: '유튜브 쇼츠와 릴스에서 "한 번 보면 홀린 듯 끝까지 보게 되는 마성의 스카프 매기"로 수천만 뷰를 폭발시키며 외국인 관광객들의 서울 필수 성지가 된 화제의 장인',
+    controversyOrIssue: '스카프 한 장으로 10가지 스타일을 10초 만에 만들어내는 신의 손기술, "사모님 이거 하나면 파리 패션위크 갑니다"라는 중독성 강한 멘트',
+    suggestedAngle: '단순한 노점상이 아니라 30년의 내공으로 완성된 길거리 쇼맨십의 정점, 진정한 세일즈의 마법사',
+    tags: ['남대문스카프', '스카프아저씨', '남대문시장', '쇼츠바이럴', '장사의신', '세일즈달인', '마성의손기술'],
+    sourceArticlesCount: 520,
+    isHot: true,
+    primaryChannel: 'youtube',
+    channelMetrics: {
+      naverRank: '네이버 실시간 급상승 1위 (+890%)',
+      youtubeViews: '유튜브 쇼츠 통합 6,500만 뷰',
+      instaReels: '글로벌 릴스 패러디 45만 개'
+    }
+  },
+  {
+    id: 'fig-chungjuman',
+    name: '충주맨 (김선태 주무관)',
+    title: 'B급 감성 쇼츠 하나로 대한민국 공공기관을 평정한 70만 유튜버 공무원',
+    category: 'viral',
+    viralityScore: 98,
+    timeframe: '24h',
+    buzzSummary: '예산 0원으로 기안서 결재도 없이 만든 초단기 쇼츠로 충주시 인구의 3배가 넘는 구독자를 모은 혁신의 아이콘',
+    controversyOrIssue: '보수적인 공직 사회의 편견과 반대를 뚫고 특진까지 이뤄낸 파격적인 홍보 성공 신화',
+    suggestedAngle: '틀을 깨면 세상이 바뀐다, 9급 공무원에서 대한민국 최고의 기획자가 된 충주맨의 반란',
+    tags: ['충주맨', '김선태', '충주시', '공무원혁신', 'B급감성', '숏폼장인'],
+    sourceArticlesCount: 380,
+    isHot: true,
+    primaryChannel: 'youtube',
+    channelMetrics: {
+      naverRank: '네이버 인물 검색 3위',
+      youtubeViews: '유튜브 쇼츠 누적 1.5억 뷰',
+      instaReels: '릴스 20만 개'
+    }
+  },
+  {
     id: 'fig-jensen-huang',
     name: '젠슨 황 (Jensen Huang)',
     title: '식당 설거지 소년에서 4,000조 엔비디아 황제가 된 가죽자켓의 신화',
