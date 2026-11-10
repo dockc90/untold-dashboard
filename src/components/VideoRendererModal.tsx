@@ -37,7 +37,8 @@ import {
   ExternalLink,
   AlignLeft,
   AlignCenter,
-  AlignRight
+  AlignRight,
+  Bookmark
 } from 'lucide-react';
 import { fixWebmBlob, patchWebmBinaryDurationAndCues } from '../utils/webmFixer';
 import { ShortsSafeZoneOverlay, PlatformGuideSelector, PlatformGuideType } from './ShortsSafeZoneOverlay';
