@@ -42,6 +42,206 @@ export const INITIAL_TRENDING_FIGURES: TrendingFigure[] = [
     }
   },
   {
+    id: 'fig-horseking',
+    name: '말왕 (장충동 왕족발보쌈)',
+    title: '‘장충동 왕족발보쌈’ 사운드로 전 세계 숏폼 댄스 챌린지를 점령한 피지컬 스타',
+    category: 'viral',
+    viralityScore: 99,
+    timeframe: '24h',
+    buzzSummary: '단순한 헬스 유튜버에서 기상천외한 사운드와 춤사위로 글로벌 릴스 200만 개 챌린지를 만들어낸 숏폼 밈의 신',
+    controversyOrIssue: '완벽한 근육질 피지컬로 선보인 충격적 B급 유머, 망가짐을 두려워하지 않는 크리에이터의 파괴력',
+    suggestedAngle: '진짜 강한 자는 망가지는 것을 두려워하지 않는다, 말왕이 증명한 유쾌한 피지컬 바이럴',
+    tags: ['말왕', '장충동왕족발보쌈', '숏폼챌린지', '피지컬스타', '글로벌밈'],
+    sourceArticlesCount: 410,
+    isHot: true,
+    primaryChannel: 'youtube',
+    channelMetrics: {
+      naverRank: '네이버 실시간 밈 1위',
+      youtubeViews: '유튜브 쇼츠 5,800만 뷰',
+      instaReels: '글로벌 챌린지 180만 개'
+    }
+  },
+  {
+    id: 'fig-chimchakman',
+    name: '침착맨 (이말년)',
+    title: '250만 구독자를 매료시킨 무논리와 끝없는 토크 도파민의 제왕',
+    category: 'viral',
+    viralityScore: 97,
+    timeframe: '24h',
+    buzzSummary: '어떤 게스트든 10초 만에 무장해제시키는 촌철살인 입담과 숏폼 클립 조회수 독점',
+    controversyOrIssue: '웹툰 작가 은퇴 후 인터넷 방송 1인자로 등극하기까지의 독보적 토크 철학과 통찰력',
+    suggestedAngle: '쓸데없는 소리도 예술이 된다, 침착맨이 보여주는 대체 불가 토크의 맛',
+    tags: ['침착맨', '이말년', '유튜브토크', '도파민제왕', '숏폼클립'],
+    sourceArticlesCount: 350,
+    isHot: true,
+    primaryChannel: 'youtube',
+    channelMetrics: {
+      naverRank: '네이버 예능/유튜브 2위',
+      youtubeViews: '유튜브 쇼츠 누적 1.2억 뷰',
+      instaReels: '릴스 클립 30만 개'
+    }
+  },
+  {
+    id: 'fig-seoeve',
+    name: '서이브 (마라탕후루)',
+    title: '‘마라탕 사주세요’ 한 소절로 틱톡·릴스 1억 뷰 신드롬을 쓴 10대 크리에이터',
+    category: 'viral',
+    viralityScore: 98,
+    timeframe: '24h',
+    buzzSummary: '귀에 꽂히는 멜로디와 앙증맞은 챌린지 댄스로 전 세대와 톱 아이돌까지 춤추게 만든 숏폼 챌린지의 정점',
+    controversyOrIssue: '단순한 유행가를 넘어 숏폼 시대의 음악 문법을 완전히 새로 쓴 Z세대의 바이럴 감각',
+    suggestedAngle: '3초 안에 대중의 뇌리에 꽂아라, 숏폼 알고리즘을 완벽하게 꿰뚫은 천재적 크리에이티브',
+    tags: ['서이브', '마라탕후루', '숏폼챌린지', '1억뷰', '바이럴신드롬'],
+    sourceArticlesCount: 390,
+    isHot: true,
+    primaryChannel: 'instagram',
+    channelMetrics: {
+      naverRank: '네이버 챌린지 1위',
+      youtubeViews: '유튜브 쇼츠 8,400만 뷰',
+      instaReels: '릴스 음원 90만 건'
+    }
+  },
+  {
+    id: 'fig-ralral',
+    name: '랄랄 (이유라)',
+    title: '기싸움 ASMR부터 명품관 사모님까지, 하이퍼 리얼리즘 숏폼 여제',
+    category: 'viral',
+    viralityScore: 97,
+    timeframe: '24h',
+    buzzSummary: '현실 사람들의 디테일한 버릇과 표정을 200% 복제해 릴스 수억 뷰를 기록한 관찰 연기의 대가',
+    controversyOrIssue: '뮤지컬 배우 출신으로 무명 시절을 거치며 완성한 독보적인 캐릭터 쇼맨십',
+    suggestedAngle: '일상의 사소한 순간을 명품 코미디로 바꾼다, 랄랄의 지독한 캐릭터 디테일',
+    tags: ['랄랄', '기싸움ASMR', '명품관언니', '릴스여제', '현실고증'],
+    sourceArticlesCount: 320,
+    isHot: true,
+    primaryChannel: 'instagram',
+    channelMetrics: {
+      naverRank: '네이버 예능 2위',
+      youtubeViews: '유튜브 쇼츠 4,700만 뷰',
+      instaReels: '인스타 릴스 70만 개'
+    }
+  },
+  {
+    id: 'fig-tanaka',
+    name: '다나카 (김경욱)',
+    title: '4년 무명의 설움을 버텨내고 한일 양국을 홀린 세기말 호스트의 기적',
+    category: 'viral',
+    viralityScore: 96,
+    timeframe: '48h',
+    buzzSummary: '아무도 안 보던 단칸방 유튜브에서 시작해 4년간 캐릭터를 지켜내며 공중파까지 평정한 집념의 개그맨',
+    controversyOrIssue: '주변의 비웃음과 포기하라는 만류 속에서도 단 하루도 의상을 벗지 않았던 눈물겨운 뚝심',
+    suggestedAngle: '성공할 때까지 버티면 그것이 곧 진짜가 된다, 다나카 김경욱의 4년 존버 실화',
+    tags: ['다나카', '김경욱', '지명그랜드슬램', '인생역전', '버티기의미학'],
+    sourceArticlesCount: 290,
+    isHot: false,
+    primaryChannel: 'multi',
+    channelMetrics: {
+      naverRank: '네이버 인물 검색 5위',
+      youtubeViews: '유튜브 쇼츠 3,800만 뷰',
+      instaReels: '릴스 35만 개'
+    }
+  },
+  {
+    id: 'fig-dex',
+    name: '덱스 (김진영)',
+    title: 'UDT 특전사 출신에서 플러팅 장인으로 숏폼을 평정한 대세 스타',
+    category: 'viral',
+    viralityScore: 98,
+    timeframe: '24h',
+    buzzSummary: '가짜사나이와 솔로지옥을 거치며 남성성과 배려심을 겸비한 솔직한 매력으로 전 세대 여심을 홀린 아이콘',
+    controversyOrIssue: '군 전역 후 단칸방에서 보일러도 안 들어오는 생활고를 버티며 유튜브로 기회를 잡은 일화',
+    suggestedAngle: '어떤 상황에서도 나 자신을 솔직하게 드러낼 때 기회가 온다, 덱스의 솔직담백한 생존기',
+    tags: ['덱스', '김진영', 'UDT', '솔로지옥', '대세남'],
+    sourceArticlesCount: 460,
+    isHot: true,
+    primaryChannel: 'multi',
+    channelMetrics: {
+      naverRank: '네이버 방송인 1위',
+      youtubeViews: '유튜브 쇼츠 6,200만 뷰',
+      instaReels: '릴스 40만 개'
+    }
+  },
+  {
+    id: 'fig-panibottle',
+    name: '빠니보틀 (박재한)',
+    title: '퇴직금 200만 원으로 시작해 대한민국 1등 여행 유튜버가 된 날것의 기록',
+    category: 'viral',
+    viralityScore: 95,
+    timeframe: '48h',
+    buzzSummary: '가식 없는 현실 여행과 솔직한 날것의 시선으로 여행 숏폼의 기준을 바꾼 크리에이터',
+    controversyOrIssue: '인도 야간 열차 바닥에서 자며 편집하던 시절을 지나 지상파 예능과 드라마까지 연출한 성장 서사',
+    suggestedAngle: '화려한 포장 대신 솔직한 날것으로 승부하라, 빠니보틀의 밑바닥 배낭여행 신화',
+    tags: ['빠니보틀', '여행유튜버', '지구마불', '날것의기록', '인생역전'],
+    sourceArticlesCount: 270,
+    isHot: false,
+    primaryChannel: 'youtube',
+    channelMetrics: {
+      naverRank: '네이버 여행 1위',
+      youtubeViews: '유튜브 쇼츠 3,100만 뷰',
+      instaReels: '릴스 18만 개'
+    }
+  },
+  {
+    id: 'fig-mimiminu',
+    name: '미미미누 (김민우)',
+    title: '5수 끝에 고려대 합격, 길거리 수험생 인터뷰로 160만을 홀린 입시 1타 엔터테이너',
+    category: 'viral',
+    viralityScore: 96,
+    timeframe: '24h',
+    buzzSummary: '실패와 좌절을 최고의 웃음과 공감으로 승화시키며 1020 세대의 절대적 멘토가 된 숏폼 스타',
+    controversyOrIssue: '5수라는 극한의 실패 경험을 자산으로 삼아 청년들에게 진정성 있는 용기를 주는 콘텐츠',
+    suggestedAngle: '실패는 부끄러운 것이 아니라 내 가장 강력한 스토리가 된다, 미미미누의 회복탄력성',
+    tags: ['미미미누', '5수의신화', '헬스터디', '1020멘토', '길거리인터뷰'],
+    sourceArticlesCount: 310,
+    isHot: true,
+    primaryChannel: 'youtube',
+    channelMetrics: {
+      naverRank: '네이버 교육/엔터 1위',
+      youtubeViews: '유튜브 쇼츠 5,100만 뷰',
+      instaReels: '릴스 25만 개'
+    }
+  },
+  {
+    id: 'fig-gwajeup',
+    name: '과즙세연 (인세연)',
+    title: '베벌리힐스 길거리 숏폼 단 5초로 전 세계 실시간 검색을 장악한 릴스 화제의 인물',
+    category: 'viral',
+    viralityScore: 95,
+    timeframe: '24h',
+    buzzSummary: '해외 유명 스트리트 캠 영상에 우연히 포착되며 단숨에 전 세계 핫토픽으로 부상한 SNS 화제 인물',
+    controversyOrIssue: '국내외 미디어의 스포트라이트 속에서도 자신만의 방송을 이어가는 화제성 1순위 인물',
+    suggestedAngle: '우연한 5초가 만들어낸 글로벌 이슈, 알고리즘 시대의 예측불가 바이럴 법칙',
+    tags: ['과즙세연', '베벌리힐스', '릴스핫이슈', '글로벌토픽', '실검1위'],
+    sourceArticlesCount: 420,
+    isHot: true,
+    primaryChannel: 'instagram',
+    channelMetrics: {
+      naverRank: '네이버 실시간 검색 1위',
+      youtubeViews: '유튜브 쇼츠 2,900만 뷰',
+      instaReels: '릴스 언급 48만 개'
+    }
+  },
+  {
+    id: 'fig-psickuniv',
+    name: '피식대학 (이용주, 정재형, 김민수)',
+    title: 'KBS·SBS 공채 폐지 후 옥탑방에서 숏폼 페이크 다큐로 백상을 거머쥔 3인방',
+    category: 'viral',
+    viralityScore: 96,
+    timeframe: '48h',
+    buzzSummary: '05학번이즈백, 한사랑산악회, 피식쇼로 대한민국 캐릭터 코미디의 새 역사를 쓴 숏폼 밈의 교과서',
+    controversyOrIssue: '무대 방송국이 사라진 절망 속에서도 매일 아이디어 회의실에서 밤을 새우며 버틴 청춘들',
+    suggestedAngle: '무대가 사라졌다면 직접 무대를 만들어라, 피식대학이 증명한 자생의 힘',
+    tags: ['피식대학', '피식쇼', '한사랑산악회', '페이크다큐', '백상예술대상'],
+    sourceArticlesCount: 330,
+    isHot: false,
+    primaryChannel: 'youtube',
+    channelMetrics: {
+      naverRank: '네이버 코미디 1위',
+      youtubeViews: '유튜브 쇼츠 누적 1.8억 뷰',
+      instaReels: '릴스 65만 개'
+    }
+  },
+  {
     id: 'fig-jensen-huang',
     name: '젠슨 황 (Jensen Huang)',
     title: '식당 설거지 소년에서 4,000조 엔비디아 황제가 된 가죽자켓의 신화',

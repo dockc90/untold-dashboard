@@ -417,44 +417,69 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredFigures.map((fig) => {
-              const isSelected = selectedFigure?.id === fig.id;
-              return (
-                <div
-                  key={fig.id}
-                  onClick={() => onSelectFigure(fig)}
-                  className={`group relative p-4 sm:p-5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
-                    isSelected
-                      ? 'bg-indigo-50/70 border-indigo-500 shadow-md ring-2 ring-indigo-500/30'
-                      : 'bg-white hover:bg-slate-50/80 border-slate-200 hover:border-indigo-300 shadow-2xs hover:shadow-md'
-                  }`}
-                >
-                  <div>
-                    {/* Header row in card */}
-                    <div className="flex items-start justify-between gap-2 mb-2.5">
-                      <div className="flex items-center space-x-3">
-                        <FigureAvatar name={fig.name} category={fig.category} imageUrl={fig.imageUrl} />
-                        <div>
-                          <div className="flex items-center space-x-1.5">
-                            <span className="font-extrabold text-sm sm:text-base text-slate-900 group-hover:text-indigo-600 transition">
-                              {fig.name}
-                            </span>
-                            {fig.isHot && (
-                              <span className="px-1.5 py-0.2 text-[10px] font-black bg-rose-100 text-rose-700 rounded-md">
-                                HOT
+            {[...filteredFigures]
+              .sort((a, b) => {
+                if (b.viralityScore !== a.viralityScore) {
+                  return b.viralityScore - a.viralityScore;
+                }
+                return (b.sourceArticlesCount || 0) - (a.sourceArticlesCount || 0);
+              })
+              .map((fig, idx) => {
+                const isSelected = selectedFigure?.id === fig.id;
+                const rank = idx + 1;
+                return (
+                  <div
+                    key={fig.id}
+                    onClick={() => onSelectFigure(fig)}
+                    className={`group relative p-4 sm:p-5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
+                      isSelected
+                        ? 'bg-indigo-50/70 border-indigo-500 shadow-md ring-2 ring-indigo-500/30'
+                        : 'bg-white hover:bg-slate-50/80 border-slate-200 hover:border-indigo-300 shadow-2xs hover:shadow-md'
+                    }`}
+                  >
+                    <div>
+                      {/* Header row in card */}
+                      <div className="flex items-start justify-between gap-2 mb-2.5">
+                        <div className="flex items-center space-x-3">
+                          <FigureAvatar name={fig.name} category={fig.category} imageUrl={fig.imageUrl} />
+                          <div>
+                            <div className="flex items-center space-x-1.5 flex-wrap">
+                              <span className="font-extrabold text-sm sm:text-base text-slate-900 group-hover:text-indigo-600 transition">
+                                {fig.name}
                               </span>
-                            )}
+                              {rank === 1 ? (
+                                <span className="px-1.5 py-0.2 text-[9px] font-black bg-gradient-to-r from-amber-500 to-rose-500 text-white rounded-md shadow-2xs animate-pulse">
+                                  🥇 1위
+                                </span>
+                              ) : rank === 2 ? (
+                                <span className="px-1.5 py-0.2 text-[9px] font-black bg-slate-200 text-slate-800 rounded-md">
+                                  🥈 2위
+                                </span>
+                              ) : rank === 3 ? (
+                                <span className="px-1.5 py-0.2 text-[9px] font-black bg-amber-100 text-amber-800 rounded-md">
+                                  🥉 3위
+                                </span>
+                              ) : (
+                                <span className="px-1.5 py-0.2 text-[9px] font-bold bg-slate-100 text-slate-500 rounded-md">
+                                  #{rank}
+                                </span>
+                              )}
+                              {fig.isHot && (
+                                <span className="px-1.5 py-0.2 text-[9px] font-black bg-rose-100 text-rose-700 rounded-md flex items-center gap-0.5">
+                                  <TrendingUp className="w-2.5 h-2.5" /> 급상승
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-600 font-medium line-clamp-1 mt-0.5">{fig.title}</p>
                           </div>
-                          <p className="text-xs text-slate-600 font-medium line-clamp-1">{fig.title}</p>
+                        </div>
+
+                        {/* Virality Score */}
+                        <div className="flex items-center space-x-1 px-2.5 py-1 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 font-black text-xs shrink-0">
+                          <Flame className="w-3.5 h-3.5 fill-rose-500 text-rose-500" />
+                          <span>{fig.viralityScore}점</span>
                         </div>
                       </div>
-
-                      {/* Virality Score */}
-                      <div className="flex items-center space-x-1 px-2.5 py-1 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 font-black text-xs shrink-0">
-                        <Flame className="w-3.5 h-3.5 fill-rose-500 text-rose-500" />
-                        <span>{fig.viralityScore}점</span>
-                      </div>
-                    </div>
 
                     {/* Multi-Channel Live Metrics Pills (네이버, 유튜브, 인스타그램) */}
                     {fig.channelMetrics && (

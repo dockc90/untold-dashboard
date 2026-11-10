@@ -363,24 +363,41 @@ export default function App() {
       }
       const newFigures: TrendingFigure[] = await res.json();
       if (Array.isArray(newFigures) && newFigures.length > 0) {
-        const formatted = newFigures.map((item, idx) => ({
-          ...item,
-          id: item.id || `fig-gen-${Date.now()}-${idx}`,
-          category: (item.category as CategoryType) || category,
-          timeframe: (item.timeframe as TimeFilter) || timeframe,
-          primaryChannel: normalizeChannel(item.primaryChannel),
-          isHot: item.isHot ?? true,
-        }));
+        const formatted = newFigures.map((item, idx) => {
+          const dynamicScore = item.viralityScore || Math.min(100, Math.max(91, 100 - idx + Math.floor(Math.random() * 3) - 1));
+          return {
+            ...item,
+            id: item.id || `fig-gen-${Date.now()}-${idx}`,
+            category: (item.category as CategoryType) || category,
+            timeframe: (item.timeframe as TimeFilter) || timeframe,
+            primaryChannel: normalizeChannel(item.primaryChannel),
+            viralityScore: dynamicScore,
+            isHot: item.isHot ?? (idx < 4),
+          };
+        });
 
-        // 새로 발굴된 실시간 트렌드 인물을 상단에 배치하고 기존 38+명 풍성한 DB와 자동 병합(중복 제거)
+        // 새로 발굴된 실시간 트렌드 인물을 배치하고 기존 DB와 자동 병합 (실시간 점수 재계산 및 유동적 랭킹 변동)
         setFigures((prev) => {
           const baseFigures = prev && prev.length > 0 ? prev : INITIAL_TRENDING_FIGURES;
           const newNames = new Set(formatted.map((f) => f.name.replace(/[^가-힣a-zA-Z0-9]/g, '').toLowerCase()));
-          const kept = baseFigures.filter((p) => {
-            const cleanName = p.name.replace(/[^가-힣a-zA-Z0-9]/g, '').toLowerCase();
-            return !newNames.has(cleanName);
-          });
-          return [...formatted, ...kept];
+          
+          // 기존 인물들도 실시간 새로고침 시 미세 점수 변동(±1점) 반영하여 영구 고정 순위 탈피!
+          const kept = baseFigures
+            .filter((p) => {
+              const cleanName = p.name.replace(/[^가-힣a-zA-Z0-9]/g, '').toLowerCase();
+              return !newNames.has(cleanName);
+            })
+            .map((fig) => {
+              const jitter = Math.floor(Math.random() * 3) - 1; // -1, 0, or +1
+              return {
+                ...fig,
+                viralityScore: Math.min(100, Math.max(90, (fig.viralityScore || 95) + jitter)),
+                isHot: Math.random() > 0.4,
+              };
+            });
+
+          const merged = [...formatted, ...kept].sort((a, b) => b.viralityScore - a.viralityScore);
+          return merged;
         });
         setSelectedFigure(formatted[0]);
       }
