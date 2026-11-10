@@ -1055,17 +1055,28 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   // 1-Second Thumbnail Extractor & CTR Hooking Title Mode (Carousel-Style Full Customizer)
   const thumbnailFileInputRef = useRef<HTMLInputElement | null>(null);
   const [thumbnailSceneIndex, setThumbnailSceneIndex] = useState<number>(0);
-  const [customThumbnailImageUrl, setCustomThumbnailImageUrl] = useState<string | null>(null);
+  const [customThumbnailImageUrl, setCustomThumbnailImageUrl] = useState<string | null>(() => {
+    return project.scenes?.[0]?.userCropUrl || project.scenes?.[0]?.uploadedImageUrl || null;
+  });
   const [isCtrTitleEnabled, setIsCtrTitleEnabled] = useState<boolean>(true);
   const [ctrTitleText, setCtrTitleText] = useState<string>(() => {
+    if (project.hooks?.[0]?.text) {
+      return project.hooks[0].text.replace(/[\"'“‘”’]/g, '').trim().slice(0, 35);
+    }
+    if (project.titles?.[0]) {
+      return project.titles[0].replace(/#\S+/g, '').trim().slice(0, 35);
+    }
     const firstOverlay = project.customTextOverlays?.[0]?.text;
     if (firstOverlay && firstOverlay.trim()) return firstOverlay.trim();
-    return project.figureName ? `${project.figureName}의 충격 실화` : '3초 만에 몰입되는 쇼츠 이야기';
+    return project.figureName ? `${project.figureName}의 인생 역전 실화` : '3초 만에 몰입되는 쇼츠 이야기';
   });
   const [thumbnailSubText, setThumbnailSubText] = useState<string>(() => {
+    if (project.hooks?.[1]?.text) {
+      return project.hooks[1].text.replace(/[\"'“‘”’]/g, '').trim().slice(0, 32);
+    }
     const s0 = project.scenes?.[0]?.narration || project.scenes?.[0]?.text;
     if (s0 && s0.trim()) return s0.trim().slice(0, 32);
-    return project.figureName ? `정비병 출신이 미슐랭 3스타가 된 기적` : '놀라운 반전 실화';
+    return project.figureName ? `${project.figureName}의 감춰진 반전 비하인드` : '놀라운 반전 실화';
   });
   const [isThumbnailSubTextEnabled, setIsThumbnailSubTextEnabled] = useState<boolean>(true);
   const [ctrTitleStyle, setCtrTitleStyle] = useState<'yt_yellow' | 'netflix_red' | 'neon_cyan' | 'black_capsule' | 'clean_white' | 'stroke_only'>('yt_yellow');
@@ -1085,6 +1096,15 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       const result = event.target?.result as string;
       if (result) {
         setCustomThumbnailImageUrl(result);
+        // Persist to current scene so switching scenes or re-rendering never loses this uploaded image
+        if (scenes[thumbnailSceneIndex]) {
+          scenes[thumbnailSceneIndex].uploadedImageUrl = result;
+          scenes[thumbnailSceneIndex].userCropUrl = result;
+          onUpdateProject?.({
+            ...project,
+            scenes: [...scenes],
+          });
+        }
         setThumbnailToast('📸 표지 사진이 업로드한 이미지로 변경되었습니다!');
         setTimeout(() => setThumbnailToast(null), 3500);
       }
@@ -3726,7 +3746,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         </div>
       )}
 
-      {/* 🛡️ 신수 5대 유튜브 수익화 & 브랜드 세이프티 통과 배너 */}
+      {/* 🛡️ 유튜브 5대 수익화 & 브랜드 세이프티 통과 배너 */}
       <div className="p-3 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl border border-indigo-500/30 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
         <div className="flex items-center space-x-2.5">
           <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
@@ -3735,7 +3755,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
           <div>
             <div className="flex items-center space-x-2 flex-wrap">
               <span className="font-extrabold text-xs text-white">
-                신수 유튜브 수익화 & 브랜드 세이프티 PASS
+                유튜브 5대 수익화 & 브랜드 세이프티 PASS
               </span>
               <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
                 심사 5대 항목 올 통과
@@ -3748,7 +3768,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         </div>
         <button
           type="button"
-          onClick={() => alert("🛡️ [신수 5대 유튜브 수익화 & 클린 심사 통과 보고서]\n\n1. 재사용 콘텐츠(Reused Content) 제재 완벽 방어\n   - AI 고유 나레이션 + 장면별 고화질 에셋 + 텍스트 자막 싱크\n\n2. 저작권법 제35조의 5(공정 이용) 및 미국 Fair Use 적합\n   - 비판, 논평, 보도 목적의 100% 창작 2차 저작물\n\n3. 광고주 친화적 콘텐츠 가이드라인 준수\n   - 허위/날조, 유해/선정성 배제, 고품격 다큐멘터리 서사\n\n4. 60초 5단계 황금 서사율 충족\n   - 0~3초 후킹으로 스크롤 이탈 방어, 시청 지속시간 극대화\n\n5. 공정거래위원회 표시광고법 클린\n   - 과장/기만 문구 없는 100% 사실 기반")}
+          onClick={() => alert("🛡️ [5대 유튜브 수익화 & 클린 심사 통과 보고서]\n\n1. 재사용 콘텐츠(Reused Content) 제재 완벽 방어\n   - AI 고유 나레이션 + 장면별 고화질 에셋 + 텍스트 자막 싱크\n\n2. 저작권법 제35조의 5(공정 이용) 및 미국 Fair Use 적합\n   - 비판, 논평, 보도 목적의 100% 창작 2차 저작물\n\n3. 광고주 친화적 콘텐츠 가이드라인 준수\n   - 허위/날조, 유해/선정성 배제, 고품격 다큐멘터리 서사\n\n4. 60초 5단계 황금 서사율 충족\n   - 0~3초 후킹으로 스크롤 이탈 방어, 시청 지속시간 극대화\n\n5. 공정거래위원회 표시광고법 클린\n   - 과장/기만 문구 없는 100% 사실 기반")}
           className="px-3 py-1 bg-white/10 hover:bg-white/20 text-indigo-200 hover:text-white border border-white/20 rounded-xl text-xs font-bold transition shadow-2xs shrink-0 cursor-pointer"
         >
           5대 항목 보기
@@ -5738,24 +5758,38 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                   <div className="space-y-1 pt-1">
                     <span className="text-[11px] font-bold text-slate-500">씬 사진 선택:</span>
                     <div className="flex gap-1.5 overflow-x-auto pb-1 text-xs">
-                      {scenes.map((sc, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => {
-                            setThumbnailSceneIndex(idx);
-                            setPreviewSceneIndex(idx);
-                            setCustomThumbnailImageUrl(null);
-                          }}
-                          className={`px-2.5 py-1.5 rounded-xl shrink-0 font-bold transition cursor-pointer border ${
-                            thumbnailSceneIndex === idx && !customThumbnailImageUrl
-                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
-                          }`}
-                        >
-                          <span>{idx === 0 ? '1번 씬 (추천)' : `${idx + 1}번 씬`}</span>
-                        </button>
-                      ))}
+                      {scenes.map((sc, idx) => {
+                        const sceneImg = sc.userCropUrl || sc.uploadedImageUrl;
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => {
+                              setThumbnailSceneIndex(idx);
+                              setPreviewSceneIndex(idx);
+                              if (sceneImg) {
+                                setCustomThumbnailImageUrl(sceneImg);
+                              } else {
+                                setCustomThumbnailImageUrl(null);
+                              }
+                            }}
+                            className={`px-2.5 py-1.5 rounded-xl shrink-0 font-bold transition cursor-pointer border flex items-center space-x-1 ${
+                              thumbnailSceneIndex === idx
+                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            <span>{idx === 0 ? '1번 씬 (추천)' : `${idx + 1}번 씬`}</span>
+                            {sceneImg && (
+                              <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-black ${
+                                thumbnailSceneIndex === idx ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'
+                              }`}>
+                                내 사진
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -5800,23 +5834,48 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                           placeholder="헤드라인 입력"
                           className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500 resize-none leading-relaxed"
                         />
-                        {/* Quick preset suggestions */}
-                        <div className="flex flex-wrap gap-1.5 pt-1">
-                          {[
-                            `${project.figureName}의 충격 실화`,
-                            `3초 만에 밝혀진 ${project.figureName}의 비밀`,
-                            `미슐랭 3스타의 감춰진 기적`,
-                            `절대 모르면 후회하는 반전`,
-                          ].map((suggestion, sIdx) => (
-                            <button
-                              key={sIdx}
-                              type="button"
-                              onClick={() => setCtrTitleText(suggestion)}
-                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-600 text-[10px] font-bold transition cursor-pointer"
-                            >
-                              💡 {suggestion}
-                            </button>
-                          ))}
+                        {/* 60초 황금 서사 고클릭률(CTR) 헤드라인 추천 프리셋 */}
+                        <div className="space-y-1.5 pt-1">
+                          <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1">
+                            <span>🔥 고클릭률(CTR 15%+) 헤드라인 추천:</span>
+                          </span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {[
+                              ...(project.hooks || []).map((h, hIdx) => ({
+                                tag: h.label || (hIdx === 0 ? '사건형' : hIdx === 1 ? '반전형' : '질문형'),
+                                text: h.text.replace(/[\"'“‘”’]/g, '').trim(),
+                              })),
+                              ...(project.titles || []).slice(0, 2).map((t) => ({
+                                tag: 'CTR추천',
+                                text: t.replace(/#\S+/g, '').trim(),
+                              })),
+                              { tag: '인생역전', text: `통장 잔고 0원에서 정상에 선 ${project.figureName}의 승부수` },
+                              { tag: '운명의3초', text: `모두가 망한다고 비웃었던 단 3초의 결단` },
+                              { tag: '1%비밀', text: `100번 거절당하고도 끝내 증명해낸 ${project.figureName}` },
+                            ].map((preset, sIdx) => {
+                              const isSelected = ctrTitleText === preset.text;
+                              return (
+                                <button
+                                  key={sIdx}
+                                  type="button"
+                                  onClick={() => setCtrTitleText(preset.text)}
+                                  className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition cursor-pointer flex items-center space-x-1 border ${
+                                    isSelected
+                                      ? 'bg-rose-500 text-white border-rose-600 shadow-2xs font-black'
+                                      : 'bg-slate-50 hover:bg-rose-50 text-slate-700 hover:text-rose-700 border-slate-200'
+                                  }`}
+                                  title="클릭 시 헤드라인에 적용"
+                                >
+                                  <span className={`text-[9px] font-black px-1.5 py-0.2 rounded ${
+                                    isSelected ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                                  }`}>
+                                    {preset.tag}
+                                  </span>
+                                  <span className="truncate max-w-[220px]">{preset.text}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
 

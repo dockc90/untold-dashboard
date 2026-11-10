@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Sparkles, 
-  Play, 
-  Pause, 
   Copy, 
   Check, 
   Download, 
@@ -11,10 +9,7 @@ import {
   Clock, 
   Type as TypeIcon, 
   Flame, 
-  ShieldCheck, 
-  Bookmark, 
-  Tag, 
-  MessageSquareQuote,
+  Bookmark,
   Film,
   Upload,
   LayoutGrid,
@@ -24,13 +19,9 @@ import {
   Video,
   ArrowLeft,
   RotateCw,
-  Search,
-  Share2,
-  Info,
-  Scissors
+  Share2
 } from 'lucide-react';
-import { TrendingFigure, ShortsProject, TargetPersona, VideoMoodTone, SceneItem, MotionEffectType, VoiceOption } from '../types';
-import { VOICE_OPTIONS } from '../data/voices';
+import { TrendingFigure, ShortsProject, TargetPersona, VideoMoodTone, SceneItem, MotionEffectType } from '../types';
 import { ScenePhotoCollageModal } from './ScenePhotoCollageModal';
 import { SceneVideoEditorModal } from './SceneVideoEditorModal';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -89,8 +80,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
   const [duration, setDuration] = useState<45 | 60>(60);
   const [customKeyword, setCustomKeyword] = useState<string>('');
   const [activeStoryAngle, setActiveStoryAngle] = useState<string>('random');
-  const [selectedVoiceId, setSelectedVoiceId] = useState<string>('JBFqnCBsd6RMkjVDRZzb');
-  const [activeTab, setActiveTab] = useState<'scenes' | 'script' | 'metadata' | 'copyright'>('scenes');
+  const [activeTab, setActiveTab] = useState<'scenes' | 'script'>('scenes');
   const [selectedHookIndex, setSelectedHookIndex] = useState(0);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
@@ -108,9 +98,17 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
       ...updated[collageModalSceneIdx],
       mediaType: 'image',
       uploadedImageUrl: mergedDataUrl,
+      userCropUrl: mergedDataUrl,
     };
     setEditableScenes(updated);
     setCollageModalSceneIdx(null);
+    if (currentProject) {
+      const proj = { ...currentProject, scenes: updated };
+      onUpdateProject?.(proj);
+      try {
+        localStorage.setItem('untold_autosave_draft', JSON.stringify(proj));
+      } catch {}
+    }
   };
 
   // Video Trimmer / Editor modal state (CapCut style)
@@ -186,12 +184,6 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
   const [editableScript, setEditableScript] = useState('');
   const [editableScenes, setEditableScenes] = useState<SceneItem[]>([]);
 
-  // TTS states
-  const [isPlayingTTS, setIsPlayingTTS] = useState(false);
-  const [speechRate, setSpeechRate] = useState<number>(1.1);
-  const synthRef = useRef<SpeechSynthesis | null>(null);
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
-
   // File input refs for uploading image per scene
   const fileInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
 
@@ -201,23 +193,9 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
       setEditableScript(currentProject.fullScript);
       setEditableScenes(currentProject.scenes);
       setSelectedHookIndex(currentProject.selectedHookIndex ?? 0);
-      if (currentProject.selectedVoiceId) setSelectedVoiceId(currentProject.selectedVoiceId);
-      if (currentProject.voiceSpeedMultiplier) setSpeechRate(currentProject.voiceSpeedMultiplier);
       if (currentProject.videoTone) setVideoTone(currentProject.videoTone);
     }
   }, [currentProject]);
-
-  // Handle TTS setup
-  useEffect(() => {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      synthRef.current = window.speechSynthesis;
-    }
-    return () => {
-      if (synthRef.current) {
-        synthRef.current.cancel();
-      }
-    };
-  }, []);
 
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -284,20 +262,29 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
           ctx.drawImage(img, 0, 0, w, h);
           const compressed = canvas.toDataURL('image/jpeg', 0.88);
           const updated = [...editableScenes];
-          updated[index] = { ...updated[index], uploadedImageUrl: compressed };
+          updated[index] = { ...updated[index], uploadedImageUrl: compressed, userCropUrl: compressed };
           setEditableScenes(updated);
+          if (currentProject) {
+            onUpdateProject?.({ ...currentProject, scenes: updated });
+          }
           handleOpenCollageModal(index);
           return;
         }
         const updated = [...editableScenes];
-        updated[index] = { ...updated[index], uploadedImageUrl: rawDataUrl };
+        updated[index] = { ...updated[index], uploadedImageUrl: rawDataUrl, userCropUrl: rawDataUrl };
         setEditableScenes(updated);
+        if (currentProject) {
+          onUpdateProject?.({ ...currentProject, scenes: updated });
+        }
         handleOpenCollageModal(index);
       };
       img.onerror = () => {
         const updated = [...editableScenes];
-        updated[index] = { ...updated[index], uploadedImageUrl: rawDataUrl };
+        updated[index] = { ...updated[index], uploadedImageUrl: rawDataUrl, userCropUrl: rawDataUrl };
         setEditableScenes(updated);
+        if (currentProject) {
+          onUpdateProject?.({ ...currentProject, scenes: updated });
+        }
         handleOpenCollageModal(index);
       };
       img.src = rawDataUrl;
@@ -373,47 +360,8 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
     URL.revokeObjectURL(url);
   };
 
-  // Web Speech TTS playback for full script
-  const toggleTTS = () => {
-    if (!synthRef.current) return;
-
-    if (isPlayingTTS) {
-      synthRef.current.cancel();
-      setIsPlayingTTS(false);
-      return;
-    }
-
-    const textToRead = editableScript;
-    if (!textToRead.trim()) return;
-
-    synthRef.current.cancel();
-    const currentVoice = VOICE_OPTIONS.find((v) => v.id === selectedVoiceId) || VOICE_OPTIONS[0];
-
-    const utterance = new SpeechSynthesisUtterance(textToRead);
-    utterance.lang = 'ko-KR';
-    utterance.rate = speechRate * (currentVoice.rate || 1.0);
-    utterance.pitch = currentVoice.pitch || 1.0;
-
-    const voices = synthRef.current.getVoices();
-    const koVoices = voices.filter((v) => v.lang.startsWith('ko'));
-    if (koVoices.length > 0) {
-      if (currentVoice.gender === 'female' && koVoices.length > 1) {
-        utterance.voice = koVoices[1];
-      } else {
-        utterance.voice = koVoices[0];
-      }
-    }
-
-    utterance.onend = () => setIsPlayingTTS(false);
-    utterance.onerror = () => setIsPlayingTTS(false);
-
-    utteranceRef.current = utterance;
-    synthRef.current.speak(utterance);
-    setIsPlayingTTS(true);
-  };
-
   const charCount = editableScript.replace(/\s+/g, '').length;
-  const estimatedSeconds = Math.round((charCount / 6.5) / speechRate);
+  const estimatedSeconds = Math.round((charCount / 6.5) / 1.1);
 
   const getUpdatedProject = (): ShortsProject => {
     if (!currentProject) {
@@ -474,8 +422,8 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
         charCount: (editableScript || '').length || 100,
         estimatedSeconds: estimatedSeconds || 45,
         createdAt: new Date().toISOString(),
-        selectedVoiceId,
-        voiceSpeedMultiplier: speechRate,
+        selectedVoiceId: currentProject?.selectedVoiceId || 'JBFqnCBsd6RMkjVDRZzb',
+        voiceSpeedMultiplier: currentProject?.voiceSpeedMultiplier || 1.1,
       };
     }
 
@@ -484,8 +432,8 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
       fullScript: editableScript,
       scenes: editableScenes,
       selectedHookIndex,
-      selectedVoiceId,
-      voiceSpeedMultiplier: speechRate,
+      selectedVoiceId: currentProject.selectedVoiceId || 'JBFqnCBsd6RMkjVDRZzb',
+      voiceSpeedMultiplier: currentProject.voiceSpeedMultiplier || 1.1,
       videoTone,
       charCount,
       estimatedSeconds,
@@ -517,7 +465,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
     }, 800);
 
     return () => clearTimeout(timer);
-  }, [editableScript, editableScenes, selectedHookIndex, selectedVoiceId, speechRate, videoTone]);
+  }, [editableScript, editableScenes, selectedHookIndex, videoTone]);
 
   return (
     <div className="flex flex-col h-full bg-white border border-slate-200 rounded-2xl sm:rounded-3xl overflow-hidden shadow-sm w-full max-w-full min-w-0">
@@ -559,24 +507,8 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
             </div>
           </div>
 
-          {/* Right: 성우, 페르소나, 45/60초, 생성 버튼 */}
+          {/* Right: 페르소나, 45/60초, 생성 버튼 */}
           <div className="flex flex-wrap items-center gap-2 min-w-0">
-            {/* Voice Selector */}
-            <div className="flex items-center bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 shadow-2xs gap-1.5 shrink-0">
-              <span className="text-[11px] font-extrabold text-indigo-700 shrink-0">성우</span>
-              <select
-                value={selectedVoiceId}
-                onChange={(e) => setSelectedVoiceId(e.target.value)}
-                className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer max-w-[130px] truncate"
-              >
-                {VOICE_OPTIONS.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.name} ({v.role})
-                  </option>
-                ))}
-              </select>
-            </div>
-
             {/* Persona Selector */}
             <select
               value={targetPersona}
@@ -815,7 +747,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
           </div>
         </div>
 
-        {/* 🛡️ 신수 AI 팩트체크 & 안전 검증 배너 */}
+        {/* 🛡️ 60초 황금 서사 AI 팩트체크 & 안전 검증 배너 */}
         <div className="p-3 bg-gradient-to-r from-emerald-50 via-teal-50 to-indigo-50 rounded-2xl border border-emerald-200/90 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-2xs w-full">
           <div className="flex items-center space-x-2.5 min-w-0">
             <div className="w-7 h-7 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-2xs">
@@ -824,7 +756,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
             <div className="min-w-0">
               <div className="flex items-center space-x-2 flex-wrap">
                 <span className="font-extrabold text-xs text-emerald-950">
-                  신수 60초 황금 서사 & AI 팩트체크 검증 완료
+                  60초 황금 서사 & AI 팩트체크 검증 완료
                 </span>
                 <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
                   100% 실존 기록 기반
@@ -840,7 +772,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
           </div>
           <button
             type="button"
-            onClick={() => alert("✅ [신수 인물쇼츠 황금 서사 & AI 팩트체크 검증 리포트]\n\n1. 100% 팩트 기반 검증 (PASS)\n   - 공인 언론 보도, 다큐멘터리, 실제 인터뷰 일화와 일치\n   - 허위사실 및 날조 루머 0건\n\n2. 60초 5단계 황금 서사율 (PASS)\n   - 0~3초: 3초 후킹 (사건/질문/반전)\n   - 3~15초: 상황 (최소 배경)\n   - 15~40초: 갈등 (핵심 위기 & 장애물)\n   - 40~55초: 전환 (승부수 & 반전)\n   - 55~60초: 해소 (해답 & 진한 여운)\n\n3. 유튜브 재사용 콘텐츠 심사 방어 (PASS)\n   - 100% 고유 2차 저작물 구성으로 수익화 안전")}
+            onClick={() => alert("✅ [인물쇼츠 60초 황금 서사 & AI 팩트체크 검증 리포트]\n\n1. 100% 팩트 기반 검증 (PASS)\n   - 공인 언론 보도, 다큐멘터리, 실제 인터뷰 일화와 일치\n   - 허위사실 및 날조 루머 0건\n\n2. 60초 5단계 황금 서사율 (PASS)\n   - 0~3초: 3초 후킹 (사건/질문/반전)\n   - 3~15초: 상황 (최소 배경)\n   - 15~40초: 갈등 (핵심 위기 & 장애물)\n   - 40~55초: 전환 (승부수 & 반전)\n   - 55~60초: 해소 (해답 & 진한 여운)\n\n3. 유튜브 재사용 콘텐츠 심사 방어 (PASS)\n   - 100% 고유 2차 저작물 구성으로 수익화 안전")}
             className="px-3 py-1.5 bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-300 rounded-xl text-xs font-bold transition shadow-2xs shrink-0 cursor-pointer whitespace-nowrap"
           >
             🔍 검증 리포트 확인
@@ -876,38 +808,13 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
           </button>
         </div>
 
-        {/* Live Narration Reading Time Bar & TTS */}
+        {/* Live Narration Reading Time Bar */}
         <div className="flex items-center justify-between sm:justify-end space-x-3 text-xs shrink-0">
-          <div className="flex items-center space-x-1 text-slate-600 font-bold">
+          <div className="flex items-center space-x-1.5 text-slate-700 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs font-bold">
             <Clock className="w-3.5 h-3.5 text-indigo-600" />
             <span>예상 {estimatedSeconds}초</span>
             <span className="text-slate-300">/</span>
             <span>{charCount}자</span>
-          </div>
-
-          <div className="flex items-center space-x-1 bg-white px-2 py-1 rounded-xl border border-slate-200 shadow-2xs">
-            <button
-              onClick={toggleTTS}
-              className={`p-1.5 rounded-lg transition ${
-                isPlayingTTS ? 'bg-rose-500 text-white' : 'bg-slate-100 text-indigo-600 hover:bg-indigo-50'
-              }`}
-              title={isPlayingTTS ? '정지' : '음성 미리듣기'}
-            >
-              {isPlayingTTS ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3 fill-current" />}
-            </button>
-            <span className="text-[10px] text-slate-600 px-1 font-bold">{speechRate}x</span>
-            <select
-              value={speechRate}
-              onChange={(e) => setSpeechRate(parseFloat(e.target.value))}
-              className="bg-transparent text-[10px] font-bold text-slate-700 focus:outline-none cursor-pointer"
-            >
-              <option value={0.8}>0.8x (차분함)</option>
-              <option value={1.0}>1.0x (표준)</option>
-              <option value={1.1}>1.1x (쇼츠 추천)</option>
-              <option value={1.2}>1.2x (스피디)</option>
-              <option value={1.3}>1.3x (고속)</option>
-              <option value={1.5}>1.5x (초고속)</option>
-            </select>
           </div>
         </div>
       </div>
@@ -1293,252 +1200,6 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                     onChange={(e) => setEditableScript(e.target.value)}
                     className="w-full bg-white border border-slate-200 rounded-2xl p-4 text-sm text-slate-900 font-mono leading-loose focus:outline-none focus:border-indigo-500 shadow-2xs"
                   />
-                </div>
-              </div>
-            )}
-
-            {/* VIEW 3: 2026 ALGORITHM CHEATSHEET & METADATA */}
-            {activeTab === 'metadata' && (
-              <div className="space-y-4">
-                {/* 2026 Factcheck Alert */}
-                <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-950 via-slate-900 to-indigo-900 text-white shadow-sm space-y-1.5 border border-indigo-500/30">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded-md bg-rose-600 text-white font-black text-[10px] tracking-wider uppercase">
-                      2026 알고리즘 치트키
-                    </span>
-                    <span className="text-xs font-bold text-indigo-200">
-                      유튜브 쇼츠 & 인스타 릴스 떡상 핵심 공식
-                    </span>
-                  </div>
-                  <p className="text-xs text-indigo-100/90 leading-relaxed">
-                    과거 30개 해시태그 도배는 <strong>스팸 필터링 대상</strong>입니다! 현재 유튜브와 릴스는 <strong className="text-amber-300">① 첫 2줄 검색 SEO</strong>, <strong className="text-emerald-300">② 구글 검색 연동 타임스탬프</strong>, <strong className="text-rose-300">③ 댓글 논쟁 유도(A vs B 투표)</strong>, <strong className="text-cyan-300">④ 클린 색인 태그 3개</strong>로 알고리즘 피드에 노출됩니다.
-                  </p>
-                </div>
-
-                {/* 1. CTR 15%+ Titles */}
-                <div className="space-y-2">
-                  <h4 className="text-xs font-extrabold text-amber-700 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                    <span>1단계: 클릭률(CTR) 15%+ 극대화 제목 (A/B/C 테스트)</span>
-                  </h4>
-                  <div className="space-y-2">
-                    {currentProject.titles.map((title, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center justify-between p-3.5 rounded-2xl bg-white border border-slate-200 text-xs shadow-2xs hover:border-amber-300 transition"
-                      >
-                        <div className="flex items-center space-x-2">
-                          <span className="font-black text-amber-600 shrink-0">#{i + 1}</span>
-                          <span className="font-bold text-slate-900">{title}</span>
-                        </div>
-                        <button
-                          onClick={() => handleCopy(title, `title-${i}`)}
-                          className="flex items-center space-x-1 px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold shrink-0 cursor-pointer"
-                        >
-                          {copiedKey === `title-${i}` ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                          <span>복사</span>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 2. YouTube & Google Search First 2 Lines SEO + Chapter Timestamps */}
-                <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-3 shadow-2xs">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <Search className="w-3.5 h-3.5 text-blue-600" />
-                      <span className="text-xs font-extrabold text-slate-900">
-                        2단계: 구글 & 유튜브 검색 최적화 (첫 2줄 미리보기 & 타임스탬프)
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => {
-                        const seoText = currentProject.firstTwoLinesSeo || `${selectedFigure?.name || ''} 비하인드 스토리.`;
-                        const times = (currentProject.timestamps || [
-                          { time: '00:00', label: '인트로 후킹' },
-                          { time: '00:15', label: '사건의 전말' },
-                          { time: '00:35', label: '위기와 반전' },
-                          { time: '00:50', label: '충격 결말' }
-                        ]).map(t => `${t.time} ${t.label}`).join('\n');
-                        const combined = `${seoText}\n\n[타임라인]\n${times}\n\n${currentProject.description || ''}`;
-                        handleCopy(combined, 'seo-desc');
-                      }}
-                      className="text-xs font-bold text-blue-700 hover:text-blue-900 flex items-center gap-1 cursor-pointer"
-                    >
-                      {copiedKey === 'seo-desc' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                      <span>설명란 전체 복사</span>
-                    </button>
-                  </div>
-
-                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1.5">
-                    <div className="text-[11px] font-bold text-slate-500">
-                      🔍 모바일 검색 결과창 미리보기 첫 2줄:
-                    </div>
-                    <p className="text-xs font-semibold text-slate-800 leading-relaxed">
-                      {currentProject.firstTwoLinesSeo || `${selectedFigure?.name || '화제의 인물'}의 충격적인 인생역전 실화. 방송에서 편집된 무명시절 비하인드 스토리 공개.`}
-                    </p>
-                  </div>
-
-                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1.5">
-                    <div className="text-[11px] font-bold text-slate-500">
-                      ⏱️ 구글 검색 Key Moments 연동 챕터 마커:
-                    </div>
-                    <div className="font-mono text-xs text-slate-700 space-y-1">
-                      {(currentProject.timestamps || [
-                        { time: '00:00', label: '충격적인 첫 시작' },
-                        { time: '00:15', label: '인생을 바꾼 운명적 선택' },
-                        { time: '00:35', label: '위기와 지옥의 수련' },
-                        { time: '00:50', label: '정상에 오른 기적의 신화' }
-                      ]).map((t, idx) => (
-                        <div key={idx} className="flex items-center gap-2">
-                          <span className="font-bold text-blue-600">{t.time}</span>
-                          <span>{t.label}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* 3. Interactive Debate Comment Baits & Pinned Comment */}
-                <div className="p-4 rounded-2xl bg-rose-50/70 border border-rose-200 space-y-3 shadow-2xs">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <MessageSquareQuote className="w-3.5 h-3.5 text-rose-600" />
-                      <span className="text-xs font-extrabold text-rose-950">
-                        3단계: 댓글 폭발 치트키 (A vs B 논쟁 투표 & 고정 댓글)
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => handleCopy(currentProject.pinnedComment, 'pinned-comment')}
-                      className="text-xs font-bold text-rose-700 hover:text-rose-900 flex items-center gap-1 cursor-pointer"
-                    >
-                      {copiedKey === 'pinned-comment' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                      <span>고정댓글 복사</span>
-                    </button>
-                  </div>
-
-                  <p className="text-xs font-bold text-slate-800 leading-relaxed bg-white p-3.5 rounded-xl border border-rose-200">
-                    "{currentProject.pinnedComment}"
-                  </p>
-
-                  <div className="bg-white/80 p-3 rounded-xl border border-rose-100 text-[11px] text-slate-600 space-y-1">
-                    <div className="font-bold text-rose-700 flex items-center gap-1">
-                      <span>💡 시청자 반응 알고리즘 원리:</span>
-                    </div>
-                    <p className="leading-snug">
-                      시청자가 양자택일(A vs B) 투표에 참전하는 순간, 영상의 인터랙션 점수가 급상승하여 유튜브 알고리즘이 추천 피드로 밀어올립니다.
-                    </p>
-                  </div>
-                </div>
-
-                {/* 4. Clean Category Semantic Tags (Only 3~5) & AI Voice Keywords */}
-                <div className="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-200 space-y-3 shadow-2xs">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <Tag className="w-3.5 h-3.5 text-indigo-600" />
-                      <span className="text-xs font-extrabold text-indigo-950">
-                        4단계: 스팸 없는 클린 카테고리 색인 태그 (단 3~5개)
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => {
-                        const tags = (currentProject.cleanSemanticTags || currentProject.hashtags.slice(0, 4)).map(t => `#${t.replace('#','')}`).join(' ');
-                        handleCopy(tags, 'clean-tags');
-                      }}
-                      className="text-xs font-bold text-indigo-700 hover:text-indigo-900 flex items-center gap-1 cursor-pointer"
-                    >
-                      {copiedKey === 'clean-tags' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                      <span>태그 복사</span>
-                    </button>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    {(currentProject.cleanSemanticTags || currentProject.hashtags.slice(0, 4)).map((t, idx) => (
-                      <span key={idx} className="text-xs font-bold px-3 py-1 rounded-xl bg-white text-indigo-700 border border-indigo-200 shadow-2xs">
-                        #{t.replace('#','')}
-                      </span>
-                    ))}
-                  </div>
-
-                  {/* AI Speech Voice Keywords */}
-                  <div className="pt-2 border-t border-indigo-100 flex flex-wrap items-center gap-1 text-[11px] text-indigo-900 font-medium">
-                    <span className="font-bold text-indigo-600">🎙️ AI 음성(Whisper) 자동 색인 키워드:</span>
-                    <span>
-                      {(currentProject.semanticKeywords || [selectedFigure?.name || '인물', '비하인드', '감동실화', '인생역전', '성공비결']).join(', ')}
-                    </span>
-                  </div>
-                </div>
-
-                {/* One-click Full Metadata Copy */}
-                <button
-                  onClick={() => {
-                    const cleanTags = (currentProject.cleanSemanticTags || currentProject.hashtags.slice(0, 4)).map(t => `#${t.replace('#','')}`).join(' ');
-                    const times = (currentProject.timestamps || [
-                      { time: '00:00', label: '충격적인 첫 시작' },
-                      { time: '00:15', label: '위기와 시련' },
-                      { time: '00:35', label: '인생을 바꾼 결정적 터닝포인트' },
-                      { time: '00:50', label: '정상에 오른 기적의 신화' }
-                    ]).map(t => `${t.time} ${t.label}`).join('\n');
-                    const fullMeta = `[유튜브 쇼츠 업로드용 2026 알고리즘 최적화 메타]\n\n` +
-                      `1. 추천 제목:\n${currentProject.titles[0]}\n\n` +
-                      `2. 설명란 (첫 2줄 SEO + 타임스탬프):\n${currentProject.firstTwoLinesSeo || ''}\n\n${currentProject.description}\n\n[타임라인]\n${times}\n\n${cleanTags}\n\n` +
-                      `3. 고정 댓글:\n${currentProject.pinnedComment}`;
-                    handleCopy(fullMeta, 'full-shorts-meta');
-                  }}
-                  className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs flex items-center justify-center gap-2 shadow-sm transition cursor-pointer"
-                >
-                  {copiedKey === 'full-shorts-meta' ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
-                  <span>쇼츠 업로드 메타데이터 원클릭 전체 복사 (제목+설명+고정댓글)</span>
-                </button>
-              </div>
-            )}
-
-            {/* VIEW 4: COPYRIGHT DEFENSE PATCH */}
-            {activeTab === 'copyright' && (
-              <div className="space-y-4">
-                <div className="p-4 rounded-2xl bg-blue-50 border border-blue-200 space-y-2">
-                  <div className="flex items-center space-x-2 text-blue-900 font-extrabold text-sm">
-                    <ShieldCheck className="w-5 h-5 text-blue-600" />
-                    <span>100% 실화 및 사실(Fact) 기반 검증 보증</span>
-                  </div>
-                  <p className="text-xs text-blue-950 leading-relaxed font-medium">
-                    본 시스템의 AI 엔진은 공식 언론 보도, 방송 인터뷰, 공인된 프로필 등 검증된 <strong>실제 사실(Fact)</strong>만을 바탕으로 대본을 구성합니다. 허위사실 날조나 왜곡으로 인한 법적 리스크(명예훼손 및 허위사실 유포)를 원천 차단하기 위해 엄격한 팩트 준수 규칙 및 저온도(Low-temperature) 생성 가이드라인이 강제되어 있습니다.
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-2">
-                  <div className="flex items-center space-x-2 text-emerald-800 font-bold text-sm">
-                    <ShieldCheck className="w-5 h-5 text-emerald-600" />
-                    <span>저작권 안전 2차 저작물 보증 리포트</span>
-                  </div>
-                  <p className="text-xs text-emerald-950 leading-relaxed font-medium">
-                    {currentProject.copyrightDefenseNote}
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                  <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-2 shadow-2xs">
-                    <h5 className="font-extrabold text-slate-900 flex items-center gap-1.5">
-                      <span className="text-rose-500">❌</span> 위반 위험이 높은 방식
-                    </h5>
-                    <ul className="text-slate-600 space-y-1 list-disc list-inside font-medium">
-                      <li>방송사 원본 영상을 그대로 이어 붙이는 행위</li>
-                      <li>단순 사실 전달만 하는 무지성 AI 기계음 뉴스 낭독</li>
-                      <li>인물에 대한 비방 및 사실 왜곡</li>
-                    </ul>
-                  </div>
-
-                  <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-2 shadow-2xs">
-                    <h5 className="font-extrabold text-slate-900 flex items-center gap-1.5">
-                      <span className="text-emerald-600">✅</span> Untold의 2차 창작 방식
-                    </h5>
-                    <ul className="text-slate-700 space-y-1 list-disc list-inside font-medium">
-                      <li>이미지 슬라이드 3초 컷 + 천천히 줌인/팬 모션 효과</li>
-                      <li>인물의 역경 극복과 긍정적 서사를 조명하는 헌정형 기획</li>
-                      <li>대법원 판례 및 유튜브 공정 이용(Fair Use) 가이드라인 준수</li>
-                    </ul>
-                  </div>
                 </div>
               </div>
             )}

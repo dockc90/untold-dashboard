@@ -1,15 +1,13 @@
 import React from 'react';
 import { 
   Sparkles, 
-  TrendingUp, 
   Film, 
   FolderHeart, 
-  CheckSquare,
   Flame,
   Layers
 } from 'lucide-react';
 
-export type AppTab = 'studio' | 'carousel' | 'viral' | 'todo' | 'roadmap' | 'architecture' | 'saved';
+export type AppTab = 'studio' | 'carousel' | 'viral' | 'saved';
 
 interface HeaderProps {
   currentTab: AppTab;

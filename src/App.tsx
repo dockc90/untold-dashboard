@@ -7,19 +7,15 @@ import React, { useState, useEffect } from 'react';
 import { Header, AppTab } from './components/Header';
 import { TrendRadar, normalizeChannel } from './components/TrendRadar';
 import { ScriptStudio } from './components/ScriptStudio';
-import { CpoExecutiveView } from './components/CpoExecutiveView';
-import { DailyRoutineChecklist } from './components/DailyRoutineChecklist';
 import { SavedProjectsView } from './components/SavedProjectsView';
-import { ArchitectureView } from './components/ArchitectureView';
 import { VideoRendererModal } from './components/VideoRendererModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ViralStudio } from './components/ViralStudio';
 import { CarouselStudio } from './components/CarouselStudio';
 import { INITIAL_TRENDING_FIGURES } from './data/initialTrends';
 import { SAMPLE_PROJECT } from './data/sampleProject';
-import { RAW_SUPABASE_SCHEMA } from './data/rawSqlSchema';
 import { TrendingFigure, ShortsProject, CategoryType, TimeFilter, TargetPersona, VideoMoodTone, SourceChannel } from './types';
-import { AlertCircle, X, Database, ArrowLeft, Flame, Sparkles } from 'lucide-react';
+import { AlertCircle, X, ArrowLeft, Flame, Sparkles } from 'lucide-react';
 import { 
   fetchProjectsFromSupabase, 
   saveProjectToSupabase, 
@@ -991,16 +987,6 @@ export default function App() {
           />
         )}
 
-        {currentTab === 'todo' && <DailyRoutineChecklist />}
-        {currentTab === 'roadmap' && <CpoExecutiveView />}
-
-        {currentTab === 'architecture' && (
-          <ArchitectureView
-            sqlSchema={RAW_SUPABASE_SCHEMA}
-            onBackToStudio={() => setCurrentTab('studio')}
-          />
-        )}
-
         {currentTab === 'saved' && (
           <SavedProjectsView
             projects={savedProjects}
@@ -1054,40 +1040,12 @@ export default function App() {
             </button>
             <span className="text-slate-300">·</span>
             <button
-              onClick={() => setCurrentTab('todo')}
-              className={`hover:text-rose-600 transition font-medium ${
-                currentTab === 'todo' ? 'text-rose-600 font-bold' : ''
-              }`}
-            >
-              데일리 루틴
-            </button>
-            <span className="text-slate-300">·</span>
-            <button
-              onClick={() => setCurrentTab('roadmap')}
-              className={`hover:text-amber-600 transition font-medium ${
-                currentTab === 'roadmap' ? 'text-amber-600 font-bold' : ''
-              }`}
-            >
-              수익 로드맵
-            </button>
-            <span className="text-slate-300">·</span>
-            <button
               onClick={() => setCurrentTab('saved')}
               className={`hover:text-slate-900 transition font-medium ${
                 currentTab === 'saved' ? 'text-slate-900 font-bold' : ''
               }`}
             >
               보관함
-            </button>
-            <span className="text-slate-300">|</span>
-            {/* Secondary technical architecture button */}
-            <button
-              onClick={() => setCurrentTab('architecture')}
-              className="flex items-center space-x-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 px-2.5 py-1 rounded-lg transition"
-              title="시스템 아키텍처 및 DB 참조"
-            >
-              <Database className="w-3.5 h-3.5 text-slate-400" />
-              <span>시스템 아키텍처</span>
             </button>
           </div>
         </div>
