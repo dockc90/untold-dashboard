@@ -436,10 +436,16 @@ export default function App() {
       setRefreshCounter(nextCount);
 
       let data: any = null;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+      }, 8000);
+
       try {
         const res = await fetch('/api/gemini/generate-shorts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
           body: JSON.stringify({
             figureName: selectedFigure.name,
             title: selectedFigure.title,
@@ -454,16 +460,23 @@ export default function App() {
           }),
         });
 
+        clearTimeout(timeoutId);
         if (res.ok) {
           data = await res.json();
         }
-      } catch (fetchErr) {
-        console.warn('API call to /api/gemini/generate-shorts failed, using fallback:', fetchErr);
+      } catch (fetchErr: any) {
+        if (fetchErr.name === 'AbortError') {
+          console.warn('API call to /api/gemini/generate-shorts timed out after 8s, using instant high-speed generator.');
+        } else {
+          console.warn('API call to /api/gemini/generate-shorts failed, using fallback:', fetchErr);
+        }
+      } finally {
+        clearTimeout(timeoutId);
       }
 
       // If API was unavailable or returned empty data, use robust client fallback generator
       if (!data || !data.scenes || data.scenes.length === 0) {
-        data = generateClientFallbackScript(selectedFigure.name, duration, nextCount, storyAngle);
+        data = generateClientFallbackScript(selectedFigure.name, duration, nextCount, storyAngle, targetPersona);
       }
       const charCount = (data.fullScript || '').replace(/\s+/g, '').length;
       const estimatedSeconds = Math.round(charCount / 6.5);

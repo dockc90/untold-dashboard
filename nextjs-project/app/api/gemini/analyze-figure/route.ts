@@ -46,39 +46,42 @@ export async function POST(request: Request) {
 이 인물이 현재 왜 화제이거나, 유튜브 쇼츠로 제작했을 때 대중이 열광할 만한 핵심 비하인드 스토리, 역경 극복, 반전 서사를 분석해주세요.
 반드시 아래 JSON 스키마 형식으로 응답하세요.`;
 
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-        temperature: 0.35,
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            name: { type: Type.STRING },
-            title: { type: Type.STRING, description: '호기심을 자극하는 한 줄 헤드라인' },
-            viralityScore: { type: Type.INTEGER, description: '1부터 100까지의 화제성/바이럴 점수' },
-            buzzSummary: { type: Type.STRING, description: '현재 대중이 주목하는 이유 요약 2~3문장' },
-            controversyOrIssue: { type: Type.STRING, description: '과거 역경, 시련, 논란 또는 감동 포인트' },
-            suggestedAngle: { type: Type.STRING, description: '2차 창작 스토리텔링으로 승부할 기획 방향' },
-            tags: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING },
-              description: '핵심 해시태그 4~5개'
-            }
-          },
-          required: ['name', 'title', 'viralityScore', 'buzzSummary', 'controversyOrIssue', 'suggestedAngle', 'tags']
+  const candidateModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash'];
+  for (const mod of candidateModels) {
+    try {
+      const response = await ai.models.generateContent({
+        model: mod,
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.35,
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              name: { type: Type.STRING },
+              title: { type: Type.STRING, description: '호기심을 자극하는 한 줄 헤드라인' },
+              viralityScore: { type: Type.INTEGER, description: '1부터 100까지의 화제성/바이럴 점수' },
+              buzzSummary: { type: Type.STRING, description: '현재 대중이 주목하는 이유 요약 2~3문장' },
+              controversyOrIssue: { type: Type.STRING, description: '과거 역경, 시련, 논란 또는 감동 포인트' },
+              suggestedAngle: { type: Type.STRING, description: '2차 창작 스토리텔링으로 승부할 기획 방향' },
+              tags: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING },
+                description: '핵심 해시태그 4~5개'
+              }
+            },
+            required: ['name', 'title', 'viralityScore', 'buzzSummary', 'controversyOrIssue', 'suggestedAngle', 'tags']
+          }
         }
-      }
-    });
+      });
 
-    const parsed = JSON.parse(response.text || '{}');
-    if (parsed.name && parsed.title) {
-      return NextResponse.json(parsed);
+      const parsed = JSON.parse(response.text || '{}');
+      if (parsed.name && parsed.title) {
+        return NextResponse.json(parsed);
+      }
+    } catch (err: any) {
+      console.warn(`Gemini analyze-figure (${mod}) failed:`, err.message);
     }
-  } catch (err: any) {
-    console.warn('Gemini analyze-figure failed, using fallback:', err.message);
   }
 
   return NextResponse.json(fallback);

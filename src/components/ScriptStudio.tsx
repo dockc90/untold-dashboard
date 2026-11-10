@@ -670,6 +670,15 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
               </button>
             </div>
           </div>
+
+          {isGenerating && (
+            <div className="mt-3 p-2.5 rounded-xl bg-indigo-50/90 border border-indigo-200 flex items-center space-x-2 text-xs text-indigo-800 animate-pulse">
+              <Sparkles className="w-4 h-4 text-indigo-600 animate-spin shrink-0" />
+              <span className="font-bold">
+                ⚡ AI가 {duration}초 숏폼 씬별 맞춤 대본을 고속 생성 중입니다... (약 1~3초 소요)
+              </span>
+            </div>
+          )}
         </div>
 
         {/* 3초 후킹(Hook) 선택기 */}

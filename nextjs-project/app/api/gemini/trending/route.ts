@@ -158,54 +158,57 @@ export async function POST(request: Request) {
 4. 채널(${channel}) 및 시간대(${timeframe})의 반응 지표(channelMetrics)를 현실감 있게 작성하세요.
 반드시 아래 JSON 스키마 형식의 배열로 응답하세요.`;
 
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-        temperature: 0.35,
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              id: { type: Type.STRING },
-              name: { type: Type.STRING },
-              title: { type: Type.STRING },
-              category: { type: Type.STRING },
-              viralityScore: { type: Type.INTEGER },
-              timeframe: { type: Type.STRING },
-              buzzSummary: { type: Type.STRING },
-              controversyOrIssue: { type: Type.STRING },
-              suggestedAngle: { type: Type.STRING },
-              tags: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING }
+  const candidateModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash'];
+  for (const mod of candidateModels) {
+    try {
+      const response = await ai.models.generateContent({
+        model: mod,
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.35,
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                id: { type: Type.STRING },
+                name: { type: Type.STRING },
+                title: { type: Type.STRING },
+                category: { type: Type.STRING },
+                viralityScore: { type: Type.INTEGER },
+                timeframe: { type: Type.STRING },
+                buzzSummary: { type: Type.STRING },
+                controversyOrIssue: { type: Type.STRING },
+                suggestedAngle: { type: Type.STRING },
+                tags: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING }
+                },
+                primaryChannel: { type: Type.STRING },
+                channelMetrics: {
+                  type: Type.OBJECT,
+                  properties: {
+                    naverRank: { type: Type.STRING },
+                    youtubeViews: { type: Type.STRING },
+                    instaReels: { type: Type.STRING }
+                  }
+                },
+                sourceArticlesCount: { type: Type.INTEGER }
               },
-              primaryChannel: { type: Type.STRING },
-              channelMetrics: {
-                type: Type.OBJECT,
-                properties: {
-                  naverRank: { type: Type.STRING },
-                  youtubeViews: { type: Type.STRING },
-                  instaReels: { type: Type.STRING }
-                }
-              },
-              sourceArticlesCount: { type: Type.INTEGER }
-            },
-            required: ['name', 'title', 'category', 'viralityScore', 'buzzSummary', 'controversyOrIssue', 'suggestedAngle', 'tags']
+              required: ['name', 'title', 'category', 'viralityScore', 'buzzSummary', 'controversyOrIssue', 'suggestedAngle', 'tags']
+            }
           }
         }
-      }
-    });
+      });
 
-    const parsed = JSON.parse(response.text || '[]');
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return NextResponse.json(parsed);
+      const parsed = JSON.parse(response.text || '[]');
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return NextResponse.json(parsed);
+      }
+    } catch (err: any) {
+      console.warn(`Gemini trending fetch (${mod}) failed:`, err.message);
     }
-  } catch (err: any) {
-    console.warn('Gemini trending fetch failed, using fallback:', err.message);
   }
 
   return NextResponse.json(fallbackList);

@@ -119,102 +119,105 @@ export async function POST(request: Request) {
 반드시 정해진 JSON 스키마로만 응답하세요.`;
 
   if (apiKey) {
-    try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json',
-          temperature: 0.35,
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              hooks: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    type: { type: Type.STRING, description: 'question, provocative, or emotional' },
-                    label: { type: Type.STRING, description: '후킹 타입 라벨' },
-                    text: { type: Type.STRING, description: '3초 후킹 멘트 문장' }
-                  },
-                  required: ['type', 'label', 'text']
-                }
-              },
-              titles: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-                description: '쇼츠 제목 3가지 추천'
-              },
-              hashtags: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-                description: '스팸 없는 클린 태그 3~5개'
-              },
-              cleanSemanticTags: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING }
-              },
-              firstTwoLinesSeo: { type: Type.STRING, description: '검색 노출 최적화 첫 2줄' },
-              description: { type: Type.STRING, description: '유튜브 설명란 텍스트' },
-              pinnedComment: { type: Type.STRING, description: '인터랙션 폭발 고정 댓글' },
-              commentBaits: {
-                type: Type.OBJECT,
-                properties: {
-                  debateQuestion: { type: Type.STRING, description: 'A vs B 양자택일 킬러 질문' },
-                  optionA: { type: Type.STRING },
-                  optionB: { type: Type.STRING },
-                  pinnedCommentDraft: { type: Type.STRING, description: '고정 댓글 완성본' }
+    const candidateModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash'];
+    for (const mod of candidateModels) {
+      try {
+        const response = await ai.models.generateContent({
+          model: mod,
+          contents: prompt,
+          config: {
+            responseMimeType: 'application/json',
+            temperature: 0.35,
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                hooks: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      type: { type: Type.STRING, description: 'question, provocative, or emotional' },
+                      label: { type: Type.STRING, description: '후킹 타입 라벨' },
+                      text: { type: Type.STRING, description: '3초 후킹 멘트 문장' }
+                    },
+                    required: ['type', 'label', 'text']
+                  }
                 },
-                required: ['debateQuestion', 'optionA', 'optionB', 'pinnedCommentDraft']
-              },
-              semanticKeywords: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-                description: '자연어 시맨틱 검색 키워드 5개'
-              },
-              shareTrigger: { type: Type.STRING, description: '도달률 1위 DM 공유 및 저장 유도 카피' },
-              timestamps: {
-                type: Type.ARRAY,
-                items: {
+                titles: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  description: '쇼츠 제목 3가지 추천'
+                },
+                hashtags: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  description: '스팸 없는 클린 태그 3~5개'
+                },
+                cleanSemanticTags: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING }
+                },
+                firstTwoLinesSeo: { type: Type.STRING, description: '검색 노출 최적화 첫 2줄' },
+                description: { type: Type.STRING, description: '유튜브 설명란 텍스트' },
+                pinnedComment: { type: Type.STRING, description: '인터랙션 폭발 고정 댓글' },
+                commentBaits: {
                   type: Type.OBJECT,
                   properties: {
-                    time: { type: Type.STRING, description: '00:00 형태' },
-                    label: { type: Type.STRING, description: '챕터 제목' }
+                    debateQuestion: { type: Type.STRING, description: 'A vs B 양자택일 킬러 질문' },
+                    optionA: { type: Type.STRING },
+                    optionB: { type: Type.STRING },
+                    pinnedCommentDraft: { type: Type.STRING, description: '고정 댓글 완성본' }
                   },
-                  required: ['time', 'label']
-                }
+                  required: ['debateQuestion', 'optionA', 'optionB', 'pinnedCommentDraft']
+                },
+                semanticKeywords: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  description: '자연어 시맨틱 검색 키워드 5개'
+                },
+                shareTrigger: { type: Type.STRING, description: '도달률 1위 DM 공유 및 저장 유도 카피' },
+                timestamps: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      time: { type: Type.STRING, description: '00:00 형태' },
+                      label: { type: Type.STRING, description: '챕터 제목' }
+                    },
+                    required: ['time', 'label']
+                  }
+                },
+                fullScript: { type: Type.STRING, description: '영상 전체 나레이션 본문' },
+                scenes: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      sceneNumber: { type: Type.INTEGER },
+                      timeRange: { type: Type.STRING, description: '00:00 - 00:05 형태' },
+                      narration: { type: Type.STRING, description: '나레이션 1~2문장' },
+                      visualGuide: { type: Type.STRING, description: '화면 연출 가이드' },
+                      imageSearchKeyword: { type: Type.STRING, description: '구글 이미지 검색어' },
+                      visualEffect: { type: Type.STRING, description: '줌인/패닝/자막효과' },
+                      bgmSuggestion: { type: Type.STRING, description: '배경음악 무드' }
+                    },
+                    required: ['sceneNumber', 'timeRange', 'narration', 'visualGuide', 'imageSearchKeyword', 'visualEffect']
+                  }
+                },
+                copyrightDefenseNote: { type: Type.STRING, description: '2차 창작물 보호 근거' }
               },
-              fullScript: { type: Type.STRING, description: '영상 전체 나레이션 본문' },
-              scenes: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    sceneNumber: { type: Type.INTEGER },
-                    timeRange: { type: Type.STRING, description: '00:00 - 00:05 형태' },
-                    narration: { type: Type.STRING, description: '나레이션 1~2문장' },
-                    visualGuide: { type: Type.STRING, description: '화면 연출 가이드' },
-                    imageSearchKeyword: { type: Type.STRING, description: '구글 이미지 검색어' },
-                    visualEffect: { type: Type.STRING, description: '줌인/패닝/자막효과' },
-                    bgmSuggestion: { type: Type.STRING, description: '배경음악 무드' }
-                  },
-                  required: ['sceneNumber', 'timeRange', 'narration', 'visualGuide', 'imageSearchKeyword', 'visualEffect']
-                }
-              },
-              copyrightDefenseNote: { type: Type.STRING, description: '2차 창작물 보호 근거' }
-            },
-            required: ['hooks', 'titles', 'hashtags', 'description', 'pinnedComment', 'fullScript', 'scenes', 'copyrightDefenseNote']
+              required: ['hooks', 'titles', 'hashtags', 'description', 'pinnedComment', 'fullScript', 'scenes', 'copyrightDefenseNote']
+            }
           }
-        }
-      });
+        });
 
-      const parsed = JSON.parse(response.text || '{}');
-      if (parsed.fullScript && parsed.scenes && parsed.scenes.length > 0) {
-        return NextResponse.json(parsed);
+        const parsed = JSON.parse(response.text || '{}');
+        if (parsed.fullScript && parsed.scenes && parsed.scenes.length > 0) {
+          return NextResponse.json(parsed);
+        }
+      } catch (err: any) {
+        console.warn(`Gemini model ${mod} call failed:`, err.message);
       }
-    } catch (err: any) {
-      console.warn('Gemini API call failed in Next.js, serving robust fallback script:', err.message);
     }
   }
 

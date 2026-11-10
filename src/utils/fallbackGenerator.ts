@@ -4,7 +4,8 @@ export function generateClientFallbackScript(
   figureName: string = '화제의 인물',
   targetDuration: 45 | 60 = 60,
   refreshCounter: number = 0,
-  storyAngle: string = 'random'
+  storyAngle: string = 'random',
+  targetPersona: string = '4060_emotional'
 ) {
   const variationIdx = Math.abs((refreshCounter || 0) + (storyAngle === 'twist' ? 1 : storyAngle === 'success' ? 2 : 0)) % 3;
 
@@ -12,7 +13,7 @@ export function generateClientFallbackScript(
   let fallbackHooks = [];
   let fallbackTitles = [];
 
-  if (storyAngle === 'ceo_hero' || storyAngle === 'corporate_pr') {
+  if (targetPersona === 'ceo_branding' || storyAngle === 'ceo_hero' || storyAngle === 'corporate_pr') {
     fallbackHooks = [
       { type: 'question', label: '혁신 질문형', text: `모두가 불가능하다고 손가락질했던 순간, ${figureName} 대표는 왜 전 재산을 걸었을까요?` },
       { type: 'provocative', label: '비즈니스 반전', text: `기존 대기업들이 절대 바꾸지 못했던 시장의 낡은 관행, ${figureName} 님이 완전히 뒤집어버렸습니다.` },
