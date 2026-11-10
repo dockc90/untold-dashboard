@@ -464,66 +464,68 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
   }, [editableScript, editableScenes, selectedHookIndex, selectedVoiceId, speechRate, videoTone]);
 
   return (
-    <div className="flex flex-col h-full bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
+    <div className="flex flex-col h-full bg-white border border-slate-200 rounded-2xl sm:rounded-3xl overflow-hidden shadow-sm w-full max-w-full min-w-0">
       {/* Top Banner / Selected Figure Info */}
-      <div className="p-4 bg-slate-50/80 border-b border-slate-200">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center space-x-3">
+      <div className="p-3 sm:p-4 bg-slate-50/80 border-b border-slate-200 w-full max-w-full min-w-0 overflow-hidden">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 w-full min-w-0 max-w-full">
+          <div className="flex items-center space-x-2.5 sm:space-x-3 min-w-0 max-w-full">
             {onBackToTrends && (
               <button
                 type="button"
                 onClick={onBackToTrends}
-                className="p-2 sm:px-3 sm:py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition shadow-2xs flex items-center space-x-1.5 cursor-pointer font-bold text-xs"
+                className="p-2 sm:px-3 sm:py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition shadow-2xs flex items-center space-x-1.5 cursor-pointer font-bold text-xs shrink-0"
                 title="1단계: 트렌드 인물 선택으로 돌아가기"
               >
                 <ArrowLeft className="w-4 h-4 text-indigo-600 shrink-0" />
                 <span className="hidden sm:inline">인물 변경</span>
               </button>
             )}
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-rose-500 to-indigo-600 flex items-center justify-center text-white font-extrabold text-base shadow-sm shrink-0">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-tr from-rose-500 to-indigo-600 flex items-center justify-center text-white font-extrabold text-sm sm:text-base shadow-sm shrink-0">
               {selectedFigure ? selectedFigure.name.slice(0, 2) : '쇼츠'}
             </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <h2 className="text-base font-extrabold text-slate-900">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                <h2 className="text-sm sm:text-base font-extrabold text-slate-900 truncate">
                   {selectedFigure ? selectedFigure.name : '인물을 선택해주세요'}
                 </h2>
                 {selectedFigure && (
-                  <span className="text-[11px] px-2.5 py-0.5 rounded-full font-black bg-rose-50 text-rose-600 border border-rose-200 flex items-center gap-1">
+                  <span className="text-[10px] sm:text-[11px] px-2 py-0.5 rounded-full font-black bg-rose-50 text-rose-600 border border-rose-200 flex items-center gap-1 shrink-0">
                     <Flame className="w-3 h-3 fill-rose-500 text-rose-500" />
                     화제성 {selectedFigure.viralityScore}점
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-500 font-medium line-clamp-1">
+              <p className="text-[11px] sm:text-xs text-slate-500 font-medium truncate mt-0.5">
                 {selectedFigure?.suggestedAngle || '화제의 인물 맞춤 대본 및 씬별 기획'}
               </p>
             </div>
           </div>
 
           {/* Persona, Duration & Voice Selectors & Generate Button (Mobile-first Clean Grid) */}
-          <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 w-full lg:w-auto min-w-0 max-w-full">
             {/* Voice Selector */}
-            <div className="flex items-center justify-between bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 shadow-2xs w-full sm:w-auto">
-              <span className="text-[11px] font-extrabold text-indigo-700 shrink-0 mr-1.5">성우</span>
-              <select
-                value={selectedVoiceId}
-                onChange={(e) => setSelectedVoiceId(e.target.value)}
-                className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer flex-1 sm:max-w-[170px] truncate"
-              >
-                {VOICE_OPTIONS.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.gender === 'male' ? '👨' : '👩'} {v.name} ({v.role})
-                  </option>
-                ))}
-              </select>
+            <div className="flex items-center justify-between bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 shadow-2xs w-full sm:w-auto min-w-0 max-w-full gap-2">
+              <span className="text-[11px] font-extrabold text-indigo-700 shrink-0">성우</span>
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <select
+                  value={selectedVoiceId}
+                  onChange={(e) => setSelectedVoiceId(e.target.value)}
+                  className="w-full bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer truncate"
+                >
+                  {VOICE_OPTIONS.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.name} ({v.role})
+                    </option>
+                  ))}
+                </select>
+              </div>
               <button
                 type="button"
                 onClick={() => {
                   const voice = VOICE_OPTIONS.find((v) => v.id === selectedVoiceId) || VOICE_OPTIONS[0];
                   playVoiceSample(voice);
                 }}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition flex items-center space-x-1 shrink-0 ml-1.5 ${
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition flex items-center space-x-1 shrink-0 ${
                   isPlayingVoiceSample
                     ? 'bg-rose-500 text-white'
                     : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
@@ -536,11 +538,11 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
             </div>
 
             {/* Persona & Duration in 2-col on mobile */}
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center w-full sm:w-auto">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center w-full sm:w-auto min-w-0">
               <select
                 value={targetPersona}
                 onChange={(e) => setTargetPersona(e.target.value as TargetPersona)}
-                className="bg-white border border-slate-200 text-xs font-bold text-slate-700 rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-indigo-500 shadow-2xs w-full"
+                className="bg-white border border-slate-200 text-xs font-bold text-slate-700 rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-indigo-500 shadow-2xs w-full min-w-0"
               >
                 <option value="4060_emotional">4060 감동</option>
                 <option value="1020_dopamine">1020 도파민</option>
@@ -548,7 +550,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                 <option value="mystery_twist">반전 미스터리</option>
               </select>
 
-              <div className="flex items-center bg-slate-200/70 rounded-xl border border-slate-200 p-0.5 text-xs font-bold w-full justify-center">
+              <div className="flex items-center bg-slate-200/70 rounded-xl border border-slate-200 p-0.5 text-xs font-bold w-full justify-center min-w-0">
                 <button
                   type="button"
                   onClick={() => setDuration(45)}
@@ -571,25 +573,25 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
             </div>
 
             {/* Action Buttons in 2-col on mobile */}
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:ml-auto w-full sm:w-auto">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:ml-auto w-full sm:w-auto min-w-0">
               <button
                 type="button"
                 onClick={() => onGenerateScript(targetPersona, duration, videoTone, 'random')}
                 disabled={isGenerating || !selectedFigure}
-                className="flex items-center justify-center space-x-1.5 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs rounded-xl shadow-xs transition disabled:opacity-50 cursor-pointer"
+                className="flex items-center justify-center space-x-1.5 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs rounded-xl shadow-xs transition disabled:opacity-50 cursor-pointer min-w-0"
               >
                 <RotateCw className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
-                <span>대본 새로고침</span>
+                <span className="truncate">대본 새로고침</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => onGenerateScript(targetPersona, duration, videoTone)}
                 disabled={isGenerating || !selectedFigure}
-                className="flex items-center justify-center space-x-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition disabled:opacity-50 cursor-pointer"
+                className="flex items-center justify-center space-x-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition disabled:opacity-50 cursor-pointer min-w-0"
               >
                 <Sparkles className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
-                <span>{isGenerating ? '생성 중...' : '대본 생성'}</span>
+                <span className="truncate">{isGenerating ? '생성 중...' : '대본 생성'}</span>
               </button>
             </div>
           </div>
@@ -597,7 +599,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
 
         {/* 3초 후킹(Hook) 선택기 */}
         {currentProject && currentProject.hooks && currentProject.hooks.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-slate-200">
+          <div className="mt-3 pt-3 border-t border-slate-200 w-full max-w-full min-w-0">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center space-x-1.5 text-xs font-extrabold text-amber-600">
                 <Flame className="w-4 h-4 fill-amber-500 text-amber-500 shrink-0" />
@@ -608,7 +610,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-2.5 w-full max-w-full min-w-0">
               {currentProject.hooks.map((hook, idx) => {
                 const isHookSelected = selectedHookIndex === idx;
                 const cleanHookText = hook.text.replace(/^[\"'“‘\s]+/, '').replace(/[\"'”’\s]+$/, '');
@@ -617,23 +619,23 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                     key={idx}
                     type="button"
                     onClick={() => handleHookSelect(idx)}
-                    className={`text-left p-3 rounded-2xl border text-xs transition relative cursor-pointer ${
+                    className={`text-left p-3 rounded-2xl border text-xs transition relative cursor-pointer min-w-0 w-full max-w-full overflow-hidden ${
                       isHookSelected
                         ? 'bg-amber-50/90 border-amber-400 text-amber-950 shadow-xs ring-2 ring-amber-400/50'
                         : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                      <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
                         {hook.label || `후킹 ${idx + 1}`}
                       </span>
                       {isHookSelected && (
-                        <span className="text-[10px] font-black text-amber-700 flex items-center gap-1 bg-amber-100/90 px-2 py-0.5 rounded-full">
+                        <span className="text-[10px] font-black text-amber-700 flex items-center gap-1 bg-amber-100/90 px-2 py-0.5 rounded-full shrink-0">
                           <Check className="w-3 h-3" /> 적용됨
                         </span>
                       )}
                     </div>
-                    <p className="font-bold text-xs sm:text-sm text-slate-900 leading-relaxed break-keep">
+                    <p className="font-bold text-xs sm:text-sm text-slate-900 leading-relaxed break-keep break-words">
                       "{cleanHookText}"
                     </p>
                   </button>
@@ -644,25 +646,25 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
         )}
 
         {/* 대본 새로고침 & 다양한 스토리 각도 선택 배너 */}
-        <div className="mt-3.5 p-3 rounded-2xl bg-gradient-to-r from-amber-50/90 via-indigo-50/70 to-rose-50/90 border border-amber-200/90 flex flex-col md:flex-row items-start md:items-center justify-between gap-2.5 text-xs shadow-2xs">
-          <div className="flex items-center space-x-2">
+        <div className="mt-3.5 p-3 rounded-2xl bg-gradient-to-r from-amber-50/90 via-indigo-50/70 to-rose-50/90 border border-amber-200/90 flex flex-col md:flex-row items-start md:items-center justify-between gap-2.5 text-xs shadow-2xs w-full max-w-full min-w-0 overflow-hidden">
+          <div className="flex items-center space-x-2 min-w-0">
             <div className="p-1.5 rounded-xl bg-amber-500 text-white shadow-2xs shrink-0">
               <RotateCw className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
             </div>
-            <div>
+            <div className="min-w-0">
               <span className="font-extrabold text-slate-900 block sm:inline">다른 테마로 즉시 대본 새로고침</span>{' '}
               <span className="text-[11px] text-slate-600 font-medium hidden sm:inline">원하는 테마를 클릭하면 새로운 각도의 대본으로 변경됩니다.</span>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto">
+          <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto min-w-0">
             {STORY_ANGLES.map((angle) => (
               <button
                 key={angle.id}
                 type="button"
                 onClick={() => onGenerateScript(targetPersona, duration, videoTone, angle.id)}
                 disabled={isGenerating}
-                className="px-2.5 py-1 rounded-xl bg-white hover:bg-amber-500 hover:text-white border border-slate-200 hover:border-amber-400 text-slate-700 font-bold text-[11px] transition shadow-2xs cursor-pointer flex items-center space-x-1 disabled:opacity-50"
+                className="px-2.5 py-1 rounded-xl bg-white hover:bg-amber-500 hover:text-white border border-slate-200 hover:border-amber-400 text-slate-700 font-bold text-[11px] transition shadow-2xs cursor-pointer flex items-center space-x-1 disabled:opacity-50 shrink-0"
                 title={angle.desc}
               >
                 <span>{angle.label}</span>
@@ -672,12 +674,12 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
         </div>
       </div>
 
-      {/* Tabs Row & Live Narration Stats */}
-      <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center space-x-1 text-xs">
+      {/* Tabs Row & Live Narration Stats (Responsive & Horizontally Scrollable on Mobile) */}
+      <div className="px-3 sm:px-4 py-2 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 w-full max-w-full overflow-hidden">
+        <div className="flex items-center space-x-1 text-xs overflow-x-auto max-w-full scrollbar-none pb-0.5 touch-pan-x shrink-0">
           <button
             onClick={() => setActiveTab('scenes')}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl font-bold transition ${
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl font-bold transition whitespace-nowrap shrink-0 ${
               activeTab === 'scenes'
                 ? 'bg-white text-slate-900 border border-slate-200 shadow-2xs'
                 : 'text-slate-600 hover:text-slate-900'
@@ -689,7 +691,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
 
           <button
             onClick={() => setActiveTab('script')}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl font-bold transition ${
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl font-bold transition whitespace-nowrap shrink-0 ${
               activeTab === 'script'
                 ? 'bg-white text-slate-900 border border-slate-200 shadow-2xs'
                 : 'text-slate-600 hover:text-slate-900'
@@ -701,7 +703,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
 
           <button
             onClick={() => setActiveTab('metadata')}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl font-bold transition ${
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl font-bold transition whitespace-nowrap shrink-0 ${
               activeTab === 'metadata'
                 ? 'bg-white text-slate-900 border border-slate-200 shadow-2xs'
                 : 'text-slate-600 hover:text-slate-900'
@@ -713,7 +715,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
 
           <button
             onClick={() => setActiveTab('copyright')}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl font-bold transition ${
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl font-bold transition whitespace-nowrap shrink-0 ${
               activeTab === 'copyright'
                 ? 'bg-white text-slate-900 border border-slate-200 shadow-2xs'
                 : 'text-slate-600 hover:text-slate-900'
@@ -725,7 +727,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
         </div>
 
         {/* Live Narration Reading Time Bar & TTS */}
-        <div className="flex items-center space-x-3 text-xs">
+        <div className="flex items-center justify-between sm:justify-end space-x-3 text-xs shrink-0">
           <div className="flex items-center space-x-1 text-slate-600 font-bold">
             <Clock className="w-3.5 h-3.5 text-indigo-600" />
             <span>예상 {estimatedSeconds}초</span>

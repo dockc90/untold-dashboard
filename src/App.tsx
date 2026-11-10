@@ -789,10 +789,10 @@ export default function App() {
                 </div>
               </div>
             ) : studioStep === 'editor' ? (
-              <div className="flex-1 flex flex-col min-h-0 space-y-4">
+              <div className="flex-1 flex flex-col min-h-0 space-y-3 sm:space-y-4 w-full max-w-full min-w-0 overflow-hidden">
                 {/* Step 2 Header Navigation Bar (Responsive on Mobile & Desktop) */}
-                <div className="bg-white rounded-2xl border border-slate-200 p-2 sm:p-4 shadow-2xs flex flex-col gap-2">
-                  <div className="flex items-center justify-between gap-1.5 min-w-0">
+                <div className="bg-white rounded-2xl border border-slate-200 p-2 sm:p-4 shadow-2xs flex flex-col gap-2 w-full max-w-full min-w-0 overflow-hidden">
+                  <div className="flex items-center justify-between gap-1.5 min-w-0 w-full max-w-full">
                     <button
                       type="button"
                       onClick={() => {
@@ -835,24 +835,24 @@ export default function App() {
                   </div>
 
                   {/* Step Progress Indicators (Optimized for Mobile & Desktop) */}
-                  <div className="flex items-center justify-between sm:justify-start space-x-1.5 sm:space-x-2 text-[11px] sm:text-xs font-bold text-slate-500 bg-slate-50 sm:bg-transparent p-1.5 sm:p-0 rounded-xl sm:rounded-none border border-slate-200 sm:border-0">
+                  <div className="flex items-center justify-between sm:justify-start space-x-1.5 sm:space-x-2 text-[11px] sm:text-xs font-bold text-slate-500 bg-slate-50 sm:bg-transparent p-1.5 sm:p-0 rounded-xl sm:rounded-none border border-slate-200 sm:border-0 w-full max-w-full overflow-hidden">
                     <button
                       type="button"
                       onClick={() => {
                         setStudioStep('trends');
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                       }}
-                      className="text-slate-500 hover:text-indigo-600 transition cursor-pointer"
+                      className="text-slate-500 hover:text-indigo-600 transition cursor-pointer shrink-0"
                     >
                       <span className="sm:hidden">1. 인물</span>
                       <span className="hidden sm:inline">1단계: 인물 선택</span>
                     </button>
-                    <span className="text-slate-300">➔</span>
-                    <span className="text-indigo-600 font-black bg-indigo-50 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg border border-indigo-200">
+                    <span className="text-slate-300 shrink-0">➔</span>
+                    <span className="text-indigo-600 font-black bg-indigo-50 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg border border-indigo-200 shrink-0">
                       <span className="sm:hidden">2. 대본</span>
                       <span className="hidden sm:inline">2단계: 쇼츠 대본 스튜디오</span>
                     </span>
-                    <span className="text-slate-300">➔</span>
+                    <span className="text-slate-300 shrink-0">➔</span>
                     <button
                       type="button"
                       onClick={() => {
@@ -862,7 +862,7 @@ export default function App() {
                           window.scrollTo({ top: 0, behavior: 'smooth' });
                         }
                       }}
-                      className="text-slate-500 hover:text-indigo-600 transition cursor-pointer"
+                      className="text-slate-500 hover:text-indigo-600 transition cursor-pointer shrink-0"
                     >
                       <span className="sm:hidden">3. 영상 제작</span>
                       <span className="hidden sm:inline">3단계: 쇼츠 영상 제작</span>
@@ -871,7 +871,7 @@ export default function App() {
                 </div>
 
                 {/* Full-width ScriptStudio */}
-                <div className="flex-1 min-h-[720px] flex flex-col">
+                <div className="flex-1 min-h-[720px] flex flex-col w-full max-w-full min-w-0">
                   <ScriptStudio
                     selectedFigure={selectedFigure}
                     currentProject={currentProject}
