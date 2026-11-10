@@ -32,6 +32,7 @@ import { TrendingFigure, ShortsProject, TargetPersona, VideoMoodTone, SceneItem,
 import { VOICE_OPTIONS } from '../data/voices';
 import { playDistinctVoicePreview, stopAllVoicePreviews } from '../utils/voicePlayer';
 import { ScenePhotoCollageModal } from './ScenePhotoCollageModal';
+import { SceneVideoEditorModal } from './SceneVideoEditorModal';
 import { ErrorBoundary } from './ErrorBoundary';
 import { getSceneFallbackImage } from '../utils/sceneImages';
 import { saveDraftToServer } from '../lib/supabase';
@@ -97,10 +98,80 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
     const updated = [...editableScenes];
     updated[collageModalSceneIdx] = {
       ...updated[collageModalSceneIdx],
+      mediaType: 'image',
       uploadedImageUrl: mergedDataUrl,
     };
     setEditableScenes(updated);
     setCollageModalSceneIdx(null);
+  };
+
+  // Video Trimmer / Editor modal state (CapCut style)
+  const [videoEditorSceneIdx, setVideoEditorSceneIdx] = useState<number | null>(null);
+  const videoFileInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
+
+  const handleOpenVideoEditor = (sceneIdx: number) => {
+    setVideoEditorSceneIdx(sceneIdx);
+  };
+
+  const handleVideoFileUpload = (sceneIdx: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const videoBlobUrl = URL.createObjectURL(file);
+    const updated = [...editableScenes];
+    updated[sceneIdx] = {
+      ...updated[sceneIdx],
+      mediaType: 'video',
+      uploadedVideoUrl: videoBlobUrl,
+      videoStartTime: 0,
+      videoEndTime: 5.0,
+      videoPlaybackRate: 1.0,
+      videoVolume: 0,
+      videoMuted: true,
+      videoFit: 'cover',
+      videoCrop: { xPercent: 50, yPercent: 50, zoom: 1.0 },
+    };
+    setEditableScenes(updated);
+    setVideoEditorSceneIdx(sceneIdx);
+    e.target.value = '';
+  };
+
+  const handleApplyVideoConfig = (config: {
+    videoUrl: string;
+    startTime: number;
+    endTime: number;
+    playbackRate: number;
+    volume: number;
+    muted: boolean;
+    fit: 'cover' | 'contain';
+    crop: { xPercent: number; yPercent: number; zoom: number };
+  }) => {
+    if (videoEditorSceneIdx === null) return;
+    const updated = [...editableScenes];
+    updated[videoEditorSceneIdx] = {
+      ...updated[videoEditorSceneIdx],
+      mediaType: 'video',
+      uploadedVideoUrl: config.videoUrl,
+      videoStartTime: config.startTime,
+      videoEndTime: config.endTime,
+      videoPlaybackRate: config.playbackRate,
+      videoVolume: config.volume,
+      videoMuted: config.muted,
+      videoFit: config.fit,
+      videoCrop: config.crop,
+    };
+    setEditableScenes(updated);
+    setVideoEditorSceneIdx(null);
+  };
+
+  const handleRemoveSceneVideo = (sceneIdx: number) => {
+    const updated = [...editableScenes];
+    updated[sceneIdx] = {
+      ...updated[sceneIdx],
+      mediaType: 'image',
+      uploadedVideoUrl: undefined,
+    };
+    setEditableScenes(updated);
   };
 
   // Local editable project state
@@ -871,11 +942,41 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                         />
                       </div>
 
-                      {/* Photo Upload & Motion Controls Grid */}
+                      {/* Photo / Video Upload & Motion Controls Grid */}
                       <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-200">
-                        {/* Image Preview & Upload Button */}
-                        <div className="sm:col-span-5 flex items-center space-x-3">
-                          {scene.uploadedImageUrl ? (
+                        {/* Media Preview (Photo or Video) */}
+                        <div className="sm:col-span-5 flex items-center space-x-3 min-w-0 max-w-full">
+                          {scene.mediaType === 'video' && scene.uploadedVideoUrl ? (
+                            <div
+                              onClick={() => handleOpenVideoEditor(idx)}
+                              className="relative group w-16 h-20 rounded-xl overflow-hidden border-2 border-cyan-400 bg-black shadow-xs flex-shrink-0 cursor-pointer"
+                              title="클릭하여 CapCut 스타일 동영상 편집기 열기"
+                            >
+                              <video
+                                src={scene.uploadedVideoUrl}
+                                className="w-full h-full object-cover"
+                                playsInline
+                                muted
+                              />
+                              <div className="absolute inset-0 bg-black/25 flex items-center justify-center">
+                                <Play className="w-5 h-5 text-white fill-white opacity-90 group-hover:scale-110 transition-transform" />
+                              </div>
+                              <span className="absolute top-1 left-1 px-1.5 py-0.2 rounded bg-cyan-600 text-white font-black text-[8px] shadow-2xs">
+                                동영상
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveSceneVideo(idx);
+                                }}
+                                className="absolute top-1 right-1 p-1 rounded-md bg-black/60 text-white hover:bg-rose-600 transition z-10 cursor-pointer"
+                                title="동영상 삭제 (사진으로 전환)"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ) : scene.uploadedImageUrl ? (
                             <div onClick={() => handleOpenCollageModal(idx)} className="relative group w-16 h-20 rounded-xl overflow-hidden border border-slate-300 hover:border-purple-400 shadow-2xs flex-shrink-0 cursor-pointer" title="클릭하여 위치/크기 조절 및 사진 편집">
                               <img
                                 src={scene.uploadedImageUrl || getSceneFallbackImage(selectedFigure?.name || currentProject?.figureName || '', selectedFigure?.category || currentProject?.category || 'entertainment', idx)}
@@ -912,7 +1013,8 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                             </div>
                           )}
 
-                          <div className="space-y-1.5 flex-1">
+                          <div className="space-y-1.5 flex-1 min-w-0">
+                            {/* Hidden file inputs for image and video */}
                             <input
                               type="file"
                               accept="image/*"
@@ -922,40 +1024,98 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                               onChange={(e) => handleImageFileUpload(idx, e)}
                               className="hidden"
                             />
+                            <input
+                              type="file"
+                              accept="video/mp4,video/webm,video/quicktime,video/x-matroska"
+                              ref={(el) => {
+                                videoFileInputRefs.current[idx] = el;
+                              }}
+                              onChange={(e) => handleVideoFileUpload(idx, e)}
+                              className="hidden"
+                            />
+
                             <div className="flex flex-wrap items-center gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => fileInputRefs.current[idx]?.click()}
-                                className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-[11px] border border-indigo-200 transition cursor-pointer"
-                                title="단일 사진 파일 업로드"
-                              >
-                                <Upload className="w-3 h-3" />
-                                <span>{scene.uploadedImageUrl ? '파일 교체' : '사진 업로드'}</span>
-                              </button>
+                              {scene.mediaType === 'video' && scene.uploadedVideoUrl ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenVideoEditor(idx)}
+                                    className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-extrabold text-[11px] shadow-xs transition cursor-pointer"
+                                    title="캡컷 스타일 동영상 편집기 (구간 자르기, 줌, 배속, 볼륨)"
+                                  >
+                                    <Scissors className="w-3 h-3" />
+                                    <span>동영상 편집</span>
+                                  </button>
 
-                              <button
-                                type="button"
-                                onClick={() => handleOpenCollageModal(idx)}
-                                className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-purple-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 text-purple-700 font-bold text-[11px] border border-purple-300 shadow-2xs transition cursor-pointer"
-                                title="위치/크기 조절 및 사진 편집"
-                              >
-                                <LayoutGrid className="w-3 h-3 text-purple-600" />
-                                <span>사진 편집</span>
-                              </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => videoFileInputRefs.current[idx]?.click()}
+                                    className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] border border-slate-200 transition cursor-pointer"
+                                    title="다른 동영상 파일로 교체"
+                                  >
+                                    <Upload className="w-3 h-3" />
+                                    <span>영상 교체</span>
+                                  </button>
 
-                              <a
-                                href={`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(scene.imageSearchKeyword)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-[11px] border border-amber-200 transition"
-                                title="새 탭에서 구글 이미지 검색"
-                              >
-                                <ExternalLink className="w-3 h-3" />
-                                <span>구글 검색</span>
-                              </a>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveSceneVideo(idx)}
+                                    className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-[11px] border border-slate-200 transition cursor-pointer"
+                                    title="사진 모드로 전환"
+                                  >
+                                    <ImageIcon className="w-3 h-3" />
+                                    <span>사진 전환</span>
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => fileInputRefs.current[idx]?.click()}
+                                    className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-[11px] border border-indigo-200 transition cursor-pointer"
+                                    title="단일 사진 파일 업로드"
+                                  >
+                                    <Upload className="w-3 h-3" />
+                                    <span>{scene.uploadedImageUrl ? '파일 교체' : '사진 업로드'}</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenCollageModal(idx)}
+                                    className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-purple-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 text-purple-700 font-bold text-[11px] border border-purple-300 shadow-2xs transition cursor-pointer"
+                                    title="위치/크기 조절 및 사진 편집"
+                                  >
+                                    <LayoutGrid className="w-3 h-3 text-purple-600" />
+                                    <span>사진 편집</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => videoFileInputRefs.current[idx]?.click()}
+                                    className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-cyan-50 to-blue-50 hover:from-cyan-100 hover:to-blue-100 text-cyan-800 font-extrabold text-[11px] border border-cyan-300 shadow-2xs transition cursor-pointer"
+                                    title="이 씬에 동영상 클립 첨부하기 (캡컷 스타일 편집)"
+                                  >
+                                    <Video className="w-3 h-3 text-cyan-600" />
+                                    <span>동영상 첨부</span>
+                                  </button>
+
+                                  <a
+                                    href={`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(scene.imageSearchKeyword)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-[11px] border border-amber-200 transition"
+                                    title="새 탭에서 구글 이미지 검색"
+                                  >
+                                    <ExternalLink className="w-3 h-3" />
+                                    <span>구글 검색</span>
+                                  </a>
+                                </>
+                              )}
                             </div>
                             <p className="text-[10px] text-slate-500 font-medium truncate">
-                              키워드: "{scene.imageSearchKeyword}"
+                              {scene.mediaType === 'video' && scene.uploadedVideoUrl
+                                ? `🎬 선택 구간: ${(scene.videoStartTime || 0).toFixed(1)}s ~ ${(scene.videoEndTime || 5).toFixed(1)}s (${scene.videoPlaybackRate || 1}x 배속${scene.videoMuted === false ? ', 오디오 ON' : ', 음소거'})`
+                                : `키워드: "${scene.imageSearchKeyword}"`}
                             </p>
                           </div>
                         </div>
@@ -1369,6 +1529,41 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
             narrationSnippet={(editableScenes[collageModalSceneIdx]?.narration || '').slice(0, 50)}
             existingImageUrl={editableScenes[collageModalSceneIdx].uploadedImageUrl}
             onApplyImage={handleApplyCollageImage}
+          />
+        </ErrorBoundary>
+      )}
+
+      {/* CapCut-Style Video Trimmer & Editor Modal */}
+      {videoEditorSceneIdx !== null && editableScenes[videoEditorSceneIdx] && (
+        <ErrorBoundary
+          fallbackTitle="동영상 편집기 일시적 오류 복구"
+          onReset={() => setVideoEditorSceneIdx(null)}
+        >
+          <SceneVideoEditorModal
+            isOpen={true}
+            onClose={() => setVideoEditorSceneIdx(null)}
+            sceneNumber={editableScenes[videoEditorSceneIdx].sceneNumber}
+            timeRange={editableScenes[videoEditorSceneIdx].timeRange}
+            narrationSnippet={(editableScenes[videoEditorSceneIdx]?.narration || '').slice(0, 50)}
+            videoUrl={editableScenes[videoEditorSceneIdx].uploadedVideoUrl || ''}
+            initialStartTime={editableScenes[videoEditorSceneIdx].videoStartTime}
+            initialEndTime={editableScenes[videoEditorSceneIdx].videoEndTime}
+            initialPlaybackRate={editableScenes[videoEditorSceneIdx].videoPlaybackRate}
+            initialVolume={editableScenes[videoEditorSceneIdx].videoVolume}
+            initialMuted={editableScenes[videoEditorSceneIdx].videoMuted}
+            initialFit={editableScenes[videoEditorSceneIdx].videoFit}
+            initialCrop={editableScenes[videoEditorSceneIdx].videoCrop}
+            onApplyVideo={handleApplyVideoConfig}
+            onChangeVideoFile={(file) => {
+              const newUrl = URL.createObjectURL(file);
+              const updated = [...editableScenes];
+              updated[videoEditorSceneIdx] = {
+                ...updated[videoEditorSceneIdx],
+                mediaType: 'video',
+                uploadedVideoUrl: newUrl,
+              };
+              setEditableScenes(updated);
+            }}
           />
         </ErrorBoundary>
       )}

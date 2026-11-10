@@ -910,6 +910,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   const [isPlayingSceneSync, setIsPlayingSceneSync] = useState(false);
   const [isLoadingSceneAudio, setIsLoadingSceneAudio] = useState(false);
   const sceneAudioSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const sceneLiveVideoRef = useRef<HTMLVideoElement | null>(null);
   const scenePreviewAnimRef = useRef<number | null>(null);
 
   // Active custom tab on left ('ratio' | 'overlay' | 'subtitle' | 'voice' | 'thumbnail' | 'output')
@@ -1259,15 +1260,58 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     });
   };
 
+  const loadVideo = (url: string): Promise<HTMLVideoElement> => {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement('video');
+      video.crossOrigin = 'anonymous';
+      video.muted = true;
+      video.preload = 'auto';
+      video.playsInline = true;
+      video.autoplay = false;
+      video.src = url;
+      let resolved = false;
+
+      const onReady = () => {
+        if (!resolved) {
+          resolved = true;
+          resolve(video);
+        }
+      };
+
+      video.onloadeddata = onReady;
+      video.oncanplay = onReady;
+      video.onerror = () => {
+        if (!resolved) {
+          resolved = true;
+          reject(new Error('Failed to load video: ' + url));
+        }
+      };
+
+      setTimeout(() => {
+        if (!resolved) {
+          if (video.readyState >= 2) {
+            resolved = true;
+            resolve(video);
+          } else {
+            resolved = true;
+            reject(new Error('Video load timeout: ' + url));
+          }
+        }
+      }, 7000);
+    });
+  };
+
   // Helper: Generates a lightweight, silky smooth blurred backdrop on an offscreen canvas
-  const createBlurredBackdropCanvas = (img: HTMLImageElement): HTMLCanvasElement => {
+  const createBlurredBackdropCanvas = (img: HTMLImageElement | HTMLVideoElement): HTMLCanvasElement => {
     const bgCanvas = document.createElement('canvas');
     bgCanvas.width = 360;
     bgCanvas.height = 640;
     const bctx = bgCanvas.getContext('2d');
     if (bctx) {
       bctx.filter = 'blur(16px) brightness(0.42)';
-      const imgAspect = img.width / img.height;
+      const imgW = (img as HTMLVideoElement).videoWidth || (img as HTMLImageElement).naturalWidth || img.width || 360;
+      const imgH = (img as HTMLVideoElement).videoHeight || (img as HTMLImageElement).naturalHeight || img.height || 640;
+      const imgAspect = imgW / (imgH || 1);
       const canvasAspect = 360 / 640;
       let bgW, bgH;
       if (imgAspect > canvasAspect) {
@@ -1285,15 +1329,19 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     return bgCanvas;
   };
 
-  // Helper: Draw scene photo according to selected aspect ratio (1:1, 9:16, 4:5, 16:9, fit) and backdrop style
+  // Helper: Draw scene photo/video according to selected aspect ratio (1:1, 9:16, 4:5, 16:9, fit) and backdrop style
   const drawSceneImage = (
     ctx: CanvasRenderingContext2D,
-    img: HTMLImageElement,
+    img: HTMLImageElement | HTMLVideoElement | HTMLCanvasElement,
     w: number,
     h: number,
     progress: number = 0,
     motion: MotionEffectType = 'static',
-    precomputedBackdrop?: HTMLCanvasElement | null
+    precomputedBackdrop?: HTMLCanvasElement | null,
+    videoConfig?: {
+      videoFit?: 'cover' | 'contain';
+      videoCrop?: { xPercent: number; yPercent: number; zoom: number };
+    }
   ) => {
     ctx.save();
 
@@ -1304,6 +1352,10 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     // Smooth cinematic easing: smoothstep ensures silky continuous velocity (no stuttering or abrupt pauses)
     const clampedP = Math.max(0, Math.min(1, progress));
     const easedProgress = clampedP * clampedP * (3 - 2 * clampedP);
+
+    const imgW = (img as HTMLVideoElement).videoWidth || (img as HTMLImageElement).naturalWidth || (img as any).width || 1080;
+    const imgH = (img as HTMLVideoElement).videoHeight || (img as HTMLImageElement).naturalHeight || (img as any).height || 1920;
+    const imgAspect = imgW / (imgH || 1);
 
     if (photoAspectRatio === '9:16') {
       // Fullscreen 9:16 cover
@@ -1330,18 +1382,34 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         scale = 1.02;
       }
 
+      if (videoConfig?.videoCrop) {
+        const zoom = videoConfig.videoCrop.zoom || 1.0;
+        scale *= zoom;
+        transX += (((videoConfig.videoCrop.xPercent ?? 50) - 50) / 100) * w;
+        transY += (((videoConfig.videoCrop.yPercent ?? 50) - 50) / 100) * h;
+      }
+
       ctx.translate(w / 2 + transX, h / 2 + transY);
       ctx.scale(scale, scale);
 
-      const imgAspect = img.width / img.height;
       const canvasAspect = w / h;
       let drawW, drawH;
-      if (imgAspect > canvasAspect) {
-        drawH = h;
-        drawW = h * imgAspect;
+      if (videoConfig?.videoFit === 'contain') {
+        if (imgAspect > canvasAspect) {
+          drawW = w;
+          drawH = w / imgAspect;
+        } else {
+          drawH = h;
+          drawW = h * imgAspect;
+        }
       } else {
-        drawW = w;
-        drawH = w / imgAspect;
+        if (imgAspect > canvasAspect) {
+          drawH = h;
+          drawW = h * imgAspect;
+        } else {
+          drawW = w;
+          drawH = w / imgAspect;
+        }
       }
       ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
       ctx.restore();
@@ -1359,7 +1427,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       if (precomputedBackdrop) {
         ctx.drawImage(precomputedBackdrop, 0, 0, w, h);
       } else {
-        const fastBg = createBlurredBackdropCanvas(img);
+        const fastBg = createBlurredBackdropCanvas(img as any);
         ctx.drawImage(fastBg, 0, 0, w, h);
       }
     } else if (backdropStyle === 'gradient') {
@@ -1376,8 +1444,6 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     }
 
     // 3. Compute Card Dimensions based on photoAspectRatio
-    // All photo frames (1:1, 4:5, 16:9, fit) and backdrop styles (ambient blur, white card, etc.)
-    // are strictly centered vertically: cardY = (h - cardH) / 2
     let cardW = w * 0.90;
     let cardH = cardW;
 
@@ -1400,13 +1466,12 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       // Keep original image ratio inside a max bounding box
       const maxW = w * 0.92;
       const maxH = h * 0.58;
-      const imgRatio = img.width / img.height;
-      if (imgRatio >= maxW / maxH) {
+      if (imgAspect >= maxW / maxH) {
         cardW = maxW;
-        cardH = maxW / imgRatio;
+        cardH = maxW / imgAspect;
       } else {
         cardH = maxH;
-        cardW = maxH * imgRatio;
+        cardW = maxH * imgAspect;
       }
     }
 
@@ -1468,21 +1533,37 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       scale = 1.02;
     }
 
+    if (videoConfig?.videoCrop) {
+      const zoom = videoConfig.videoCrop.zoom || 1.0;
+      scale *= zoom;
+      transX += (((videoConfig.videoCrop.xPercent ?? 50) - 50) / 100) * cardW;
+      transY += (((videoConfig.videoCrop.yPercent ?? 50) - 50) / 100) * cardH;
+    }
+
     const centerX = cardX + cardW / 2;
     const centerY = cardY + cardH / 2;
 
     ctx.translate(centerX + transX, centerY + transY);
     ctx.scale(scale, scale);
 
-    const imgAspect = img.width / img.height;
     const targetAspect = cardW / cardH;
     let imgDrawW, imgDrawH;
-    if (imgAspect > targetAspect) {
-      imgDrawH = cardH;
-      imgDrawW = cardH * imgAspect;
+    if (videoConfig?.videoFit === 'contain') {
+      if (imgAspect > targetAspect) {
+        imgDrawW = cardW;
+        imgDrawH = cardW / imgAspect;
+      } else {
+        imgDrawH = cardH;
+        imgDrawW = cardH * imgAspect;
+      }
     } else {
-      imgDrawW = cardW;
-      imgDrawH = cardW / imgAspect;
+      if (imgAspect > targetAspect) {
+        imgDrawH = cardH;
+        imgDrawW = cardH * imgAspect;
+      } else {
+        imgDrawW = cardW;
+        imgDrawH = cardW / imgAspect;
+      }
     }
 
     ctx.drawImage(img, -imgDrawW / 2, -imgDrawH / 2, imgDrawW, imgDrawH);
@@ -1867,11 +1948,33 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         getSceneFallbackImage(project.figureName, project.category, previewSceneIndex);
 
       try {
-        const img = await loadImage(previewImgUrl);
+        let media: HTMLImageElement | HTMLVideoElement;
+        if (!isThumbnailTab && activeScene?.mediaType === 'video' && activeScene?.uploadedVideoUrl) {
+          try {
+            const vid = await loadVideo(activeScene.uploadedVideoUrl);
+            vid.currentTime = activeScene.videoStartTime || 0;
+            await new Promise((r) => {
+              if (vid.seeking) {
+                vid.onseeked = () => r(true);
+                setTimeout(r, 200);
+              } else {
+                r(true);
+              }
+            });
+            media = vid;
+          } catch {
+            media = await loadImage(previewImgUrl);
+          }
+        } else {
+          media = await loadImage(previewImgUrl);
+        }
         if (isCancelled || !canvasRef.current) return;
 
-        // Draw photo with selected aspect ratio and backdrop
-        drawSceneImage(ctx, img, width, height, 0, 'static');
+        // Draw photo/video with selected aspect ratio and backdrop
+        drawSceneImage(ctx, media, width, height, 0, 'static', null, {
+          videoFit: activeScene?.videoFit,
+          videoCrop: activeScene?.videoCrop,
+        });
 
         // Vignette based on subtitle position (skip if card_white or card_black)
         if (backdropStyle !== 'card_white' && backdropStyle !== 'card_black') {
@@ -2042,6 +2145,12 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       } catch {}
       sceneAudioSourceRef.current = null;
     }
+    if (sceneLiveVideoRef.current) {
+      try {
+        sceneLiveVideoRef.current.pause();
+      } catch {}
+      sceneLiveVideoRef.current = null;
+    }
     if (scenePreviewAnimRef.current) {
       cancelAnimationFrame(scenePreviewAnimRef.current);
       scenePreviewAnimRef.current = null;
@@ -2119,7 +2228,30 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       const previewImgUrl =
         activeScene.uploadedImageUrl ||
         getSceneFallbackImage(project.figureName, project.category, previewSceneIndex);
-      const img = await loadImage(previewImgUrl);
+      let media: HTMLImageElement | HTMLVideoElement;
+      if (activeScene.mediaType === 'video' && activeScene.uploadedVideoUrl) {
+        try {
+          const vid = await loadVideo(activeScene.uploadedVideoUrl);
+          vid.currentTime = activeScene.videoStartTime || 0;
+          vid.playbackRate = activeScene.videoPlaybackRate || 1.0;
+          vid.muted = activeScene.videoMuted !== false;
+          sceneLiveVideoRef.current = vid;
+          await new Promise((r) => {
+            if (vid.seeking) {
+              vid.onseeked = () => r(true);
+              setTimeout(r, 200);
+            } else {
+              r(true);
+            }
+          });
+          vid.play().catch(() => {});
+          media = vid;
+        } catch {
+          media = await loadImage(previewImgUrl);
+        }
+      } else {
+        media = await loadImage(previewImgUrl);
+      }
 
       const src = audioCtx.createBufferSource();
       src.buffer = decodedBuffer;
@@ -2147,7 +2279,27 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         const clamped = Math.max(0, elapsedSec);
         const progressInScene = Math.min(0.999, clamped / (spokenDur + 0.3));
 
-        drawSceneImage(ctx, img, width, height, progressInScene, activeScene.motionEffect || 'zoom_in');
+        if (sceneLiveVideoRef.current) {
+          const endT = activeScene.videoEndTime || sceneLiveVideoRef.current.duration || 9999;
+          if (sceneLiveVideoRef.current.currentTime >= endT) {
+            sceneLiveVideoRef.current.pause();
+            sceneLiveVideoRef.current.currentTime = endT;
+          }
+        }
+
+        drawSceneImage(
+          ctx,
+          media,
+          width,
+          height,
+          progressInScene,
+          activeScene.motionEffect || 'zoom_in',
+          null,
+          {
+            videoFit: activeScene.videoFit,
+            videoCrop: activeScene.videoCrop,
+          }
+        );
         renderChannelLogo(ctx, width, height, previewSceneIndex, logoImageRef.current);
         renderCustomTextOverlays(ctx, width, height, previewSceneIndex);
 
@@ -2576,8 +2728,30 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       getSceneFallbackImage(project.figureName, project.category, sceneIdx);
 
     try {
-      const img = await loadImage(imgSrc);
-      drawSceneImage(c, img, 1080, 1920, 0, 'static');
+      let thumbMedia: HTMLImageElement | HTMLVideoElement;
+      if (!customThumbnailImageUrl && targetScene?.mediaType === 'video' && targetScene?.uploadedVideoUrl) {
+        try {
+          const vid = await loadVideo(targetScene.uploadedVideoUrl);
+          vid.currentTime = targetScene.videoStartTime || 0;
+          await new Promise((r) => {
+            if (vid.seeking) {
+              vid.onseeked = () => r(true);
+              setTimeout(r, 200);
+            } else {
+              r(true);
+            }
+          });
+          thumbMedia = vid;
+        } catch {
+          thumbMedia = await loadImage(imgSrc);
+        }
+      } else {
+        thumbMedia = await loadImage(imgSrc);
+      }
+      drawSceneImage(c, thumbMedia, 1080, 1920, 0, 'static', null, {
+        videoFit: targetScene?.videoFit,
+        videoCrop: targetScene?.videoCrop,
+      });
     } catch (e) {
       console.warn('Thumbnail base image load warning, fallback to gradient:', e);
       const grad = c.createLinearGradient(0, 0, 1080, 1920);
@@ -2861,8 +3035,8 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       sceneChunkTimings.push(chunkTimings);
     }
 
-    // 3. Preload images and precompute ambient backdrops for all scenes (0ms render during recording)
-    const loadedImages: HTMLImageElement[] = [];
+    // 3. Preload images/videos and precompute ambient backdrops for all scenes (0ms render during recording)
+    const loadedImages: (HTMLImageElement | HTMLVideoElement)[] = [];
     const precomputedBackdrops: (HTMLCanvasElement | null)[] = [];
     let loadedLogoImg: HTMLImageElement | null = logoImageRef.current;
     if (channelLogo.enabled && channelLogo.imageUrl && !loadedLogoImg) {
@@ -2872,15 +3046,31 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     }
 
     for (let i = 0; i < scenes.length; i++) {
-      setStatusMessage(`사진 에셋 및 렌더링 최적화 중... (${i + 1}/${scenes.length})`);
-      const imgUrl =
-        scenes[i].uploadedImageUrl ||
-        getSceneFallbackImage(project.figureName, project.category, i);
-      const img = await loadImage(imgUrl);
-      loadedImages.push(img);
+      setStatusMessage(`에셋 및 렌더링 최적화 중... (${i + 1}/${scenes.length})`);
+      const sc = scenes[i];
+      let media: HTMLImageElement | HTMLVideoElement;
+      if (sc.mediaType === 'video' && sc.uploadedVideoUrl) {
+        try {
+          const vid = await loadVideo(sc.uploadedVideoUrl);
+          vid.currentTime = sc.videoStartTime || 0;
+          vid.playbackRate = sc.videoPlaybackRate || 1.0;
+          vid.muted = sc.videoMuted !== false;
+          media = vid;
+        } catch (e) {
+          console.warn('Video load fallback to image for scene', i, e);
+          const imgUrl = sc.uploadedImageUrl || getSceneFallbackImage(project.figureName, project.category, i);
+          media = await loadImage(imgUrl);
+        }
+      } else {
+        const imgUrl =
+          sc.uploadedImageUrl ||
+          getSceneFallbackImage(project.figureName, project.category, i);
+        media = await loadImage(imgUrl);
+      }
+      loadedImages.push(media);
 
       if (backdropStyle === 'blur') {
-        precomputedBackdrops.push(createBlurredBackdropCanvas(img));
+        precomputedBackdrops.push(createBlurredBackdropCanvas(media));
       } else {
         precomputedBackdrops.push(null);
       }
@@ -2909,7 +3099,19 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     setVideoDuration(Math.round(totalVideoSec));
 
     // 5. Pre-draw initial frame (Scene 0 Frame 0) so recording stream has pristine content immediately
-    drawSceneImage(ctx, loadedImages[0], width, height, 0, scenes[0].motionEffect || 'zoom_in', precomputedBackdrops[0]);
+    drawSceneImage(
+      ctx,
+      loadedImages[0],
+      width,
+      height,
+      0,
+      scenes[0].motionEffect || 'zoom_in',
+      precomputedBackdrops[0],
+      {
+        videoFit: scenes[0]?.videoFit,
+        videoCrop: scenes[0]?.videoCrop,
+      }
+    );
     renderChannelLogo(ctx, width, height, 0, loadedLogoImg);
     renderCustomTextOverlays(ctx, width, height, 0);
     drawSubtitles(ctx, sceneChunkTimings[0]?.[0]?.text || '', width, height);
@@ -2964,6 +3166,13 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = null;
       }
+      loadedImages.forEach((m) => {
+        if (m instanceof HTMLVideoElement) {
+          try {
+            m.pause();
+          } catch {}
+        }
+      });
       const finalBlobType = chosenMime || 'video/mp4';
       let blob = new Blob(recordedChunksRef.current, { type: finalBlobType });
       const durationMs = totalVideoSec * 1000;
@@ -3044,6 +3253,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     // 8. Video Rendering Frame Loop SLAVED TO high-precision performance clock
     let lastProgressUpdateTime = 0;
     let renderIntervalId: any = null;
+    let currentActiveVideoIdx: number | null = null;
 
     const renderFrame = () => {
       // High-precision continuous clock: microsecond continuous animation without Windows WASAPI audio quantum stuttering (PC 사진 움직임 끊김 완벽 해결)
@@ -3062,9 +3272,26 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
           cancelAnimationFrame(animationFrameRef.current);
           animationFrameRef.current = null;
         }
+        loadedImages.forEach((m) => {
+          if (m instanceof HTMLVideoElement) {
+            try { m.pause(); } catch {}
+          }
+        });
         // Redraw last scene frame cleanly before final cut
         const lastIdx = scenes.length - 1;
-        drawSceneImage(ctx, loadedImages[lastIdx], width, height, 0.999, scenes[lastIdx]?.motionEffect || 'zoom_in', precomputedBackdrops[lastIdx]);
+        drawSceneImage(
+          ctx,
+          loadedImages[lastIdx],
+          width,
+          height,
+          0.999,
+          scenes[lastIdx]?.motionEffect || 'zoom_in',
+          precomputedBackdrops[lastIdx],
+          {
+            videoFit: scenes[lastIdx]?.videoFit,
+            videoCrop: scenes[lastIdx]?.videoCrop,
+          }
+        );
         renderChannelLogo(ctx, width, height, lastIdx, loadedLogoImg);
         renderCustomTextOverlays(ctx, width, height, lastIdx);
         setTimeout(() => {
@@ -3091,8 +3318,31 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         }
       }
 
+      if (activeIdx !== currentActiveVideoIdx) {
+        if (currentActiveVideoIdx !== null && loadedImages[currentActiveVideoIdx] instanceof HTMLVideoElement) {
+          (loadedImages[currentActiveVideoIdx] as HTMLVideoElement).pause();
+        }
+        currentActiveVideoIdx = activeIdx;
+        const currentMedia = loadedImages[activeIdx];
+        if (currentMedia instanceof HTMLVideoElement) {
+          const sc = scenes[activeIdx];
+          currentMedia.currentTime = sc?.videoStartTime || 0;
+          currentMedia.playbackRate = sc?.videoPlaybackRate || 1.0;
+          currentMedia.play().catch(() => {});
+        }
+      }
+
       const scene = scenes[activeIdx];
       const img = loadedImages[activeIdx] || loadedImages[0];
+      if (img instanceof HTMLVideoElement) {
+        const sc = scenes[activeIdx];
+        const endT = sc?.videoEndTime || img.duration || 9999;
+        if (img.currentTime >= endT) {
+          img.pause();
+          img.currentTime = endT;
+        }
+      }
+
       const sceneStartTime = sceneStartTimesSec[activeIdx];
       const nextStartTime = activeIdx < scenes.length - 1 ? sceneStartTimesSec[activeIdx + 1] : totalVideoSec;
       const actualSceneDuration = Math.max(0.1, nextStartTime - sceneStartTime);
@@ -3101,8 +3351,20 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
       const motion: MotionEffectType = scene?.motionEffect || 'zoom_in';
 
-      // Draw scene photo with user-selected aspect ratio, precomputed backdrop (0ms CPU cost), and motion
-      drawSceneImage(ctx, img, width, height, progressInScene, motion, precomputedBackdrops[activeIdx]);
+      // Draw scene photo/video with user-selected aspect ratio, precomputed backdrop (0ms CPU cost), and motion
+      drawSceneImage(
+        ctx,
+        img,
+        width,
+        height,
+        progressInScene,
+        motion,
+        precomputedBackdrops[activeIdx],
+        {
+          videoFit: scene?.videoFit,
+          videoCrop: scene?.videoCrop,
+        }
+      );
 
       // Adaptive vignette based on subtitle position
       if (backdropStyle !== 'card_white' && backdropStyle !== 'card_black') {

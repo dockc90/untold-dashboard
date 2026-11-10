@@ -175,6 +175,15 @@ export interface SceneItem {
   visualEffect: string; // e.g. "슬로우 줌인", "빠른 컷전환", "흑백 대비"
   bgmSuggestion?: string;
   uploadedImageUrl?: string; // 업로드되거나 설정된 이미지 URL
+  uploadedVideoUrl?: string; // 업로드되거나 설정된 동영상 URL/Blob
+  mediaType?: 'image' | 'video'; // 현재 씬의 미디어 타입 (기본 'image', 동영상 첨부 시 'video')
+  videoStartTime?: number; // 캡컷식 비디오 시작 시간 (초)
+  videoEndTime?: number; // 캡컷식 비디오 종료 시간 (초)
+  videoPlaybackRate?: number; // 재생 배속 (0.5x ~ 2.0x, 기본 1.0)
+  videoVolume?: number; // 원본 비디오 볼륨 (0 ~ 100, 기본 0)
+  videoMuted?: boolean; // 음소거 여부 (기본 true - 내레이션 TTS 우선)
+  videoFit?: 'cover' | 'contain'; // 9:16 화면 채움 or 비율 유지
+  videoCrop?: { xPercent: number; yPercent: number; zoom: number }; // 캡컷식 줌 및 위치 이동
   motionEffect?: MotionEffectType; // 선택된 카메라 무빙 효과
 }
 
