@@ -46,14 +46,16 @@ export type TargetPersona =
   | '4060_emotional' // 40~60대 감동 극복 비하인드
   | '1020_dopamine'  // 10~20대 숏폼 도파민/밈
   | '3040_success'   // 30~40대 동기부여 & 성공 공식
-  | 'mystery_twist'; // 반전 미스터리
+  | 'mystery_twist'  // 반전 미스터리
+  | 'ceo_branding';  // 기업인/CEO 브랜드 스토리 (기업 홍보 의뢰 유치 전용)
 
 // 영상의 전체적인 분위기를 결정하는 연출 톤
 export type VideoMoodTone = 
   | 'Cinematic'    // 영화적 웅장함과 드라마틱한 몰입감
   | 'Documentary'  // 인간극장·다큐의 진솔하고 깊이 있는 서사
   | 'Fast-paced'   // 숨 쉴 틈 없는 도파민 폭발 빠른 비트
-  | 'Minimal';     // 군더더기 없는 절제와 담백하고 명확한 전달
+  | 'Minimal'      // 군더더기 없는 절제와 담백하고 명확한 전달
+  | 'CorporatePR'; // 기업인/CEO 프리미엄 다큐 브랜딩 (포브스/블룸버그 스타일 신뢰 서사)
 
 export interface TrendingFigure {
   id: string;

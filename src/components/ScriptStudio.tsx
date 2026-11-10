@@ -56,6 +56,8 @@ const STORY_ANGLES = [
   { id: 'twist', label: '⚡ 충격 반전 비하인드', desc: '숨겨진 반전 사실' },
   { id: 'success', label: '💼 성공 스토리', desc: '동기부여와 성공 공식' },
   { id: 'legend', label: '🏆 결정적 순간', desc: '인생을 바꾼 단 하나의 순간' },
+  { id: 'ceo_hero', label: '🏛️ CEO 혁신 서사', desc: '기업인 창업과 위기 극복' },
+  { id: 'corporate_pr', label: '💎 기업 홍보 & 비전', desc: '품격 있는 기업 IR 및 비전' },
 ];
 
 const MOTION_EFFECTS: { id: MotionEffectType; label: string; desc: string }[] = [
@@ -620,6 +622,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                 <option value="1020_dopamine">1020 도파민</option>
                 <option value="3040_success">3040 동기부여</option>
                 <option value="mystery_twist">반전 미스터리</option>
+                <option value="ceo_branding">🏛️ CEO/기업인 브랜딩</option>
               </select>
 
               <div className="flex items-center bg-slate-200/70 rounded-xl border border-slate-200 p-0.5 text-xs font-bold w-full justify-center min-w-0">
