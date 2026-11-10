@@ -1772,11 +1772,7 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
                   className="flex-[2] flex items-center justify-center space-x-1.5 py-2.5 px-4 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-indigo-700 hover:from-purple-500 hover:to-indigo-600 text-white font-black text-xs shadow-md transition disabled:opacity-50 cursor-pointer"
                 >
                   <Check className="w-4 h-4 stroke-[3]" />
-                  <span>
-                    {images.length <= 1
-                      ? `씬 ${sceneNumber}에 사진 적용하기`
-                      : `씬 ${sceneNumber}에 합성 사진 적용하기`}
-                  </span>
+                  <span>사진 적용</span>
                 </button>
               </div>
 

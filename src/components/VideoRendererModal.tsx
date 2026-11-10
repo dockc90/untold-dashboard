@@ -3263,10 +3263,10 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
             <h3 className="text-sm sm:text-lg font-black text-slate-900 truncate">
-              {project.figureName} 쇼츠 영상 스튜디오
+              {project.figureName} 쇼츠 제작
             </h3>
             <span className="text-[10px] sm:text-[11px] font-black px-1.5 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-200 shrink-0">
-              9:16 쇼츠
+              9:16
             </span>
             <span className="text-[10px] sm:text-[11px] font-black px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 shrink-0">
               {photoAspectRatio === '1:1' ? '1:1 카드' : photoAspectRatio === '9:16' ? '풀채움' : photoAspectRatio}
@@ -3345,7 +3345,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
               }`}
             >
               <Square className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-              <span className="truncate">프레임 비율</span>
+              <span className="truncate">프레임</span>
             </button>
 
             <button
@@ -3357,7 +3357,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
               }`}
             >
               <Layers className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-              <span className="truncate">자막·로고 ({customTextOverlays.length})</span>
+              <span className="truncate">오버레이 ({customTextOverlays.length})</span>
             </button>
 
             <button
@@ -3369,7 +3369,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
               }`}
             >
               <Type className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-              <span className="truncate">나레이션</span>
+              <span className="truncate">자막</span>
             </button>
 
             <button
@@ -3393,7 +3393,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
               }`}
             >
               <ImageIcon className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-              <span className="truncate">표지 썸네일</span>
+              <span className="truncate">썸네일</span>
             </button>
 
             <button
@@ -3405,7 +3405,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
               }`}
             >
               <Monitor className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-              <span className="truncate">출력 해상도</span>
+              <span className="truncate">해상도</span>
             </button>
           </div>
 
@@ -5047,30 +5047,30 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
             {activeSettingsSection === 'thumbnail' && (
               <div className="space-y-4">
                 {/* Header banner */}
-                <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-500/10 via-rose-500/10 to-indigo-500/10 border border-amber-200/80 space-y-1.5">
+                <div className="p-3.5 rounded-2xl bg-gradient-to-br from-amber-500/10 via-rose-500/10 to-indigo-500/10 border border-amber-200/80 space-y-1">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-black text-amber-950 flex items-center gap-1.5">
                       <Sparkles className="w-4 h-4 text-amber-500" />
-                      <span>쇼츠 표지/썸네일 캐러셀 스튜디오 편집 (1080x1920 세로 풀HD)</span>
+                      <span>쇼츠 표지 썸네일 편집</span>
                     </span>
                     <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-500 text-slate-950">
-                      ⚡ 1초 무손실 PNG
+                      9:16 FHD
                     </span>
                   </div>
                   <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                    인스타 캐러셀처럼 <strong>표지 사진 교체/업로드</strong>, <strong>구글 검색</strong>, <strong>대문짝 메인 헤드라인</strong>, <strong>상세 보조 설명</strong>, <strong>폰트/컬러/정렬</strong>을 자유롭게 커스텀하여 클릭률(CTR)을 극대화합니다.
+                    사진, 헤드라인 문구, 보조 설명, 스타일을 자유롭게 편집하세요.
                   </p>
                 </div>
 
                 {/* 1. Cover Photo & Image Customizer */}
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-black text-slate-800 flex items-center gap-1.5">
                       <ImageIcon className="w-4 h-4 text-indigo-600" />
-                      <span>📸 1. 표지 사진 편집 (캐러셀 스타일)</span>
+                      <span>1. 표지 사진</span>
                     </label>
                     <span className="text-xs font-bold text-slate-500">
-                      {customThumbnailImageUrl ? '커스텀 사진 적용 중' : `${thumbnailSceneIndex + 1}번 씬 사진 적용`}
+                      {customThumbnailImageUrl ? '커스텀 사진' : `${thumbnailSceneIndex + 1}번 씬`}
                     </span>
                   </div>
 
@@ -5091,7 +5091,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                       className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer"
                     >
                       <Upload className="w-3.5 h-3.5" />
-                      <span>{customThumbnailImageUrl ? '📁 사진 다시 교체' : '📁 내 사진 직접 업로드 (파일 교체)'}</span>
+                      <span>{customThumbnailImageUrl ? '사진 변경' : '사진 업로드'}</span>
                     </button>
 
                     <a
@@ -5101,7 +5101,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                       className="px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-black text-xs flex items-center gap-1.5 transition cursor-pointer"
                     >
                       <ExternalLink className="w-3.5 h-3.5 text-amber-600" />
-                      <span>🔍 구글 고화질 검색</span>
+                      <span>구글 검색</span>
                     </a>
 
                     {customThumbnailImageUrl && (
@@ -5109,20 +5109,20 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                         type="button"
                         onClick={() => {
                           setCustomThumbnailImageUrl(null);
-                          setThumbnailToast('🔄 원본 씬 사진으로 복원되었습니다.');
+                          setThumbnailToast('원본 씬 사진으로 복원되었습니다.');
                           setTimeout(() => setThumbnailToast(null), 3000);
                         }}
                         className="px-3 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-black text-xs transition cursor-pointer"
                       >
-                        🔄 원본 씬 사진으로 복원
+                        원본 복원
                       </button>
                     )}
                   </div>
 
                   {/* Scene selection buttons */}
-                  <div className="space-y-1.5 pt-1">
-                    <span className="text-[11px] font-bold text-slate-500">또는 영상 내 다른 씬 사진 가져오기:</span>
-                    <div className="flex gap-2 overflow-x-auto pb-1 text-xs">
+                  <div className="space-y-1 pt-1">
+                    <span className="text-[11px] font-bold text-slate-500">씬 사진 선택:</span>
+                    <div className="flex gap-1.5 overflow-x-auto pb-1 text-xs">
                       {scenes.map((sc, idx) => (
                         <button
                           key={idx}
@@ -5132,13 +5132,13 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                             setPreviewSceneIndex(idx);
                             setCustomThumbnailImageUrl(null);
                           }}
-                          className={`px-3 py-2 rounded-xl shrink-0 font-black transition cursor-pointer border ${
+                          className={`px-2.5 py-1.5 rounded-xl shrink-0 font-bold transition cursor-pointer border ${
                             thumbnailSceneIndex === idx && !customThumbnailImageUrl
                               ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
                               : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
                           }`}
                         >
-                          <span>{idx === 0 ? '⭐ 1번 씬 (추천 도입부)' : `${idx + 1}번 씬`}</span>
+                          <span>{idx === 0 ? '1번 씬 (추천)' : `${idx + 1}번 씬`}</span>
                         </button>
                       ))}
                     </div>
@@ -5146,15 +5146,15 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                 </div>
 
                 {/* 2. Main Headline & Sub-detail Text Customizer */}
-                <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3.5">
+                <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-xs font-black text-slate-900 block flex items-center gap-1.5">
                         <Tag className="w-4 h-4 text-rose-500" />
-                        <span>✍️ 2. 메인 헤드라인 (대문짝 후킹 타이틀)</span>
+                        <span>2. 메인 헤드라인</span>
                       </span>
                       <span className="text-[11px] text-slate-500 font-medium">
-                        쇼츠 피드에서 스크롤을 멈추게 만드는 3초 대문짝 타이틀을 합성합니다.
+                        쇼츠 시청을 유도하는 헤드라인을 합성합니다.
                       </span>
                     </div>
                     <button
@@ -5166,7 +5166,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                           : 'bg-slate-100 text-slate-400 border-slate-200'
                       }`}
                     >
-                      {isCtrTitleEnabled ? 'ON (대문짝 합성)' : 'OFF (원본 자막 유지)'}
+                      {isCtrTitleEnabled ? 'ON' : 'OFF'}
                     </button>
                   </div>
 
@@ -5175,14 +5175,14 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                       {/* Title text input */}
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between">
-                          <label className="text-xs font-bold text-slate-700">메인 헤드라인 문구 (줄바꿈 가능)</label>
+                          <label className="text-xs font-bold text-slate-700">헤드라인 문구</label>
                           <span className="text-[10px] text-slate-400">{ctrTitleText.length}자</span>
                         </div>
                         <textarea
                           rows={2}
                           value={ctrTitleText}
                           onChange={(e) => setCtrTitleText(e.target.value)}
-                          placeholder="예: 정비병에서 미슐랭 3스타까지\n안성재 셰프의 충격 실화"
+                          placeholder="헤드라인 입력"
                           className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500 resize-none leading-relaxed"
                         />
                         {/* Quick preset suggestions */}
@@ -5192,7 +5192,6 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                             `3초 만에 밝혀진 ${project.figureName}의 비밀`,
                             `미슐랭 3스타의 감춰진 기적`,
                             `절대 모르면 후회하는 반전`,
-                            `모두가 불가능하다고 했던 기적`,
                           ].map((suggestion, sIdx) => (
                             <button
                               key={sIdx}
@@ -5210,7 +5209,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                       <div className="space-y-2 pt-2 border-t border-slate-100">
                         <div className="flex items-center justify-between">
                           <label className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                            <span>📝 상세 보조 설명 (서브 카피)</span>
+                            <span>3. 보조 설명</span>
                           </label>
                           <button
                             type="button"
@@ -5221,7 +5220,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                                 : 'bg-slate-100 text-slate-400 border-slate-200'
                             }`}
                           >
-                            {isThumbnailSubTextEnabled ? 'ON (보조 설명 표시)' : 'OFF (숨김)'}
+                            {isThumbnailSubTextEnabled ? 'ON' : 'OFF'}
                           </button>
                         </div>
 
@@ -5231,40 +5230,24 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                               type="text"
                               value={thumbnailSubText}
                               onChange={(e) => setThumbnailSubText(e.target.value)}
-                              placeholder="예: 정비병 출신 흙수저가 미슐랭 3스타가 된 기적"
+                              placeholder="보조 설명 입력"
                               className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             />
-                            <div className="flex flex-wrap gap-1.5">
-                              {[
-                                project.figureName ? `${project.figureName}의 숨겨진 비하인드 스토리` : '놀라운 반전 실화',
-                                '당신의 생각을 완전히 뒤바꿀 1분',
-                                '지금 바로 확인해보세요',
-                              ].map((subSug, subIdx) => (
-                                <button
-                                  key={subIdx}
-                                  type="button"
-                                  onClick={() => setThumbnailSubText(subSug)}
-                                  className="px-2 py-0.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold transition cursor-pointer"
-                                >
-                                  ✨ {subSug}
-                                </button>
-                              ))}
-                            </div>
                           </div>
                         )}
                       </div>
 
                       {/* 4. Font & Typography Customizer */}
                       <div className="space-y-2.5 pt-2 border-t border-slate-100">
-                        <label className="text-xs font-bold text-slate-700 block">🎨 폰트 및 텍스트 정렬 커스텀</label>
+                        <label className="text-xs font-bold text-slate-700 block">4. 폰트 및 스타일</label>
                         {/* Font Family selector */}
                         <div className="flex flex-wrap gap-1.5">
                           {[
-                            { id: 'Pretendard', name: '프리텐다드 (기본/모던)' },
-                            { id: 'Black Han Sans', name: '블랙한산스 (볼드)' },
-                            { id: 'Do Hyeon', name: '도현체 (레트로)' },
-                            { id: 'Gowun Dodum', name: '고운돋움 (감성)' },
-                            { id: 'Song Myung', name: '송명체 (정통 다큐)' },
+                            { id: 'Pretendard', name: '프리텐다드' },
+                            { id: 'Black Han Sans', name: '검은고딕' },
+                            { id: 'Do Hyeon', name: '도현체' },
+                            { id: 'Gowun Dodum', name: '고운돋움' },
+                            { id: 'Song Myung', name: '송명체' },
                           ].map((f) => (
                             <button
                               key={f.id}
@@ -5283,7 +5266,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
                         {/* Text Alignment */}
                         <div className="flex items-center justify-between pt-1">
-                          <span className="text-[11px] font-bold text-slate-600">텍스트 정렬</span>
+                          <span className="text-[11px] font-bold text-slate-600">정렬</span>
                           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
                             {[
                               { id: 'left', icon: AlignLeft, label: '좌측' },
@@ -5313,7 +5296,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                         {/* Font size slider */}
                         <div className="space-y-1">
                           <div className="flex items-center justify-between text-[11px]">
-                            <span className="font-bold text-slate-600">메인 타이틀 글자 크기</span>
+                            <span className="font-bold text-slate-600">글자 크기</span>
                             <span className="font-extrabold text-indigo-600">{thumbnailFontSize}px</span>
                           </div>
                           <input
@@ -5329,15 +5312,15 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
                         {/* Color palette */}
                         <div className="space-y-1.5 pt-1">
-                          <span className="text-[11px] font-bold text-slate-600 block">메인 타이틀 컬러</span>
+                          <span className="text-[11px] font-bold text-slate-600 block">텍스트 컬러</span>
                           <div className="flex flex-wrap gap-2">
                             {[
-                              { id: '#FDE047', name: '🟡 옐로우' },
-                              { id: '#FFFFFF', name: '⚪ 화이트' },
-                              { id: '#38BDF8', name: '💎 네온시안' },
-                              { id: '#F87171', name: '🔴 핫레드' },
-                              { id: '#FB923C', name: '🟠 오렌지' },
-                              { id: '#4ADE80', name: '🟢 라임' },
+                              { id: '#FDE047', name: '노랑' },
+                              { id: '#FFFFFF', name: '화이트' },
+                              { id: '#38BDF8', name: '시안' },
+                              { id: '#F87171', name: '레드' },
+                              { id: '#FB923C', name: '오렌지' },
+                              { id: '#4ADE80', name: '그린' },
                             ].map((col) => (
                               <button
                                 key={col.id}
@@ -5359,15 +5342,15 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
                       {/* Style presets */}
                       <div className="space-y-2 pt-2 border-t border-slate-100">
-                        <label className="text-xs font-bold text-slate-700 block">CTR 극대화 디자인 스타일 프리셋</label>
+                        <label className="text-xs font-bold text-slate-700 block">디자인 스타일</label>
                         <div className="grid grid-cols-2 gap-2">
                           {[
-                            { id: 'yt_yellow', name: '🟡 유튜브 옐로우', desc: '두꺼운 블랙 테두리 + 노랑 (CTR 1위)' },
-                            { id: 'netflix_red', name: '🔴 넷플릭스 레드', desc: '강렬한 레드 박스 + 화이트 볼드' },
-                            { id: 'neon_cyan', name: '💎 사이버 네온', desc: '시안 네온 글로우 + 딥 다크 박스' },
-                            { id: 'black_capsule', name: '⚫ 블랙 매트 캡슐', desc: '고대비 다크 캡슐 + 화이트 폰트' },
-                            { id: 'clean_white', name: '⚪ 클린 화이트', desc: '모던 화이트 볼드 + 섀도우 박스' },
-                            { id: 'stroke_only', name: '🔲 스트로크 온리', desc: '깔끔한 블랙 외곽선 테두리' },
+                            { id: 'yt_yellow', name: '🟡 유튜브 옐로우', desc: '블랙 테두리 + 노랑' },
+                            { id: 'netflix_red', name: '🔴 넷플릭스 레드', desc: '레드 박스 + 화이트' },
+                            { id: 'neon_cyan', name: '💎 사이버 네온', desc: '네온 글로우 + 다크 박스' },
+                            { id: 'black_capsule', name: '⚫ 블랙 캡슐', desc: '다크 캡슐 + 화이트' },
+                            { id: 'clean_white', name: '⚪ 클린 화이트', desc: '화이트 박스 + 섀도우' },
+                            { id: 'stroke_only', name: '🔲 아웃라인', desc: '블랙 외곽선 테두리' },
                           ].map((st) => (
                             <button
                               key={st.id}
@@ -5389,7 +5372,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                       {/* Title Y-Position */}
                       <div className="space-y-2 pt-2 border-t border-slate-100">
                         <div className="flex items-center justify-between">
-                          <label className="text-xs font-bold text-slate-700">타이틀 Y축 높이 위치 ({ctrTitleYPercent}%)</label>
+                          <label className="text-xs font-bold text-slate-700">타이틀 위치 ({ctrTitleYPercent}%)</label>
                           <div className="flex gap-1 text-[10px]">
                             <button
                               type="button"
@@ -5441,22 +5424,22 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                       type="button"
                       onClick={() => handleDownloadThumbnail(thumbnailSceneIndex)}
                       disabled={isExtractingThumbnail}
-                      className="py-3.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/20 transition cursor-pointer active:scale-98 disabled:opacity-50"
-                      title="1080x1920 세로 풀HD 무손실 PNG 다운로드"
+                      className="py-3 px-4 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/20 transition cursor-pointer active:scale-98 disabled:opacity-50"
+                      title="썸네일 다운로드"
                     >
                       <Download className="w-4 h-4 text-slate-950" />
-                      <span>{isExtractingThumbnail ? '추출 중...' : '🖼️ 1초 표지 썸네일 HD 다운로드'}</span>
+                      <span>{isExtractingThumbnail ? '추출 중...' : '🖼️ 썸네일 다운로드'}</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => handleShareThumbnail(thumbnailSceneIndex)}
                       disabled={isExtractingThumbnail}
-                      className="py-3.5 px-4 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/20 transition cursor-pointer active:scale-98 disabled:opacity-50"
-                      title="모바일 SNS, 인스타그램 스토리, 카카오톡으로 바로 전송"
+                      className="py-3 px-4 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/20 transition cursor-pointer active:scale-98 disabled:opacity-50"
+                      title="썸네일 SNS/카톡 공유"
                     >
                       <Share2 className="w-4 h-4 text-white" />
-                      <span>📱 썸네일 SNS/카톡 즉시 공유</span>
+                      <span>📱 SNS/카톡 공유</span>
                     </button>
                   </div>
                 </div>
@@ -5559,11 +5542,11 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                   </div>
                   {/* Screen Wake Lock Status Badge */}
                   <div className="flex items-center justify-between pt-1 border-t border-slate-800 text-[10px]">
-                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-300 font-bold">
+                    <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-300 font-bold">
                       <Zap className="w-3 h-3 text-amber-400 animate-pulse" />
-                      <span>{isWakeLockActive ? '⚡ 화면 꺼짐 방지(Screen Wake Lock) 작동 중' : '⚡ 화면 꺼짐 방지 준비 완료'}</span>
+                      <span>{isWakeLockActive ? '화면 켜짐 유지' : '절전 방지 준비'}</span>
                     </div>
-                    <span className="text-slate-400 font-medium">모바일·PC 절전 꺼짐 보호</span>
+                    <span className="text-slate-400 font-medium">화면 꺼짐 방지</span>
                   </div>
                 </div>
               )}
@@ -5574,24 +5557,24 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                     <button
                       type="button"
                       onClick={() => handleDownload()}
-                      className="flex-1 py-3.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm rounded-2xl shadow-md shadow-emerald-600/20 flex items-center justify-center space-x-2 transition cursor-pointer active:scale-98"
+                      className="flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm rounded-2xl shadow-md shadow-emerald-600/20 flex items-center justify-center space-x-2 transition cursor-pointer active:scale-98"
                     >
                       <Download className="w-4 h-4" />
-                      <span>{resolution} 쇼츠 다운로드 ({videoDuration}초)</span>
+                      <span>{resolution} 다운로드 ({videoDuration}초)</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={handleShareVideo}
-                      className="py-3.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-sm rounded-2xl shadow-md shadow-indigo-600/20 flex items-center justify-center space-x-2 transition cursor-pointer active:scale-98 shrink-0"
-                      title="카카오톡, 인스타그램, 틱톡, 갤러리로 직접 전송"
+                      className="py-3 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-sm rounded-2xl shadow-md shadow-indigo-600/20 flex items-center justify-center space-x-2 transition cursor-pointer active:scale-98 shrink-0"
+                      title="카카오톡 및 SNS 바로 공유"
                     >
                       <Share2 className="w-4 h-4" />
-                      <span>📱 SNS/카톡 바로 공유</span>
+                      <span>📱 SNS/카톡 공유</span>
                     </button>
                   </div>
 
-                  {/* 1-Second Thumbnail Quick Action after Video Render */}
+                  {/* Thumbnail Quick Action after Video Render */}
                   <div className="space-y-1.5">
                     {thumbnailToast && (
                       <div className="p-2.5 rounded-xl bg-emerald-500 text-white font-black text-xs text-center animate-fade-in shadow-md">
@@ -5603,15 +5586,15 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                         <span className="text-2xl">🖼️</span>
                         <div className="text-left flex-1">
                           <div className="font-black text-xs text-amber-950 flex items-center gap-1.5">
-                            <span>쇼츠 표지 썸네일 (1080x1920)</span>
-                            <span className="px-1.5 py-0.2 rounded bg-amber-200 text-amber-900 text-[9px] font-bold">1초 완성</span>
+                            <span>쇼츠 표지 썸네일</span>
+                            <span className="px-1.5 py-0.2 rounded bg-amber-200 text-amber-900 text-[9px] font-bold">9:16</span>
                           </div>
                           <div className="text-[10px] text-amber-700 font-medium">
                             {customThumbnailImageUrl
-                              ? '📸 커스텀 사진 및 텍스트 적용됨'
+                              ? '커스텀 사진 적용됨'
                               : isCtrTitleEnabled
-                              ? `CTR 대문짝 타이틀 적용됨`
-                              : `${thumbnailSceneIndex + 1}번 씬 원본 고화질`}
+                              ? `헤드라인 적용됨`
+                              : `${thumbnailSceneIndex + 1}번 씬 원본`}
                           </div>
                         </div>
                       </div>
@@ -5624,10 +5607,10 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                             setPreviewViewMode('live');
                           }}
                           className="flex-1 sm:flex-initial px-3 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 font-black text-xs shadow-2xs transition cursor-pointer active:scale-95 flex items-center justify-center gap-1"
-                          title="캐러셀 스타일로 사진, 메인 헤드라인, 보조 설명, 폰트/스타일 편집"
+                          title="표지 썸네일 편집"
                         >
                           <Edit3 className="w-3.5 h-3.5 text-indigo-600" />
-                          <span>✏️ 썸네일 편집</span>
+                          <span>편집</span>
                         </button>
 
                         <button
@@ -5637,7 +5620,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                           className="flex-1 sm:flex-initial px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1"
                         >
                           <Download className="w-3.5 h-3.5 text-slate-950" />
-                          <span>{isExtractingThumbnail ? '추출 중...' : 'HD 다운로드'}</span>
+                          <span>{isExtractingThumbnail ? '추출 중...' : '다운로드'}</span>
                         </button>
 
                         <button
@@ -5647,7 +5630,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                           className="flex-1 sm:flex-initial px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1"
                         >
                           <Share2 className="w-3.5 h-3.5 text-white" />
-                          <span>📱 공유</span>
+                          <span>공유</span>
                         </button>
                       </div>
                     </div>
@@ -5660,8 +5643,8 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                       disabled={isSavingToVault}
                       className="w-full py-2.5 px-4 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-black text-xs rounded-xl shadow-2xs flex items-center justify-center space-x-1.5 transition cursor-pointer disabled:opacity-50"
                     >
-                      <span>💾</span>
-                      <span>{isSavingToVault ? '보관함에 저장 중...' : '현재 완성 프로젝트 보관함에 보관하기'}</span>
+                      <Bookmark className="w-3.5 h-3.5" />
+                      <span>{isSavingToVault ? '보관 중...' : '보관함에 보관'}</span>
                     </button>
                   )}
                 </div>
@@ -5674,7 +5657,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                 className="w-full py-2.5 px-4 rounded-xl border border-slate-200 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-50"
               >
                 <X className="w-4 h-4 text-slate-500" />
-                <span>이 창 닫기 (스튜디오 메인으로 복귀)</span>
+                <span>닫기</span>
               </button>
             </div>
           </div>
@@ -5694,7 +5677,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                   }`}
                 >
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>실시간 스타일 편집 뷰</span>
+                  <span>편집 뷰</span>
                 </button>
                 <button
                   type="button"
@@ -5706,7 +5689,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                   }`}
                 >
                   <Play className="w-3.5 h-3.5 fill-current" />
-                  <span>완성된 MP4 영상 보기</span>
+                  <span>완성 영상</span>
                 </button>
               </div>
             )}
@@ -5717,7 +5700,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                 <div className="flex items-center space-x-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   <span className="text-xs font-black text-slate-800">
-                    {previewSceneIndex + 1}씬 실시간 음성-자막 싱크
+                    {previewSceneIndex + 1}씬 싱크 확인
                   </span>
                 </div>
 
@@ -5736,7 +5719,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                   ) : (
                     <>
                       <Play className="w-3.5 h-3.5 fill-current text-amber-300" />
-                      <span>{isLoadingSceneAudio ? '음성 분석 중...' : '▶ 씬 음성+자막 실시간 싱크 미리듣기'}</span>
+                      <span>{isLoadingSceneAudio ? '분석 중...' : '싱크 미리듣기'}</span>
                     </>
                   )}
                 </button>

@@ -973,9 +973,9 @@ export default function App() {
           <div className="flex flex-wrap items-center gap-2 text-slate-600">
             <span className="font-extrabold text-slate-900 tracking-tight">AutoShorts AI 2.0</span>
             <span>•</span>
-            <span>화제의 인물 숏폼 초고속 제작 스튜디오</span>
+            <span>화제의 인물 쇼츠 스튜디오</span>
             <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
-              2차 저작물성 100% 가이드 준수
+              2차 저작물성 가이드 준수
             </span>
           </div>
 
@@ -986,7 +986,7 @@ export default function App() {
                 currentTab === 'studio' ? 'text-indigo-600 font-bold' : ''
               }`}
             >
-              제작 스튜디오
+              쇼츠 제작
             </button>
             <span className="text-slate-300">·</span>
             <button
@@ -995,7 +995,7 @@ export default function App() {
                 currentTab === 'carousel' ? 'text-rose-600 font-bold' : ''
               }`}
             >
-              인스타 캐러셀
+              캐러셀
             </button>
             <span className="text-slate-300">·</span>
             <button
@@ -1004,7 +1004,7 @@ export default function App() {
                 currentTab === 'viral' ? 'text-amber-600 font-bold' : ''
               }`}
             >
-              썸네일 & 카피
+              썸네일
             </button>
             <span className="text-slate-300">·</span>
             <button
@@ -1013,7 +1013,7 @@ export default function App() {
                 currentTab === 'todo' ? 'text-rose-600 font-bold' : ''
               }`}
             >
-              데일리 루틴 To-Do
+              데일리 루틴
             </button>
             <span className="text-slate-300">·</span>
             <button
@@ -1022,7 +1022,7 @@ export default function App() {
                 currentTab === 'roadmap' ? 'text-amber-600 font-bold' : ''
               }`}
             >
-              수익 전략 & 로드맵
+              수익 로드맵
             </button>
             <span className="text-slate-300">·</span>
             <button
@@ -1038,10 +1038,10 @@ export default function App() {
             <button
               onClick={() => setCurrentTab('architecture')}
               className="flex items-center space-x-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 px-2.5 py-1 rounded-lg transition"
-              title="Next.js & Supabase DB 아키텍처 명세서 (개발자/시스템 참조용)"
+              title="시스템 아키텍처 및 DB 참조"
             >
               <Database className="w-3.5 h-3.5 text-slate-400" />
-              <span>시스템 아키텍처 & DB</span>
+              <span>시스템 아키텍처</span>
             </button>
           </div>
         </div>

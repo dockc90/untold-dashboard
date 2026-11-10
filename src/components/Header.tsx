@@ -49,7 +49,7 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab, saved
                   AI 2.0
                 </span>
               </div>
-              <p className="hidden sm:block text-[11px] text-slate-500 font-medium">화제의 인물 쇼츠 초고속 자동화 스튜디오</p>
+              <p className="hidden sm:block text-[11px] text-slate-500 font-medium">화제의 인물 쇼츠 스튜디오</p>
             </div>
           </button>
 
@@ -82,7 +82,7 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab, saved
               }`}
             >
               <Sparkles className="w-4 h-4" />
-              <span>제작 스튜디오</span>
+              <span>쇼츠 제작</span>
             </button>
 
             <button
@@ -94,7 +94,7 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab, saved
               }`}
             >
               <Layers className="w-4 h-4 text-rose-500" />
-              <span>인스타 캐러셀</span>
+              <span>캐러셀</span>
               <span className="text-[10px] font-black px-1.5 py-0.2 rounded-full bg-rose-100 text-rose-700 ml-0.5">
                 NEW
               </span>
@@ -109,7 +109,7 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab, saved
               }`}
             >
               <Flame className="w-4 h-4 text-amber-500" />
-              <span>썸네일 & 카피</span>
+              <span>썸네일</span>
             </button>
 
             <button
@@ -121,7 +121,7 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab, saved
               }`}
             >
               <CheckSquare className="w-4 h-4 text-rose-500" />
-              <span>데일리 루틴 To-Do</span>
+              <span>데일리 루틴</span>
             </button>
 
             <button
@@ -133,7 +133,7 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab, saved
               }`}
             >
               <TrendingUp className="w-4 h-4 text-amber-500" />
-              <span>수익 전략 & 로드맵</span>
+              <span>수익 로드맵</span>
             </button>
 
             <button
@@ -168,7 +168,7 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab, saved
             }`}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>제작 스튜디오</span>
+            <span>쇼츠 제작</span>
           </button>
 
           <button
@@ -180,7 +180,7 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab, saved
             }`}
           >
             <Layers className="w-3.5 h-3.5 text-rose-500" />
-            <span>인스타 캐러셀</span>
+            <span>캐러셀</span>
           </button>
 
           <button
@@ -192,7 +192,7 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab, saved
             }`}
           >
             <Flame className="w-3.5 h-3.5 text-amber-500" />
-            <span>썸네일 & 카피</span>
+            <span>썸네일</span>
           </button>
 
           <button

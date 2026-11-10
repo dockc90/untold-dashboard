@@ -193,7 +193,7 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
                   <Info className="w-3.5 h-3.5" />
                 </button>
               </div>
-              <p className="text-[11px] text-slate-500 font-medium">네이버·유튜브·인스타그램 3대 빅데이터 통합 소싱</p>
+              <p className="text-[11px] text-slate-500 font-medium">실시간 3대 플랫폼 트렌드</p>
             </div>
           </div>
 
@@ -206,7 +206,7 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
               title="실시간 네이버·유튜브·인스타 최신 화제 인물 데이터로 새로고침"
             >
               <RotateCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-              <span>{isLoading ? '최신화 중...' : '🔥 실시간 인물 최신화'}</span>
+              <span>{isLoading ? '새로고침 중...' : '실시간 새로고침'}</span>
             </button>
 
             <button
@@ -234,17 +234,17 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
           <div className="p-3 rounded-2xl bg-indigo-50/80 border border-indigo-100 text-[11px] text-indigo-900 space-y-1.5 animate-fadeIn">
             <div className="flex items-center space-x-1.5 font-bold text-indigo-800">
               <BarChart2 className="w-4 h-4 text-indigo-600" />
-              <span>Untold 빅데이터 실시간 크롤링 & 교차 검증 파이프라인</span>
+              <span>실시간 데이터 수집 및 교차 검증 파이프라인</span>
             </div>
             <p className="text-indigo-700 leading-relaxed font-medium">
               1. <strong>네이버 데이터랩</strong>: 지난 24~48시간 검색량 급상승 키워드 및 연관 검색어 추출.<br/>
-              2. <strong>유튜브 인기 급상승 쇼츠</strong>: 대한민국 시청자 대상 100만 뷰 이상 바이럴 영상 인물 교차 분석 (진입 기준을 100만 뷰로 완화하여 더 많은 라이징 인물 발굴).<br/>
-              3. <strong>인스타그램 릴스</strong>: 릴스 배경음악(BGM) 챌린지 및 릴스 생성수 10만 건 이상 핫토픽 필터링.
+              2. <strong>유튜브 인기 급상승 쇼츠</strong>: 대한민국 시청자 대상 100만 뷰 이상 바이럴 영상 인물 교차 분석.<br/>
+              3. <strong>인스타그램 릴스</strong>: 릴스 배경음악 챌린지 및 핫토픽 필터링.
             </p>
           </div>
         )}
 
-        {/* 1. Source Channels Tabs (네이버, 유튜브, 인스타그램) - 모바일 2x2 그리드로 깔끔하게 정렬 */}
+        {/* 1. Source Channels Tabs (전체, 유튜브, 네이버, 인스타그램) */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1.5 bg-slate-200/70 rounded-2xl border border-slate-200 text-xs font-bold">
           <button
             onClick={() => setSourceChannel('all')}
@@ -255,7 +255,7 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
             }`}
           >
             <Globe className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-            <span className="whitespace-nowrap">3대 통합</span>
+            <span className="whitespace-nowrap">전체</span>
           </button>
 
           <button
@@ -267,7 +267,7 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
             }`}
           >
             <Youtube className="w-3.5 h-3.5 fill-current shrink-0" />
-            <span className="whitespace-nowrap">유튜브 쇼츠</span>
+            <span className="whitespace-nowrap">유튜브</span>
           </button>
 
           <button
@@ -279,7 +279,7 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
             }`}
           >
             <span className="font-black text-[10px] text-emerald-400 bg-emerald-950 px-1 rounded shrink-0">N</span>
-            <span className="whitespace-nowrap">네이버 검색</span>
+            <span className="whitespace-nowrap">네이버</span>
           </button>
 
           <button
@@ -291,7 +291,7 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
             }`}
           >
             <Instagram className="w-3.5 h-3.5 shrink-0" />
-            <span className="whitespace-nowrap">인스타 릴스</span>
+            <span className="whitespace-nowrap">인스타그램</span>
           </button>
         </div>
 
@@ -307,9 +307,9 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
                   : 'text-slate-500 hover:text-slate-800'
               }`}
             >
-              {tf === '24h' && '🔥 24시간 실시간'}
-              {tf === '48h' && '⚡ 48시간 누적'}
-              {tf === '7d' && '📈 7일간 핫이슈'}
+              {tf === '24h' && '24시간'}
+              {tf === '48h' && '48시간'}
+              {tf === '7d' && '7일'}
             </button>
           ))}
         </div>
@@ -454,7 +454,7 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
                     <div className="p-2.5 rounded-xl bg-amber-50/80 border border-amber-200/80 mb-2.5">
                       <div className="flex items-center space-x-1 text-[11px] font-bold text-amber-800 mb-1">
                         <TrendingUp className="w-3 h-3 text-amber-600" />
-                        <span>쇼츠 공략 앵글 (2차 창작)</span>
+                        <span>추천 기획 방향</span>
                       </div>
                       <p className="text-[11px] text-amber-900 leading-snug line-clamp-2 font-medium">
                         "{fig.suggestedAngle}"
@@ -464,7 +464,7 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
                     {/* Tags */}
                     <div className="flex items-center space-x-1 overflow-hidden mb-3">
                       <span className="text-[10px] font-black text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded-md border border-indigo-100 shrink-0">
-                        🔍 색인 키워드
+                        태그
                       </span>
                       <span className="text-[10px] text-slate-500 truncate font-semibold">
                         {fig.tags.slice(0, 4).map((t) => `#${t}`).join(' ')}
@@ -481,10 +481,10 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
                         onSelectFigure(fig);
                       }}
                       className="py-2.5 px-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-sm flex items-center justify-center space-x-1 transition cursor-pointer"
-                      title="이 인물로 쇼츠 대본 및 영상 제작"
+                      title="쇼츠 대본 및 영상 제작"
                     >
                       <Film className="w-3.5 h-3.5 shrink-0" />
-                      <span className="truncate">쇼츠 제작하기</span>
+                      <span className="truncate">쇼츠 제작</span>
                     </button>
 
                     <button
@@ -498,10 +498,10 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
                         }
                       }}
                       className="py-2.5 px-2 rounded-xl bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-600 hover:to-amber-600 text-white font-black text-xs shadow-sm flex items-center justify-center space-x-1 transition cursor-pointer"
-                      title="이 인물로 인스타그램 카드뉴스(캐러셀) 제작"
+                      title="카드뉴스 캐러셀 제작"
                     >
                       <Layers className="w-3.5 h-3.5 shrink-0" />
-                      <span className="truncate">캐러셀 제작하기</span>
+                      <span className="truncate">캐러셀 제작</span>
                     </button>
                   </div>
                 </div>

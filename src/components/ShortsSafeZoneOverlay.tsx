@@ -391,17 +391,17 @@ export const PlatformGuideSelector: React.FC<PlatformGuideSelectorProps> = ({
 }) => {
   const options: { id: PlatformGuideType; label: string; icon: string; activeClass: string }[] = [
     { id: 'none', label: '가이드 끔', icon: '✕', activeClass: 'bg-slate-700 text-white font-black shadow-xs' },
-    { id: 'youtube', label: '유튜브 쇼츠', icon: '🔴', activeClass: 'bg-red-600 text-white font-black shadow-xs shadow-red-600/30' },
-    { id: 'instagram', label: '인스타 릴스', icon: '🟣', activeClass: 'bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black shadow-xs' },
+    { id: 'youtube', label: '유튜브', icon: '🔴', activeClass: 'bg-red-600 text-white font-black shadow-xs shadow-red-600/30' },
+    { id: 'instagram', label: '인스타그램', icon: '🟣', activeClass: 'bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black shadow-xs' },
     { id: 'tiktok', label: '틱톡', icon: '🎵', activeClass: 'bg-slate-900 text-cyan-300 font-black border border-cyan-400/40 shadow-xs' },
-    { id: 'safezone', label: '안전구역 격자', icon: '📐', activeClass: 'bg-emerald-600 text-white font-black shadow-xs shadow-emerald-600/30' },
+    { id: 'safezone', label: '안전구역', icon: '📐', activeClass: 'bg-emerald-600 text-white font-black shadow-xs shadow-emerald-600/30' },
   ];
 
   return (
     <div className={`flex flex-col items-center space-y-1.5 ${className}`}>
       <div className="flex items-center space-x-1 bg-slate-200/90 p-1 rounded-2xl border border-slate-300/80 text-[11px] font-bold shadow-2xs max-w-full overflow-x-auto">
         <span className="text-[10px] text-slate-500 font-black px-1.5 shrink-0 hidden sm:inline">
-          📱 플랫폼 UI 가이드:
+          플랫폼 가이드:
         </span>
         {options.map((opt) => {
           const isActive = currentPlatform === opt.id;

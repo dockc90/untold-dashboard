@@ -49,11 +49,11 @@ interface ScriptStudioProps {
 }
 
 const STORY_ANGLES = [
-  { id: 'random', label: '🎲 다른 대본 무작위 새로고침', desc: '이전과 다른 새로운 서사 생성' },
-  { id: 'adversity', label: '💧 감동 역전 실화', desc: '눈물의 고생담과 인생역전' },
-  { id: 'twist', label: '⚡ 충격 반전 비하인드', desc: '아무도 몰랐던 충격적 사실' },
-  { id: 'success', label: '💼 성공 공식 & 명언', desc: '뼈 때리는 마인드셋과 깨달음' },
-  { id: 'legend', label: '🏆 전설의 결정적 순간', desc: '역사를 바꾼 단 하나의 순간' },
+  { id: 'random', label: '🎲 무작위 추천', desc: '새로운 서사 생성' },
+  { id: 'adversity', label: '💧 감동 역전 실화', desc: '고생담과 인생역전' },
+  { id: 'twist', label: '⚡ 충격 반전 비하인드', desc: '숨겨진 반전 사실' },
+  { id: 'success', label: '💼 성공 스토리', desc: '동기부여와 성공 공식' },
+  { id: 'legend', label: '🏆 결정적 순간', desc: '인생을 바꾼 단 하나의 순간' },
 ];
 
 const MOTION_EFFECTS: { id: MotionEffectType; label: string; desc: string }[] = [
@@ -477,7 +477,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                 title="1단계: 트렌드 인물 선택으로 돌아가기"
               >
                 <ArrowLeft className="w-4 h-4 text-indigo-600 shrink-0" />
-                <span className="hidden sm:inline">인물 다시 선택</span>
+                <span className="hidden sm:inline">인물 변경</span>
               </button>
             )}
             <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-rose-500 to-indigo-600 flex items-center justify-center text-white font-extrabold text-base shadow-sm shrink-0">
@@ -496,7 +496,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                 )}
               </div>
               <p className="text-xs text-slate-500 font-medium line-clamp-1">
-                {selectedFigure?.suggestedAngle || '화제의 인물 맞춤 대본과 3초 단위 씬별 에셋을 기획합니다.'}
+                {selectedFigure?.suggestedAngle || '화제의 인물 맞춤 대본 및 씬별 기획'}
               </p>
             </div>
           </div>
@@ -505,7 +505,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
           <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2">
             {/* Voice Selector */}
             <div className="flex items-center justify-between bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 shadow-2xs w-full sm:w-auto">
-              <span className="text-[11px] font-extrabold text-indigo-700 shrink-0 mr-1.5">🎙️ 성우</span>
+              <span className="text-[11px] font-extrabold text-indigo-700 shrink-0 mr-1.5">성우</span>
               <select
                 value={selectedVoiceId}
                 onChange={(e) => setSelectedVoiceId(e.target.value)}
@@ -542,10 +542,10 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                 onChange={(e) => setTargetPersona(e.target.value as TargetPersona)}
                 className="bg-white border border-slate-200 text-xs font-bold text-slate-700 rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-indigo-500 shadow-2xs w-full"
               >
-                <option value="4060_emotional">👵 40~60대 감동</option>
-                <option value="1020_dopamine">⚡ 10~20대 도파민</option>
-                <option value="3040_success">💼 30~40대 동기부여</option>
-                <option value="mystery_twist">🕵️ 반전 미스터리</option>
+                <option value="4060_emotional">4060 감동</option>
+                <option value="1020_dopamine">1020 도파민</option>
+                <option value="3040_success">3040 동기부여</option>
+                <option value="mystery_twist">반전 미스터리</option>
               </select>
 
               <div className="flex items-center bg-slate-200/70 rounded-xl border border-slate-200 p-0.5 text-xs font-bold w-full justify-center">
@@ -556,7 +556,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                     duration === 45 ? 'bg-white text-slate-900 shadow-2xs font-black' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  45초 (9씬)
+                  45초
                 </button>
                 <button
                   type="button"
@@ -565,7 +565,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                     duration === 60 ? 'bg-white text-slate-900 shadow-2xs font-black' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  60초 (12씬)
+                  60초
                 </button>
               </div>
             </div>
@@ -589,22 +589,22 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                 className="flex items-center justify-center space-x-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition disabled:opacity-50 cursor-pointer"
               >
                 <Sparkles className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
-                <span>{isGenerating ? '대본 생성 중...' : `${duration}초 대본 자동 생성`}</span>
+                <span>{isGenerating ? '생성 중...' : '대본 생성'}</span>
               </button>
             </div>
           </div>
         </div>
 
-        {/* 3초 후킹(Hook) 3종 선택기 (Clean Mobile Spacing & Readability) */}
+        {/* 3초 후킹(Hook) 선택기 */}
         {currentProject && currentProject.hooks && currentProject.hooks.length > 0 && (
           <div className="mt-3 pt-3 border-t border-slate-200">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center space-x-1.5 text-xs font-extrabold text-amber-600">
                 <Flame className="w-4 h-4 fill-amber-500 text-amber-500 shrink-0" />
-                <span>시청자 이탈 방지 3초 후킹(Hook) 선택</span>
+                <span>3초 후킹 문구 선택</span>
               </div>
               <span className="text-[10px] text-slate-400 font-medium hidden sm:inline">
-                (클릭 시 도입부 씬1에 실시간 자동 적용)
+                (클릭 시 도입부 씬1에 실시간 적용)
               </span>
             </div>
 
@@ -650,8 +650,8 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
               <RotateCw className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
             </div>
             <div>
-              <span className="font-extrabold text-slate-900 block sm:inline">대본이 마음에 안 드시나요?</span>{' '}
-              <span className="text-[11px] text-slate-600 font-medium">원하는 스토리 테마를 클릭하면 즉시 새로운 각도의 대본으로 새로고침됩니다.</span>
+              <span className="font-extrabold text-slate-900 block sm:inline">다른 테마로 즉시 대본 새로고침</span>{' '}
+              <span className="text-[11px] text-slate-600 font-medium hidden sm:inline">원하는 테마를 클릭하면 새로운 각도의 대본으로 변경됩니다.</span>
             </div>
           </div>
 
@@ -684,7 +684,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
             }`}
           >
             <Layers className="w-3.5 h-3.5 text-indigo-600" />
-            <span>🎬 씬별 사진 & 모션 에셋 ({editableScenes.length})</span>
+            <span>씬별 편집 ({editableScenes.length})</span>
           </button>
 
           <button
@@ -696,7 +696,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
             }`}
           >
             <TypeIcon className="w-3.5 h-3.5 text-indigo-600" />
-            <span>📝 전체 대본 에디터</span>
+            <span>전체 대본</span>
           </button>
 
           <button
@@ -708,7 +708,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
             }`}
           >
             <Sparkles className="w-3.5 h-3.5 text-rose-600" />
-            <span>🚀 2026 알고리즘 치트키 & 메타</span>
+            <span>알고리즘 가이드</span>
           </button>
 
           <button
@@ -720,7 +720,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
             }`}
           >
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            <span>🛡️ 저작권 방어 패치</span>
+            <span>저작권 가이드</span>
           </button>
         </div>
 
@@ -837,7 +837,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                           </span>
                           {idx === 0 && (
                             <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
-                              3초 골든 후킹
+                              3초 후킹
                             </span>
                           )}
                         </div>
@@ -858,7 +858,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                       {/* Narration Text Input */}
                       <div>
                         <label className="text-[11px] font-bold text-slate-600 mb-1 flex items-center justify-between">
-                          <span>나레이션 (TTS 자막 문장)</span>
+                          <span>내레이션 자막</span>
                           <span className="text-[10px] text-slate-400 font-medium">{scene.narration.length}자</span>
                         </label>
                         <textarea
@@ -935,10 +935,10 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                                 type="button"
                                 onClick={() => handleOpenCollageModal(idx)}
                                 className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-purple-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 text-purple-700 font-bold text-[11px] border border-purple-300 shadow-2xs transition cursor-pointer"
-                                title="1장 위치/크기(줌) 조절 및 여러 장 콜라주 합성 스튜디오"
+                                title="위치/크기 조절 및 사진 편집"
                               >
                                 <LayoutGrid className="w-3 h-3 text-purple-600" />
-                                <span>{scene.uploadedImageUrl ? '위치/크기 조절 & 합치기' : '사진 편집 / 합치기'}</span>
+                                <span>사진 편집</span>
                               </button>
 
                               <a
@@ -962,7 +962,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                         <div className="sm:col-span-7 flex flex-col justify-center space-y-1">
                           <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
                             <Sliders className="w-3 h-3 text-indigo-600" />
-                            <span>카메라 모션 효과 (천천히 줌인/이동)</span>
+                            <span>카메라 모션</span>
                           </label>
                           <select
                             value={scene.motionEffect || 'zoom_in'}
@@ -1299,7 +1299,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
               className="flex-1 sm:flex-initial flex items-center justify-center space-x-1.5 px-3.5 py-2 bg-gradient-to-r from-rose-500 via-indigo-600 to-indigo-700 hover:from-rose-600 hover:to-indigo-800 text-white font-black text-xs rounded-xl transition shadow-md shadow-indigo-500/20 active:scale-95"
             >
               <Video className="w-4 h-4" />
-              <span>🎬 영상 제작</span>
+              <span>영상 제작</span>
             </button>
 
             {onOpenViralStudio && (
@@ -1308,8 +1308,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                 className="flex items-center space-x-1 px-3 py-2 bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white font-black text-xs rounded-xl transition shadow-xs cursor-pointer"
               >
                 <Sparkles className="w-3.5 h-3.5 text-amber-200" />
-                <span className="hidden sm:inline">🔥 SNS 떡상 에셋 제작</span>
-                <span className="sm:hidden">SNS 에셋</span>
+                <span>SNS 에셋</span>
               </button>
             )}
 
@@ -1318,7 +1317,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
               className="flex items-center space-x-1 px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition"
             >
               {copiedKey === 'capcut-bar' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-              <span className="hidden xs:inline">CapCut/Vrew 복사</span>
+              <span className="hidden xs:inline">대본 복사</span>
               <span className="xs:hidden">복사</span>
             </button>
 
@@ -1327,7 +1326,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
               className="flex items-center space-x-1 px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition"
             >
               <Download className="w-3.5 h-3.5" />
-              <span>TXT</span>
+              <span>TXT 저장</span>
             </button>
           </div>
 
