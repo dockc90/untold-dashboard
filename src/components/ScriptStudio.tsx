@@ -26,7 +26,8 @@ import {
   RotateCw,
   Search,
   Share2,
-  Info
+  Info,
+  Scissors
 } from 'lucide-react';
 import { TrendingFigure, ShortsProject, TargetPersona, VideoMoodTone, SceneItem, MotionEffectType, VoiceOption } from '../types';
 import { VOICE_OPTIONS } from '../data/voices';
