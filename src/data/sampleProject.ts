@@ -11,18 +11,18 @@ export const SAMPLE_PROJECT: ShortsProject = {
   hooks: [
     {
       type: 'question',
-      label: '질문형 후킹',
-      text: '이라크 전쟁터에서 총을 들던 정비병이 어떻게 전 세계 0.001% 미슐랭 3스타 셰프가 되었을까요?'
+      label: '사건형 후킹',
+      text: '이라크 파병 정비병이 미슐랭 3스타가 된 진짜 이유.'
     },
     {
       type: 'provocative',
-      label: '도발/논란형 후킹',
-      text: '모두가 미쳤다고 비웃었던 한 청년의 10년, 결국 대한민국 요리 역사를 완전히 뒤바꿨습니다.'
+      label: '반전형 후킹',
+      text: '기름때 묻은 군복 벗고 세계 0.001%가 된 남자.'
     },
     {
       type: 'emotional',
-      label: '감성/공감형 후킹',
-      text: '기름때 묻은 군복을 벗고 앞치마를 둘렀을 때, 그가 흘렸던 눈물을 아는 사람은 아무도 없었습니다.'
+      label: '질문형 후킹',
+      text: '총 들던 정비병은 어떻게 미슐랭 3스타를 거머쥐었을까?'
     }
   ],
   titles: [

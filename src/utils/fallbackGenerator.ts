@@ -24,9 +24,9 @@ export function generateClientFallbackScript(
     // 💧 감동 역전 실화
     if (isJensen) {
       fallbackHooks = [
-        { type: 'question', label: '충격 실화형', text: kw ? `'${kw}'의 신화 젠슨 황이 16살에 식당 변기를 닦았다는 사실을 아십니까?` : `세계 시총 1위 젠슨 황이 열여섯 살에 식당 변기를 닦았다는 사실을 아십니까?` },
-        { type: 'provocative', label: '눈물의 고생담', text: `첫 사업 실패로 직원 80%를 해고하고, 통장에 단 30일 치 월급만 남았던 젠슨 황.` },
-        { type: 'emotional', label: '인간 승리', text: `기름때 묻은 접시를 닦던 무일푼 소년이 4,000조 황제가 되기까지의 처절한 눈물.` }
+        { type: 'question', label: '사건형 후킹', text: kw ? `'${kw}' 신화 젠슨 황이 16살에 변기 닦던 시절.` : `세계 1위 젠슨 황이 16살에 화장실 변기를 닦았던 이유.` },
+        { type: 'provocative', label: '반전형 후킹', text: `직원 80% 자르고 통장에 30일 치 월급만 남았던 날.` },
+        { type: 'emotional', label: '질문형 후킹', text: `식당 접시닦이 소년은 어떻게 4,000조 황제가 됐을까?` }
       ];
       fallbackTitles = [
         `식당 접시닦이에서 4,000조 황제가 된 젠슨 황의 눈물 실화 #shorts`,
@@ -49,9 +49,9 @@ export function generateClientFallbackScript(
       ];
     } else {
       fallbackHooks = [
-        { type: 'question', label: '눈물의 첫 시작', text: kw ? `'${kw}' 뒤에 숨겨진 ${figureName} 님의 10년 무명 단칸방 시절을 아십니까?` : `가장 처절했던 밑바닥 시절, ${figureName} 님이 삼켜야 했던 눈물을 아십니까?` },
-        { type: 'provocative', label: '충격적 사실', text: `통장 잔고 0원, 100번 넘는 거절 끝에 마침내 판을 뒤집어버린 ${figureName}의 반전 실화.` },
-        { type: 'emotional', label: '가슴 뭉클한 한마디', text: `"너는 절대 성공 못 해." 수많은 조롱을 온몸으로 받아냈던 그날 밤의 맹세.` }
+        { type: 'question', label: '사건형 후킹', text: kw ? `'${kw}' 뒤에 숨겨진 ${figureName}의 충격 실화.` : `${figureName}이 가장 처절하게 눈물 삼켰던 그날 밤.` },
+        { type: 'provocative', label: '반전형 후킹', text: `통장 잔고 0원에서 어떻게 업계 1등이 됐을까?` },
+        { type: 'emotional', label: '질문형 후킹', text: `모두가 안 된다고 비웃었던 단 한 번의 승부수.` }
       ];
       fallbackTitles = [
         `통장 잔고 0원에서 대한민국 1등이 된 ${figureName}의 충격 실화 #shorts`,
@@ -76,9 +76,9 @@ export function generateClientFallbackScript(
   } else if (effectiveAngle === 'twist') {
     // ⚡ 충격 반전 비하인드
     fallbackHooks = [
-      { type: 'provocative', label: '충격 반전', text: `세상은 그를 '운 좋은 천재'라 부르지만, 사실 99%는 모르는 충격적인 사건이 있었습니다.` },
-      { type: 'question', label: '비하인드 폭로', text: `${figureName} 님이 성공하기 직전, 가장 믿었던 동업자에게 배신당했던 사건을 아십니까?` },
-      { type: 'emotional', label: '숨겨진 진실', text: `언론에 한 줄도 보도되지 않았던 ${figureName}의 사형선고 같았던 위기.` }
+      { type: 'provocative', label: '사건형 후킹', text: `세상이 몰랐던 ${figureName}의 충격적 배신 사건.` },
+      { type: 'question', label: '반전형 후킹', text: `믿었던 동료에게 전 재산 털리고 판 뒤집은 비결.` },
+      { type: 'emotional', label: '질문형 후킹', text: `언론에 한 줄도 안 나온 파산 직전 72시간의 진실.` }
     ];
     fallbackTitles = [
       `[충격] ${figureName}, 세상에 감춰졌던 소름 돋는 비하인드 스토리 #shorts`,
@@ -102,9 +102,9 @@ export function generateClientFallbackScript(
   } else if (effectiveAngle === 'success') {
     // 💼 성공 스토리 & 3가지 원칙
     fallbackHooks = [
-      { type: 'question', label: '성공 방정식', text: `수많은 천재들을 제치고 ${figureName} 님이 1등이 된 진짜 비밀 3가지를 아십니까?` },
-      { type: 'provocative', label: '뼈 때리는 조언', text: `"재능은 핑계일 뿐이다." ${figureName} 님이 온몸으로 증명해낸 잔혹한 성공 공식.` },
-      { type: 'emotional', label: '실행의 힘', text: `게으른 나를 완전히 뒤바꿔놓을 ${figureName}의 3가지 철학.` }
+      { type: 'question', label: '사건형 후킹', text: `${figureName}이 수많은 천재들을 꺾고 1등 된 비밀.` },
+      { type: 'provocative', label: '반전형 후킹', text: `"재능은 핑계다." 상위 1%만 아는 지독한 실행력.` },
+      { type: 'emotional', label: '질문형 후킹', text: `하루 만에 인생을 180도 바꾸는 3가지 원칙은?` }
     ];
     fallbackTitles = [
       `1%만 실천하는 ${figureName}의 3가지 성공 원칙 (소름 주의) #shorts`,
@@ -128,9 +128,9 @@ export function generateClientFallbackScript(
   } else if (effectiveAngle === 'legend') {
     // 🏆 결정적 순간 (운명의 3초)
     fallbackHooks = [
-      { type: 'question', label: '운명의 3초', text: `${figureName}의 전 인생을 180도 뒤집어놓았던 '단 3초의 승부수'를 기억하십니까?` },
-      { type: 'provocative', label: '단 하나의 결단', text: `모두가 도망치라 외쳤을 때, 전 재산을 걸고 앞으로 돌진했던 ${figureName}의 전설적 순간.` },
-      { type: 'emotional', label: '역사의 전환점', text: `세계의 역사가 바뀐 것은 수십 년의 회의가 아니라, 그의 단 한 번의 결단이었습니다.` }
+      { type: 'question', label: '사건형 후킹', text: `${figureName}의 운명을 바꾼 단 3초의 순간.` },
+      { type: 'provocative', label: '반전형 후킹', text: `모두가 도망칠 때 전 재산 걸고 돌진했던 이유.` },
+      { type: 'emotional', label: '질문형 후킹', text: `역사를 바꾼 단 한 번의 결단은 무엇이었을까?` }
     ];
     fallbackTitles = [
       `세계의 판도를 바꾼 ${figureName}의 '단 3초' 승부수 (전율 주의) #shorts`,

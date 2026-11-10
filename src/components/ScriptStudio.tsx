@@ -19,7 +19,9 @@ import {
   Video,
   ArrowLeft,
   RotateCw,
-  Share2
+  Share2,
+  Edit3,
+  RefreshCw
 } from 'lucide-react';
 import { TrendingFigure, ShortsProject, TargetPersona, VideoMoodTone, SceneItem, MotionEffectType } from '../types';
 import { ScenePhotoCollageModal } from './ScenePhotoCollageModal';
@@ -83,6 +85,11 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
   const [activeTab, setActiveTab] = useState<'scenes' | 'script'>('scenes');
   const [selectedHookIndex, setSelectedHookIndex] = useState(0);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  // Hook inline editing & cycling state
+  const [editingHookIndex, setEditingHookIndex] = useState<number | null>(null);
+  const [editingHookText, setEditingHookText] = useState<string>('');
+  const [hookCycleCount, setHookCycleCount] = useState<number>(0);
 
   // Collage / Multi-photo merge modal state
   const [collageModalSceneIdx, setCollageModalSceneIdx] = useState<number | null>(null);
@@ -207,7 +214,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
     setSelectedHookIndex(index);
     if (!currentProject || !currentProject.hooks[index]) return;
 
-    const hookText = currentProject.hooks[index].text;
+    const hookText = currentProject.hooks[index].text.replace(/^[\"'“‘\s]+/, '').replace(/[\"'”’\s]+$/, '');
     if (editableScenes.length > 0) {
       const updated = [...editableScenes];
       updated[0] = {
@@ -217,6 +224,154 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
       setEditableScenes(updated);
       setEditableScript(updated.map((s) => s.narration).join('\n\n'));
     }
+  };
+
+  const handleStartEditHook = (idx: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!currentProject || !currentProject.hooks[idx]) return;
+    setEditingHookIndex(idx);
+    setEditingHookText(currentProject.hooks[idx].text.replace(/^[\"'“‘\s]+/, '').replace(/[\"'”’\s]+$/, ''));
+  };
+
+  const handleSaveEditHook = (idx: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!currentProject || !editingHookText.trim()) return;
+
+    const trimmed = editingHookText.trim();
+    const updatedHooks = [...currentProject.hooks];
+    updatedHooks[idx] = {
+      ...updatedHooks[idx],
+      text: trimmed,
+    };
+
+    let updatedScenes = [...editableScenes];
+    if (selectedHookIndex === idx && updatedScenes.length > 0) {
+      updatedScenes[0] = {
+        ...updatedScenes[0],
+        narration: trimmed,
+      };
+      setEditableScenes(updatedScenes);
+      setEditableScript(updatedScenes.map((s) => s.narration).join('\n\n'));
+    }
+
+    const updatedProj = {
+      ...currentProject,
+      hooks: updatedHooks,
+      scenes: updatedScenes,
+    };
+    onUpdateProject?.(updatedProj);
+    setEditingHookIndex(null);
+  };
+
+  const handleCancelEditHook = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingHookIndex(null);
+  };
+
+  const handleRefreshHooks = () => {
+    if (!currentProject) return;
+    const nextCount = hookCycleCount + 1;
+    setHookCycleCount(nextCount);
+
+    const name = selectedFigure?.name || currentProject.figureName || '화제의 인물';
+    const isScarf = name.includes('스카프') || name.includes('이종석') || name.includes('남대문');
+    const isChungju = name.includes('충주') || name.includes('김선태');
+    const isJensen = name.includes('젠슨') || name.includes('Jensen') || name.includes('엔비디아');
+
+    let newHooks: { type: 'question' | 'provocative' | 'emotional'; label: string; text: string }[] = [];
+
+    if (isScarf) {
+      const scarfSets = [
+        [
+          { type: 'question', label: '사건형 후킹', text: '남대문 한복판에서 외국인 200명이 무릎 꿇은 이유.' },
+          { type: 'provocative', label: '반전형 후킹', text: '단돈 5천 원짜리 스카프로 전 세계를 홀린 남자.' },
+          { type: 'emotional', label: '질문형 후킹', text: '하루 매출 0원에서 어떻게 파리 바이어를 홀렸을까?' }
+        ],
+        [
+          { type: 'question', label: '사건형 후킹', text: '단 10초 만에 사람 홀리는 마성의 스카프 손기술.' },
+          { type: 'provocative', label: '반전형 후킹', text: '30년 노점상이 길거리 쇼맨십 1등이 된 반전 실화.' },
+          { type: 'emotional', label: '질문형 후킹', text: '외국인들이 서울 오면 남대문부터 달려가는 진짜 비밀은?' }
+        ],
+        [
+          { type: 'question', label: '사건형 후킹', text: '스카프 한 장으로 10가지 스타일 만드는 신의 손.' },
+          { type: 'provocative', label: '반전형 후킹', text: '가게 뺏기고 쫓겨났던 그가 완성한 기적의 기술.' },
+          { type: 'emotional', label: '질문형 후킹', text: '사모님 하나면 파리 간다는 멘트 뒤 30년 내공은?' }
+        ],
+        [
+          { type: 'question', label: '사건형 후킹', text: '유튜브 6,500만 뷰 터진 남대문 마법사의 정체.' },
+          { type: 'provocative', label: '반전형 후킹', text: '망해가던 골목 노점을 글로벌 성지로 바꾼 한 방.' },
+          { type: 'emotional', label: '질문형 후킹', text: '전 세계 관광객을 줄 세운 길거리 세일즈의 신화.' }
+        ]
+      ];
+      newHooks = scarfSets[nextCount % scarfSets.length] as any;
+    } else if (isChungju) {
+      const chungjuSets = [
+        [
+          { type: 'question', label: '사건형 후킹', text: '예산 0원으로 만든 쇼츠 하나가 충주시를 뒤흔든 날.' },
+          { type: 'provocative', label: '반전형 후킹', text: '결재 서류도 안 올리고 70만 구독자 모은 공무원.' },
+          { type: 'emotional', label: '질문형 후킹', text: '9급 공무원은 어떻게 대한민국 1등 기획자가 됐을까?' }
+        ],
+        [
+          { type: 'question', label: '사건형 후킹', text: '인구 20만 도시에 구독자 70만 만든 B급 감성의 반란.' },
+          { type: 'provocative', label: '반전형 후킹', text: '보수적인 공직 사회의 편견을 박살낸 한 방.' },
+          { type: 'emotional', label: '질문형 후킹', text: '예산 없이도 대기업을 이긴 충주맨의 비밀은?' }
+        ]
+      ];
+      newHooks = chungjuSets[nextCount % chungjuSets.length] as any;
+    } else if (isJensen) {
+      const jensenSets = [
+        [
+          { type: 'question', label: '사건형 후킹', text: '세계 1위 젠슨 황이 16살에 화장실 변기를 닦았던 이유.' },
+          { type: 'provocative', label: '반전형 후킹', text: '직원 80% 자르고 통장에 30일 치 월급만 남았던 날.' },
+          { type: 'emotional', label: '질문형 후킹', text: '식당 접시닦이 소년은 어떻게 4,000조 황제가 됐을까?' }
+        ],
+        [
+          { type: 'question', label: '사건형 후킹', text: '2006년, 엔비디아가 10조 원을 쿠다에 쏟아부었던 결단.' },
+          { type: 'provocative', label: '반전형 후킹', text: '월가 모두가 미쳤다고 비웃었던 날의 반전.' },
+          { type: 'emotional', label: '질문형 후킹', text: '왜 4,000조 황제는 늘 낡은 가죽 자켓만 고집할까?' }
+        ]
+      ];
+      newHooks = jensenSets[nextCount % jensenSets.length] as any;
+    } else {
+      const generalSets = [
+        [
+          { type: 'question', label: '사건형 후킹', text: `${name}이 가장 처절하게 눈물 삼켰던 그날 밤.` },
+          { type: 'provocative', label: '반전형 후킹', text: `통장 잔고 0원에서 어떻게 업계 1등이 됐을까?` },
+          { type: 'emotional', label: '질문형 후킹', text: `모두가 안 된다고 비웃었던 단 한 번의 승부수.` }
+        ],
+        [
+          { type: 'question', label: '사건형 후킹', text: `언론에 한 줄도 안 나온 파산 직전 72시간의 진실.` },
+          { type: 'provocative', label: '반전형 후킹', text: `${name}이 10년 무명 단칸방을 딛고 일어선 비결.` },
+          { type: 'emotional', label: '질문형 후킹', text: `왜 수많은 천재들을 제치고 ${name}이 1등이 됐을까?` }
+        ],
+        [
+          { type: 'question', label: '사건형 후킹', text: `전 재산 다 털리고 벼랑 끝에서 던진 마지막 결단.` },
+          { type: 'provocative', label: '반전형 후킹', text: `"너는 실패할 거다" 비웃던 사람들을 침묵시킨 한 방.` },
+          { type: 'emotional', label: '질문형 후킹', text: `단 3초 만에 역사를 바꾼 그날의 결정적 선택은?` }
+        ]
+      ];
+      newHooks = generalSets[nextCount % generalSets.length] as any;
+    }
+
+    const currentSelected = selectedHookIndex >= newHooks.length ? 0 : selectedHookIndex;
+    const selectedHookText = newHooks[currentSelected].text;
+
+    let updatedScenes = [...editableScenes];
+    if (updatedScenes.length > 0) {
+      updatedScenes[0] = {
+        ...updatedScenes[0],
+        narration: selectedHookText,
+      };
+      setEditableScenes(updatedScenes);
+      setEditableScript(updatedScenes.map((s) => s.narration).join('\n\n'));
+    }
+
+    const updatedProj = {
+      ...currentProject,
+      hooks: newHooks,
+      scenes: updatedScenes,
+    };
+    onUpdateProject?.(updatedProj);
   };
 
   const handleSceneNarrationChange = (index: number, val: string) => {
@@ -650,48 +805,133 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
           </div>
         )}
 
-        {/* ROW 3: 3초 후킹(Hook) 선택기 */}
+        {/* ROW 3: 3초 킬링 후킹(Hook) 선택기 & 인라인 편집 */}
         {currentProject && currentProject.hooks && currentProject.hooks.length > 0 && (
           <div className="pt-2 border-t border-slate-200/80 w-full max-w-full min-w-0">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center space-x-1.5 text-xs font-extrabold text-amber-600">
-                <Flame className="w-4 h-4 fill-amber-500 text-amber-500 shrink-0" />
-                <span>3초 후킹 문구 선택</span>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 mb-2.5">
+              <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-1.5 text-xs font-black text-amber-600">
+                  <Flame className="w-4 h-4 fill-amber-500 text-amber-500 shrink-0" />
+                  <span>3초 킬링 후킹 문구 선택</span>
+                </div>
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                  권장: 20~30자 (2.5초 컷)
+                </span>
               </div>
-              <span className="text-[10px] text-slate-400 font-medium hidden sm:inline">
-                (클릭 시 도입부 씬1에 실시간 적용)
-              </span>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={handleRefreshHooks}
+                  className="px-2.5 py-1 rounded-xl bg-white hover:bg-amber-50 text-amber-700 border border-amber-300 text-xs font-black transition shadow-2xs flex items-center space-x-1 cursor-pointer active:scale-95"
+                  title="새로운 20~30자 초단문 3초 훅 3종 다시 추천"
+                >
+                  <RefreshCw className="w-3 h-3 text-amber-600" />
+                  <span>🎲 후킹 다시 추천</span>
+                </button>
+                <span className="text-[10px] text-slate-400 font-medium hidden md:inline">
+                  (클릭 시 도입부 씬1에 실시간 적용)
+                </span>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-2.5 w-full max-w-full min-w-0">
               {currentProject.hooks.map((hook, idx) => {
                 const isHookSelected = selectedHookIndex === idx;
+                const isEditingThis = editingHookIndex === idx;
                 const cleanHookText = hook.text.replace(/^[\"'“‘\s]+/, '').replace(/[\"'”’\s]+$/, '');
+                const charLen = cleanHookText.length;
+                const isOptimalLen = charLen >= 16 && charLen <= 32;
+
                 return (
-                  <button
+                  <div
                     key={idx}
-                    type="button"
-                    onClick={() => handleHookSelect(idx)}
-                    className={`text-left p-3 rounded-2xl border text-xs transition relative cursor-pointer min-w-0 w-full max-w-full overflow-hidden ${
-                      isHookSelected
+                    onClick={() => {
+                      if (!isEditingThis) handleHookSelect(idx);
+                    }}
+                    className={`text-left p-3 rounded-2xl border text-xs transition relative min-w-0 w-full max-w-full overflow-hidden ${
+                      isEditingThis ? 'cursor-default ring-2 ring-indigo-500 bg-white shadow-md' : 'cursor-pointer'
+                    } ${
+                      isHookSelected && !isEditingThis
                         ? 'bg-amber-50/90 border-amber-400 text-amber-950 shadow-xs ring-2 ring-amber-400/50'
-                        : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                        : !isEditingThis
+                        ? 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                        : ''
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
-                        {hook.label || (idx === 0 ? '사건형 후킹' : idx === 1 ? '반전형 후킹' : '질문형 후킹')}
-                      </span>
-                      {isHookSelected && (
-                        <span className="text-[10px] font-black text-amber-700 flex items-center gap-1 bg-amber-100/90 px-2 py-0.5 rounded-full shrink-0">
-                          <Check className="w-3 h-3" /> 적용됨
+                    <div className="flex items-center justify-between mb-1.5 gap-1">
+                      <div className="flex items-center space-x-1.5 shrink-0">
+                        <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                          {hook.label || (idx === 0 ? '사건형 후킹' : idx === 1 ? '반전형 후킹' : '질문형 후킹')}
                         </span>
-                      )}
+                        <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-md ${
+                          isOptimalLen ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                        }`}>
+                          {charLen}자 {isOptimalLen ? '⚡2.5초' : '⚠️길이주의'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center space-x-1 shrink-0">
+                        {!isEditingThis ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={(e) => handleStartEditHook(idx, e)}
+                              className="p-1 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition cursor-pointer"
+                              title="후킹 문구 직접 수정"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                            {isHookSelected && (
+                              <span className="text-[10px] font-black text-amber-700 flex items-center gap-0.5 bg-amber-100/90 px-1.5 py-0.5 rounded-full">
+                                <Check className="w-3 h-3" /> 적용됨
+                              </span>
+                            )}
+                          </>
+                        ) : null}
+                      </div>
                     </div>
-                    <p className="font-bold text-xs sm:text-sm text-slate-900 leading-relaxed break-keep break-words">
-                      "{cleanHookText}"
-                    </p>
-                  </button>
+
+                    {isEditingThis ? (
+                      <div className="space-y-2 pt-1" onClick={(e) => e.stopPropagation()}>
+                        <textarea
+                          rows={2}
+                          value={editingHookText}
+                          onChange={(e) => setEditingHookText(e.target.value)}
+                          placeholder="20~30자 이내의 강력한 3초 후킹 문구 입력"
+                          className="w-full p-2 border border-indigo-400 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500 leading-relaxed resize-none"
+                          autoFocus
+                        />
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className={`font-black ${
+                            editingHookText.length >= 16 && editingHookText.length <= 32 ? 'text-emerald-600' : 'text-amber-600'
+                          }`}>
+                            {editingHookText.length}자 (권장 20~30자)
+                          </span>
+                          <div className="flex items-center space-x-1">
+                            <button
+                              type="button"
+                              onClick={(e) => handleCancelEditHook(e)}
+                              className="px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-[10px] cursor-pointer"
+                            >
+                              취소
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => handleSaveEditHook(idx, e)}
+                              className="px-2 py-0.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] cursor-pointer shadow-2xs"
+                            >
+                              ✓ 완료
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="font-bold text-xs sm:text-sm text-slate-900 leading-relaxed break-keep break-words">
+                        "{cleanHookText}"
+                      </p>
+                    )}
+                  </div>
                 );
               })}
             </div>
