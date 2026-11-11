@@ -151,6 +151,7 @@ export interface CustomTextOverlay {
   fontFamily: SubtitleFontFamily;
   textColor: string; // e.g. '#000000', '#ffffff', '#facc15'
   backgroundColor: string; // e.g. 'transparent', '#facc15', '#ffffff', 'rgba(0,0,0,0.85)'
+  bgOpacityPercent?: number; // 자막 상자 투명도 (0 ~ 100%, 기본 88%)
   isBold: boolean;
   boxPadding?: number;
 }
@@ -193,6 +194,7 @@ export interface CustomSubtitlePreset {
   subtitleXPercent: number;
   subtitleYPercent: number;
   subtitleRotationDeg: number;
+  subtitleBgOpacity?: number; // 자막 상자 투명도 (0 ~ 100%, 기본 90%)
   subtitleTempo: SubtitleTempo;
 }
 
@@ -251,6 +253,7 @@ export interface ShortsProject {
   subtitleXPercent?: number; // 메인 자막 X축 (기본 50%)
   subtitleYPercent?: number; // 메인 자막 Y축 (기본 81%)
   subtitleRotationDeg?: number; // 메인 자막 회전 각도 (기본 0도)
+  subtitleBgOpacity?: number; // 메인 자막 상자 배경 투명도 (0 ~ 100%, 기본 90%)
   // 2026 알고리즘 치트키 필드
   firstTwoLinesSeo?: string;
   timestamps?: { time: string; label: string }[];

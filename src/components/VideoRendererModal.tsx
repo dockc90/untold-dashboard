@@ -112,6 +112,66 @@ const EFFECT_STYLES: { id: SubtitleEffectStyle; label: string; previewClass: str
   { id: 'shadow_drop', label: '드롭 섀도우', previewClass: 'bg-transparent text-white drop-shadow-[3px_3px_5px_rgba(0,0,0,0.9)] font-bold' },
 ];
 
+/**
+ * 자막 상자 및 오버레이 배경 색상에 0~100% 투명도를 적용하는 헬퍼 함수
+ */
+export const applyOpacityToColor = (color: string, opacityPercent: number = 100): string => {
+  if (!color || color === 'transparent' || opacityPercent <= 0) {
+    return 'transparent';
+  }
+  const factor = Math.max(0, Math.min(100, opacityPercent)) / 100;
+  const trimmed = color.trim().toLowerCase();
+
+  // rgba(r, g, b, a)
+  const rgbaMatch = trimmed.match(/^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)\s*\)$/);
+  if (rgbaMatch) {
+    const r = parseInt(rgbaMatch[1], 10);
+    const g = parseInt(rgbaMatch[2], 10);
+    const b = parseInt(rgbaMatch[3], 10);
+    const a = parseFloat(rgbaMatch[4]);
+    return `rgba(${r}, ${g}, ${b}, ${(a * factor).toFixed(3)})`;
+  }
+
+  // rgb(r, g, b)
+  const rgbMatch = trimmed.match(/^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/);
+  if (rgbMatch) {
+    const r = parseInt(rgbMatch[1], 10);
+    const g = parseInt(rgbMatch[2], 10);
+    const b = parseInt(rgbMatch[3], 10);
+    return `rgba(${r}, ${g}, ${b}, ${factor.toFixed(3)})`;
+  }
+
+  // Hex: #rgb, #rgba, #rrggbb, #rrggbbaa
+  if (trimmed.startsWith('#')) {
+    let hex = trimmed.slice(1);
+    if (hex.length === 3) {
+      hex = hex.split('').map((c) => c + c).join('');
+    }
+    if (hex.length === 4) {
+      const r = parseInt(hex[0] + hex[0], 16);
+      const g = parseInt(hex[1] + hex[1], 16);
+      const b = parseInt(hex[2] + hex[2], 16);
+      const a = parseInt(hex[3] + hex[3], 16) / 255;
+      return `rgba(${r}, ${g}, ${b}, ${(a * factor).toFixed(3)})`;
+    }
+    if (hex.length === 6) {
+      const r = parseInt(hex.slice(0, 2), 16);
+      const g = parseInt(hex.slice(2, 4), 16);
+      const b = parseInt(hex.slice(4, 6), 16);
+      return `rgba(${r}, ${g}, ${b}, ${factor.toFixed(3)})`;
+    }
+    if (hex.length === 8) {
+      const r = parseInt(hex.slice(0, 2), 16);
+      const g = parseInt(hex.slice(2, 4), 16);
+      const b = parseInt(hex.slice(4, 6), 16);
+      const a = parseInt(hex.slice(6, 8), 16) / 255;
+      return `rgba(${r}, ${g}, ${b}, ${(a * factor).toFixed(3)})`;
+    }
+  }
+
+  return color;
+};
+
 const PHOTO_ASPECT_RATIOS: { id: PhotoAspectRatio; label: string; sub: string; desc: string; ratioDisplay: string }[] = [
   { id: '1:1', label: '1:1 정사각형 카드', sub: '쇼츠 대세 추천', desc: '인물·사물이 잘리지 않고 자막 공간이 넉넉한 바이럴 쇼츠 표준', ratioDisplay: '1 : 1' },
   { id: '9:16', label: '9:16 전체 채움', sub: '풀스크린 꽉 채움', desc: '상하좌우 빈틈없이 꽉 채우는 몰입형 세로 풀스크린', ratioDisplay: '9 : 16' },
@@ -792,6 +852,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     return 81; // 하단자막 81% 모든 프레임의 기본값
   });
   const [subtitleRotationDeg, setSubtitleRotationDeg] = useState<number>(project.subtitleRotationDeg ?? 0);
+  const [subtitleBgOpacity, setSubtitleBgOpacity] = useState<number>(project.subtitleBgOpacity ?? 92);
   const [activeDragSubtitle, setActiveDragSubtitle] = useState<'main' | string | null>(null);
   const [selectedSubtitleId, setSelectedSubtitleId] = useState<'main' | string | null>(null);
   const [subtitleSizeScale, setSubtitleSizeScale] = useState<number>(1.1); // 0.8 to 1.4
@@ -827,6 +888,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         subtitleXPercent,
         subtitleYPercent,
         subtitleRotationDeg,
+        subtitleBgOpacity,
         backdropStyle,
         photoAspectRatio,
         videoTone,
@@ -845,6 +907,10 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   }, [
     customTextOverlays,
     channelLogo,
+    subtitleXPercent,
+    subtitleYPercent,
+    subtitleRotationDeg,
+    subtitleBgOpacity,
     backdropStyle,
     photoAspectRatio,
     videoTone,
@@ -961,6 +1027,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       subtitleXPercent,
       subtitleYPercent,
       subtitleRotationDeg,
+      subtitleBgOpacity,
       subtitleTempo,
     };
     const updated = [newPreset, ...subtitlePresets.filter(p => p.name !== finalName)];
@@ -980,6 +1047,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     if (preset.subtitleXPercent !== undefined) setSubtitleXPercent(preset.subtitleXPercent);
     if (preset.subtitleYPercent !== undefined) setSubtitleYPercent(preset.subtitleYPercent);
     if (preset.subtitleRotationDeg !== undefined) setSubtitleRotationDeg(preset.subtitleRotationDeg);
+    if (preset.subtitleBgOpacity !== undefined) setSubtitleBgOpacity(preset.subtitleBgOpacity);
     if (preset.subtitleTempo) setSubtitleTempo(preset.subtitleTempo);
     showPresetToast(`✨ '${preset.name}' 자막 스타일이 적용되었습니다!`);
   };
@@ -1004,6 +1072,10 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         ...project,
         customTextOverlays,
         channelLogoOverlay: channelLogo,
+        subtitleXPercent,
+        subtitleYPercent,
+        subtitleRotationDeg,
+        subtitleBgOpacity,
         backdropStyle,
         photoAspectRatio,
         videoTone,
@@ -1346,6 +1418,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       positionX: 'center',
       positionXPercent: 50,
       rotationDeg: 0,
+      bgOpacityPercent: 88,
       fontSizeScale: 1.1,
       fontFamily: subtitleFont || 'Pretendard',
       textColor: '#ffffff',
@@ -1399,6 +1472,15 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     }
   };
 
+  const handleSetOpacitySelected = (opacity: number) => {
+    const clamped = Math.max(0, Math.min(100, Math.round(opacity)));
+    if (!selectedSubtitleId || selectedSubtitleId === 'main') {
+      setSubtitleBgOpacity(clamped);
+    } else {
+      handleUpdateCustomTextOverlay(selectedSubtitleId, { bgOpacityPercent: clamped });
+    }
+  };
+
   const getSelectedSubtitlePos = () => {
     if (selectedSubtitleId === 'main') {
       return {
@@ -1407,6 +1489,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         x: subtitleXPercent ?? 50,
         y: subtitleYPercent ?? 80,
         rot: subtitleRotationDeg ?? 0,
+        opacity: subtitleBgOpacity ?? 92,
       };
     }
     if (selectedSubtitleId) {
@@ -1418,6 +1501,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
           x: ov.positionXPercent ?? 50,
           y: ov.positionYPercent ?? 20,
           rot: ov.rotationDeg ?? 0,
+          opacity: ov.bgOpacityPercent ?? 88,
         };
       }
     }
@@ -1872,45 +1956,65 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       if (subtitleStyle === 'yellow_box') {
         const paddingX = fontSize * 0.45;
         const paddingY = fontSize * 0.22;
-        ctx.fillStyle = '#facc15';
-        ctx.beginPath();
-        if (ctx.roundRect) {
-          ctx.roundRect(-textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY, 12);
-        } else {
-          ctx.rect(-textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY);
+        if (subtitleBgOpacity > 0) {
+          ctx.fillStyle = applyOpacityToColor('#facc15', subtitleBgOpacity);
+          ctx.beginPath();
+          if (ctx.roundRect) {
+            ctx.roundRect(-textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY, 12);
+          } else {
+            ctx.rect(-textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY);
+          }
+          ctx.fill();
         }
-        ctx.fill();
+
+        if (subtitleBgOpacity < 35) {
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+          ctx.lineWidth = Math.max(3, fontSize * 0.12);
+          ctx.lineJoin = 'round';
+          ctx.strokeText(line, 0, y);
+        }
 
         ctx.fillStyle = '#020617';
         ctx.fillText(line, 0, y);
       } else if (subtitleStyle === 'black_capsule') {
         const paddingX = fontSize * 0.5;
         const paddingY = fontSize * 0.22;
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
-        ctx.beginPath();
-        if (ctx.roundRect) {
-          ctx.roundRect(-textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY, 14);
-        } else {
-          ctx.rect(-textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY);
+        if (subtitleBgOpacity > 0) {
+          ctx.fillStyle = applyOpacityToColor('rgba(15, 23, 42, 0.92)', subtitleBgOpacity);
+          ctx.beginPath();
+          if (ctx.roundRect) {
+            ctx.roundRect(-textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY, 14);
+          } else {
+            ctx.rect(-textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY);
+          }
+          ctx.fill();
         }
-        ctx.fill();
+
+        if (subtitleBgOpacity < 40) {
+          ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
+          ctx.lineWidth = Math.max(3, fontSize * 0.15);
+          ctx.lineJoin = 'round';
+          ctx.strokeText(line, 0, y);
+        }
 
         ctx.fillStyle = '#ffffff';
         ctx.fillText(line, 0, y);
       } else if (subtitleStyle === 'neon_cyan') {
         const paddingX = fontSize * 0.5;
         const paddingY = fontSize * 0.22;
-        ctx.fillStyle = 'rgba(8, 51, 68, 0.9)';
-        ctx.strokeStyle = '#06b6d4';
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        if (ctx.roundRect) {
-          ctx.roundRect(-textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY, 16);
-        } else {
-          ctx.rect(-textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY);
+        if (subtitleBgOpacity > 0) {
+          ctx.fillStyle = applyOpacityToColor('rgba(8, 51, 68, 0.9)', subtitleBgOpacity);
+          ctx.strokeStyle = applyOpacityToColor('#06b6d4', Math.max(30, subtitleBgOpacity));
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          if (ctx.roundRect) {
+            ctx.roundRect(-textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY, 16);
+          } else {
+            ctx.rect(-textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY);
+          }
+          ctx.fill();
+          ctx.stroke();
         }
-        ctx.fill();
-        ctx.stroke();
 
         ctx.shadowColor = '#06b6d4';
         ctx.shadowBlur = 15;
@@ -1919,14 +2023,23 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       } else if (subtitleStyle === 'netflix_red') {
         const paddingX = fontSize * 0.5;
         const paddingY = fontSize * 0.22;
-        ctx.fillStyle = '#e11d48';
-        ctx.beginPath();
-        if (ctx.roundRect) {
-          ctx.roundRect(-textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY, 14);
-        } else {
-          ctx.rect(-textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY);
+        if (subtitleBgOpacity > 0) {
+          ctx.fillStyle = applyOpacityToColor('#e11d48', subtitleBgOpacity);
+          ctx.beginPath();
+          if (ctx.roundRect) {
+            ctx.roundRect(-textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY, 14);
+          } else {
+            ctx.rect(-textW / 2 - paddingX, y - lineHeight / 2 - paddingY / 2, textW + paddingX * 2, lineHeight + paddingY);
+          }
+          ctx.fill();
         }
-        ctx.fill();
+
+        if (subtitleBgOpacity < 40) {
+          ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
+          ctx.lineWidth = Math.max(3, fontSize * 0.15);
+          ctx.lineJoin = 'round';
+          ctx.strokeText(line, 0, y);
+        }
 
         ctx.fillStyle = '#ffffff';
         ctx.fillText(line, 0, y);
@@ -2204,7 +2317,8 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       const startY = -totalHeight / 2 + lineHeight / 2;
 
       // Draw background box if present
-      if (ov.backgroundColor && ov.backgroundColor !== 'transparent') {
+      const ovOpacity = ov.bgOpacityPercent ?? 88;
+      if (ov.backgroundColor && ov.backgroundColor !== 'transparent' && ovOpacity > 0) {
         lines.forEach((line, idx) => {
           const lineY = startY + idx * lineHeight;
           const lineMetrics = ctx.measureText(line);
@@ -2212,7 +2326,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
           const padX = fontSize * 0.45;
           const padY = fontSize * 0.22;
 
-          ctx.fillStyle = ov.backgroundColor;
+          ctx.fillStyle = applyOpacityToColor(ov.backgroundColor, ovOpacity);
           ctx.beginPath();
           if (ctx.roundRect) {
             ctx.roundRect(-lineW / 2 - padX, lineY - lineHeight / 2 - padY / 2, lineW + padX * 2, lineHeight + padY, 10);
@@ -2227,9 +2341,14 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       lines.forEach((line, idx) => {
         const lineY = startY + idx * lineHeight;
 
-        if (!ov.backgroundColor || ov.backgroundColor === 'transparent') {
+        if (!ov.backgroundColor || ov.backgroundColor === 'transparent' || ovOpacity < 40) {
           if (ov.textColor.toLowerCase() === '#ffffff') {
             ctx.strokeStyle = 'rgba(0, 0, 0, 0.95)';
+            ctx.lineWidth = Math.max(3, fontSize * 0.16);
+            ctx.lineJoin = 'round';
+            ctx.strokeText(line, 0, lineY);
+          } else if (ov.textColor.toLowerCase() === '#000000' || ov.textColor.toLowerCase() === '#020617') {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
             ctx.lineWidth = Math.max(3, fontSize * 0.16);
             ctx.lineJoin = 'round';
             ctx.strokeText(line, 0, lineY);
@@ -2448,6 +2567,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     subtitleXPercent,
     subtitleYPercent,
     subtitleRotationDeg,
+    subtitleBgOpacity,
     selectedSubtitleId,
     subtitleSizeScale,
     subtitleStyle,
@@ -5070,6 +5190,33 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                               </div>
                             </div>
 
+                            {/* Background Opacity Slider (배경이 있을 때만 활성화) */}
+                            {overlay.backgroundColor && overlay.backgroundColor !== 'transparent' && (
+                              <div className="pt-2 px-1">
+                                <div className="flex items-center justify-between text-[10px] mb-1">
+                                  <span className="font-bold text-slate-600 flex items-center gap-1">
+                                    <span>🫧</span> 배경 상자 투명도
+                                  </span>
+                                  <span className="font-mono font-black text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">
+                                    {overlay.bgOpacityPercent ?? 88}%
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[9px] text-slate-400 font-bold shrink-0">0%</span>
+                                  <input
+                                    type="range"
+                                    min={0}
+                                    max={100}
+                                    step={1}
+                                    value={overlay.bgOpacityPercent ?? 88}
+                                    onChange={(e) => handleUpdateCustomTextOverlay(overlay.id, { bgOpacityPercent: Number(e.target.value) })}
+                                    className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                                  />
+                                  <span className="text-[9px] text-slate-400 font-bold shrink-0">100%</span>
+                                </div>
+                              </div>
+                            )}
+
                             {/* Color Quick Palette */}
                             <div className="flex items-center justify-between pt-1">
                               <span className="text-[10px] font-bold text-slate-500">글자 색상</span>
@@ -5559,16 +5706,98 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                   </div>
                 </div>
 
+                {/* 5. Subtitle Box Opacity (자막 상자 투명도 / 불투명도 조절) */}
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                      <Sliders className="w-4 h-4 text-emerald-600" />
+                      <span>자막 상자 투명도 (배경 불투명도)</span>
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-slate-500 font-semibold">
+                        {subtitleBgOpacity === 0 ? '완전 투명 (글자만)' : subtitleBgOpacity >= 90 ? '불투명' : '반투명'}
+                      </span>
+                      <span className="text-xs font-black px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono">
+                        {subtitleBgOpacity}%
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Opacity Quick Presets */}
+                  <div className="grid grid-cols-4 gap-1.5 text-xs">
+                    {[
+                      { label: '0% 투명', value: 0 },
+                      { label: '50% 반투명', value: 50 },
+                      { label: '85% 추천', value: 85 },
+                      { label: '100% 불투명', value: 100 },
+                    ].map((preset) => (
+                      <button
+                        key={preset.value}
+                        type="button"
+                        onClick={() => setSubtitleBgOpacity(preset.value)}
+                        disabled={isRendering}
+                        className={`py-1.5 px-1 rounded-lg font-bold text-center text-[11px] transition cursor-pointer ${
+                          subtitleBgOpacity === preset.value
+                            ? 'bg-emerald-600 text-white shadow-xs'
+                            : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Opacity Slider */}
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={subtitleBgOpacity}
+                    onChange={(e) => setSubtitleBgOpacity(parseInt(e.target.value, 10))}
+                    disabled={isRendering}
+                    className="w-full accent-emerald-600 cursor-pointer"
+                  />
+                  <p className="text-[10px] text-slate-500 font-medium">
+                    💡 0%로 설정하면 배경 상자가 완전히 사라져 자막 텍스트만 깔끔하게 표시됩니다. (가독성을 위한 외곽선 자동 적용)
+                  </p>
+                </div>
+
                 {/* Live Subtitle Preview Box */}
                 <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 text-center space-y-1">
                   <span className="text-[10px] text-slate-400 font-bold block mb-1">
-                    ✨ 선택된 자막 실시간 스타일 미리보기 ({subtitleFont} • {Math.round(subtitleSizeScale * 100)}% • {subtitleYPercent}%)
+                    ✨ 선택된 자막 실시간 스타일 미리보기 ({subtitleFont} • {Math.round(subtitleSizeScale * 100)}% • 투명도 {subtitleBgOpacity}%)
                   </span>
                   <div className="inline-block py-1.5 px-3 rounded-xl">
                     <span 
                       style={{ 
                         fontFamily: `"${subtitleFont}", sans-serif`,
-                        fontSize: `${Math.round(18 * subtitleSizeScale)}px`
+                        fontSize: `${Math.round(18 * subtitleSizeScale)}px`,
+                        ...(subtitleStyle === 'yellow_box' ? {
+                          backgroundColor: applyOpacityToColor('#facc15', subtitleBgOpacity),
+                          color: '#020617',
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          ...(subtitleBgOpacity < 35 ? { textShadow: '0 0 2px #fff, 0 0 4px #fff' } : {})
+                        } : subtitleStyle === 'black_capsule' ? {
+                          backgroundColor: applyOpacityToColor('rgba(15, 23, 42, 0.92)', subtitleBgOpacity),
+                          color: '#ffffff',
+                          padding: '4px 8px',
+                          borderRadius: '8px',
+                          ...(subtitleBgOpacity < 40 ? { textShadow: '0 1px 3px rgba(0,0,0,0.9)' } : {})
+                        } : subtitleStyle === 'neon_cyan' ? {
+                          backgroundColor: applyOpacityToColor('rgba(8, 51, 68, 0.9)', subtitleBgOpacity),
+                          color: '#e0f2fe',
+                          border: `2px solid ${applyOpacityToColor('#06b6d4', Math.max(30, subtitleBgOpacity))}`,
+                          padding: '4px 8px',
+                          borderRadius: '8px'
+                        } : subtitleStyle === 'netflix_red' ? {
+                          backgroundColor: applyOpacityToColor('#e11d48', subtitleBgOpacity),
+                          color: '#ffffff',
+                          padding: '4px 8px',
+                          borderRadius: '8px',
+                          ...(subtitleBgOpacity < 40 ? { textShadow: '0 1px 3px rgba(0,0,0,0.9)' } : {})
+                        } : {})
                       }}
                       className={EFFECT_STYLES.find((e) => e.id === subtitleStyle)?.previewClass || ''}
                     >
@@ -7077,6 +7306,52 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                       <span>⟳</span> 15°
                     </button>
                   </div>
+
+                  {/* Opacity Control Slider & Quick Presets */}
+                  <div className="mt-2.5 pt-2 border-t border-white/10">
+                    <div className="flex items-center justify-between mb-1 px-0.5">
+                      <span className="text-[10px] font-bold text-indigo-200 flex items-center gap-1">
+                        <span>🫧</span> 자막 상자 투명도
+                      </span>
+                      <span className="text-[10px] font-black text-emerald-400 font-mono bg-slate-800/90 px-1.5 py-0.5 rounded border border-emerald-400/30">
+                        {selectedSubPos.opacity}%
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 mb-1.5 px-0.5">
+                      <span className="text-[9px] text-slate-400 font-bold shrink-0">0%</span>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        step="1"
+                        value={selectedSubPos.opacity}
+                        onChange={(e) => handleSetOpacitySelected(Number(e.target.value))}
+                        className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-400"
+                      />
+                      <span className="text-[9px] text-slate-400 font-bold shrink-0">100%</span>
+                    </div>
+                    <div className="grid grid-cols-4 gap-1 text-[10px] font-bold">
+                      {[
+                        { label: '0% 투명', val: 0 },
+                        { label: '50% 반투명', val: 50 },
+                        { label: '85% 추천', val: 85 },
+                        { label: '100% 불투명', val: 100 },
+                      ].map((preset) => (
+                        <button
+                          key={preset.val}
+                          type="button"
+                          onClick={() => handleSetOpacitySelected(preset.val)}
+                          className={`py-0.5 rounded-md font-bold transition-colors cursor-pointer text-[9px] ${
+                            selectedSubPos.opacity === preset.val
+                              ? 'bg-emerald-600 text-white shadow-xs'
+                              : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/10'
+                          }`}
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -7214,6 +7489,53 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                       >
                         ↻ +15°
                       </button>
+                    </div>
+                  </div>
+
+                  {/* Opacity Control Slider & Quick Presets */}
+                  <div className="space-y-1.5 pt-1.5 border-t border-indigo-100">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="font-bold text-indigo-900 flex items-center gap-1">
+                        <span>🫧 자막 상자 투명도:</span>
+                        <span className="px-1.5 py-0.5 rounded-md bg-emerald-600 text-white font-black text-[10px]">
+                          {selectedSubtitleId === 'main' ? subtitleBgOpacity : (selectedOverlay?.bgOpacityPercent ?? 88)}%
+                        </span>
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-medium">
+                        {(selectedSubtitleId === 'main' ? subtitleBgOpacity : (selectedOverlay?.bgOpacityPercent ?? 88)) === 0 ? '완전 투명' : '배경 상자'}
+                      </span>
+                    </div>
+
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={selectedSubtitleId === 'main' ? subtitleBgOpacity : (selectedOverlay?.bgOpacityPercent ?? 88)}
+                      onChange={(e) => handleSetOpacitySelected(Number(e.target.value))}
+                      className="w-full accent-emerald-600 cursor-pointer h-1.5 bg-emerald-100 rounded-lg"
+                    />
+
+                    <div className="grid grid-cols-4 gap-1 pt-0.5">
+                      {[
+                        { label: '0% 투명', val: 0 },
+                        { label: '50% 반투명', val: 50 },
+                        { label: '85% 추천', val: 85 },
+                        { label: '100% 불투명', val: 100 },
+                      ].map((preset) => (
+                        <button
+                          key={preset.val}
+                          type="button"
+                          onClick={() => handleSetOpacitySelected(preset.val)}
+                          className={`py-1 px-1 rounded-lg text-[10px] font-bold border transition text-center cursor-pointer active:scale-95 ${
+                            (selectedSubtitleId === 'main' ? subtitleBgOpacity : (selectedOverlay?.bgOpacityPercent ?? 88)) === preset.val
+                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                              : 'bg-white hover:bg-emerald-50 text-emerald-950 border-emerald-200'
+                          }`}
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
                     </div>
                   </div>
 
