@@ -94,6 +94,10 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
   // Collage / Multi-photo merge modal state
   const [collageModalSceneIdx, setCollageModalSceneIdx] = useState<number | null>(null);
 
+  // Video Trimmer / Editor modal state (CapCut style)
+  const [videoEditorSceneIdx, setVideoEditorSceneIdx] = useState<number | null>(null);
+  const videoFileInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
+
   // Sub-modal popstate listener (핸드폰/PC 뒤로가기 시 서브 모달 닫기)
   useEffect(() => {
     const handlePop = () => {
@@ -143,10 +147,6 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
       } catch {}
     }
   };
-
-  // Video Trimmer / Editor modal state (CapCut style)
-  const [videoEditorSceneIdx, setVideoEditorSceneIdx] = useState<number | null>(null);
-  const videoFileInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
 
   const handleOpenVideoEditor = (sceneIdx: number) => {
     setVideoEditorSceneIdx(sceneIdx);
