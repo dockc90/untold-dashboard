@@ -6,6 +6,7 @@ import {
   Play, 
   Pause, 
   RotateCw, 
+  RotateCcw, 
   CheckCircle2, 
   Sparkles, 
   Sliders, 
@@ -792,6 +793,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   });
   const [subtitleRotationDeg, setSubtitleRotationDeg] = useState<number>(project.subtitleRotationDeg ?? 0);
   const [activeDragSubtitle, setActiveDragSubtitle] = useState<'main' | string | null>(null);
+  const [selectedSubtitleId, setSelectedSubtitleId] = useState<'main' | string | null>(null);
   const [subtitleSizeScale, setSubtitleSizeScale] = useState<number>(1.1); // 0.8 to 1.4
   const [subtitleStyle, setSubtitleStyle] = useState<SubtitleEffectStyle>('yellow_box');
   const [subtitleTempo, setSubtitleTempo] = useState<SubtitleTempo>(project.subtitleTempo || 'fast');
@@ -1313,24 +1315,95 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     setPreviewViewMode('live');
   };
 
-  const handleAddCustomTextOverlay = () => {
+  const handleAddCustomTextOverlay = (customText?: string) => {
     const newId = `overlay-${Date.now()}`;
+    const count = customTextOverlays.length;
+    const defaultY = count === 0 ? 25 : Math.min(65, 25 + (count * 12));
     const newOverlay: CustomTextOverlay = {
       id: newId,
-      text: '새 자막 내용 입력',
+      text: customText || '새 자막 내용 입력',
       startScene: 1,
       endScene: scenes.length || 12,
-      positionYPercent: 17,
+      positionYPercent: defaultY,
       positionX: 'center',
       positionXPercent: 50,
       rotationDeg: 0,
-      fontSizeScale: 1.0,
-      fontFamily: 'Pretendard',
+      fontSizeScale: 1.1,
+      fontFamily: subtitleFont || 'Pretendard',
       textColor: '#ffffff',
-      backgroundColor: 'rgba(0, 0, 0, 0.75)',
+      backgroundColor: 'rgba(15, 23, 42, 0.88)',
       isBold: true,
     };
     setCustomTextOverlays((prev) => [...prev, newOverlay]);
+    setSelectedSubtitleId(newId);
+    setActiveDragSubtitle(newId);
+    setPreviewViewMode('live');
+  };
+
+  const handleRotateSelected = (deltaDeg: number) => {
+    if (!selectedSubtitleId) return;
+    if (selectedSubtitleId === 'main') {
+      setSubtitleRotationDeg((prev) => {
+        let next = (prev ?? 0) + deltaDeg;
+        while (next > 180) next -= 360;
+        while (next < -180) next += 360;
+        return next;
+      });
+    } else {
+      const target = customTextOverlays.find((o) => o.id === selectedSubtitleId);
+      if (target) {
+        let next = (target.rotationDeg || 0) + deltaDeg;
+        while (next > 180) next -= 360;
+        while (next < -180) next += 360;
+        handleUpdateCustomTextOverlay(selectedSubtitleId, { rotationDeg: next });
+      }
+    }
+  };
+
+  const handleSetRotationSelected = (deg: number) => {
+    if (!selectedSubtitleId) return;
+    let normalized = deg;
+    while (normalized > 180) normalized -= 360;
+    while (normalized < -180) normalized += 360;
+    if (selectedSubtitleId === 'main') {
+      setSubtitleRotationDeg(normalized);
+    } else {
+      handleUpdateCustomTextOverlay(selectedSubtitleId, { rotationDeg: normalized });
+    }
+  };
+
+  const handleResetRotationSelected = () => {
+    if (!selectedSubtitleId) return;
+    if (selectedSubtitleId === 'main') {
+      setSubtitleRotationDeg(0);
+    } else {
+      handleUpdateCustomTextOverlay(selectedSubtitleId, { rotationDeg: 0 });
+    }
+  };
+
+  const getSelectedSubtitlePos = () => {
+    if (selectedSubtitleId === 'main') {
+      return {
+        id: 'main',
+        name: '메인 자막',
+        x: subtitleXPercent ?? 50,
+        y: subtitleYPercent ?? 80,
+        rot: subtitleRotationDeg ?? 0,
+      };
+    }
+    if (selectedSubtitleId) {
+      const ov = customTextOverlays.find((o) => o.id === selectedSubtitleId);
+      if (ov) {
+        return {
+          id: ov.id,
+          name: `추가 자막 (${ov.text.length > 7 ? ov.text.slice(0, 7) + '..' : ov.text})`,
+          x: ov.positionXPercent ?? 50,
+          y: ov.positionYPercent ?? 20,
+          rot: ov.rotationDeg ?? 0,
+        };
+      }
+    }
+    return null;
   };
 
   const handleUpdateCustomTextOverlay = (id: string, updates: Partial<CustomTextOverlay>) => {
@@ -1858,6 +1931,93 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       }
     });
 
+    // Interactive Selection Bounding Box & Rotation Handle (Canva/Figma Style)
+    if (!isRendering && selectedSubtitleId === 'main') {
+      let maxLineW = 0;
+      lines.forEach((l) => {
+        const mw = ctx.measureText(l).width;
+        if (mw > maxLineW) maxLineW = mw;
+      });
+      const padX = fontSize * 0.6;
+      const padY = fontSize * 0.3;
+      const boxW = Math.max(maxLineW + padX * 2, 140);
+      const boxH = totalTextHeight + padY * 2;
+      const topY = -boxH / 2;
+      const bottomY = boxH / 2;
+      const leftX = -boxW / 2;
+      const rightX = boxW / 2;
+
+      ctx.save();
+      // Dashed Indigo Selection Outline
+      ctx.strokeStyle = '#6366f1';
+      ctx.lineWidth = 3.5;
+      ctx.setLineDash([8, 5]);
+      ctx.strokeRect(leftX, topY, boxW, boxH);
+      ctx.setLineDash([]);
+
+      // 4 Corner Control Handles
+      const corners = [
+        [leftX, topY],
+        [rightX, topY],
+        [leftX, bottomY],
+        [rightX, bottomY],
+      ];
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#4f46e5';
+      ctx.lineWidth = 2.5;
+      corners.forEach(([cx, cy]) => {
+        ctx.beginPath();
+        ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      });
+
+      // Connecting Stem to Rotation Knob
+      const stemLen = 42;
+      const knobY = topY - stemLen;
+      ctx.beginPath();
+      ctx.moveTo(0, topY);
+      ctx.lineTo(0, knobY);
+      ctx.strokeStyle = '#6366f1';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+
+      // Circular Rotation Knob (Interactive Handle)
+      ctx.beginPath();
+      ctx.arc(0, knobY, 16, 0, Math.PI * 2);
+      ctx.fillStyle = '#4f46e5';
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      // Rotation Icon ↻
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 15px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('↻', 0, knobY);
+
+      // Real-time Rotation Degree Badge
+      const curRot = subtitleRotationDeg || 0;
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+      const badgeW = 56;
+      const badgeH = 22;
+      const badgeY = knobY - 26;
+      ctx.beginPath();
+      if (ctx.roundRect) {
+        ctx.roundRect(-badgeW / 2, badgeY - badgeH / 2, badgeW, badgeH, 6);
+      } else {
+        ctx.rect(-badgeW / 2, badgeY - badgeH / 2, badgeW, badgeH);
+      }
+      ctx.fill();
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.fillText(`${curRot}°`, 0, badgeY);
+
+      ctx.restore();
+    }
+
     ctx.restore();
   };
 
@@ -2062,6 +2222,93 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         ctx.fillText(line, 0, lineY);
       });
 
+      // Interactive Selection Bounding Box & Rotation Handle for Custom Overlays
+      if (!isRendering && selectedSubtitleId === ov.id) {
+        let maxLineW = 0;
+        lines.forEach((l) => {
+          const mw = ctx.measureText(l).width;
+          if (mw > maxLineW) maxLineW = mw;
+        });
+        const padX = fontSize * 0.6;
+        const padY = fontSize * 0.3;
+        const boxW = Math.max(maxLineW + padX * 2, 120);
+        const boxH = totalHeight + padY * 2;
+        const topY = -boxH / 2;
+        const bottomY = boxH / 2;
+        const leftX = -boxW / 2;
+        const rightX = boxW / 2;
+
+        ctx.save();
+        // Dashed Rose/Pink Selection Outline
+        ctx.strokeStyle = '#ec4899';
+        ctx.lineWidth = 3.5;
+        ctx.setLineDash([8, 5]);
+        ctx.strokeRect(leftX, topY, boxW, boxH);
+        ctx.setLineDash([]);
+
+        // 4 Corner Handles
+        const corners = [
+          [leftX, topY],
+          [rightX, topY],
+          [leftX, bottomY],
+          [rightX, bottomY],
+        ];
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#db2777';
+        ctx.lineWidth = 2.5;
+        corners.forEach(([cx, cy]) => {
+          ctx.beginPath();
+          ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        });
+
+        // Connecting Stem to Rotation Knob
+        const stemLen = 42;
+        const knobY = topY - stemLen;
+        ctx.beginPath();
+        ctx.moveTo(0, topY);
+        ctx.lineTo(0, knobY);
+        ctx.strokeStyle = '#ec4899';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        // Circular Rotation Knob (Interactive Handle)
+        ctx.beginPath();
+        ctx.arc(0, knobY, 16, 0, Math.PI * 2);
+        ctx.fillStyle = '#db2777';
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Rotation Icon ↻
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 15px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('↻', 0, knobY);
+
+        // Real-time Rotation Degree Badge
+        const curRot = ov.rotationDeg || 0;
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+        const badgeW = 56;
+        const badgeH = 22;
+        const badgeY = knobY - 26;
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(-badgeW / 2, badgeY - badgeH / 2, badgeW, badgeH, 6);
+        } else {
+          ctx.rect(-badgeW / 2, badgeY - badgeH / 2, badgeW, badgeH);
+        }
+        ctx.fill();
+        ctx.fillStyle = '#f472b6';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillText(`${curRot}°`, 0, badgeY);
+
+        ctx.restore();
+      }
+
       ctx.restore();
     }
   };
@@ -2180,7 +2427,10 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     previewViewMode,
     previewSceneIndex,
     subtitleFont,
+    subtitleXPercent,
     subtitleYPercent,
+    subtitleRotationDeg,
+    selectedSubtitleId,
     subtitleSizeScale,
     subtitleStyle,
     subtitleTempo,
@@ -2210,6 +2460,8 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   ]);
 
   if (!isOpen) return null;
+
+  const selectedSubPos = getSelectedSubtitlePos();
 
   // Filter voices by category or favorites
   const isFavoritesOnly = voiceCategoryFilter === 'favorites';
@@ -2474,14 +2726,17 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     stopSceneLiveSync();
   }, [previewSceneIndex, isOpen, previewViewMode]);
 
-  // Interactive Canvas Mouse Drag & Wheel Rotation for ALL subtitles
+  // Interactive Canvas Mouse Drag & Handle Rotation for ALL subtitles
   const canvasDragRef = useRef<{
     startX: number;
     startY: number;
     targetId: 'main' | string;
-    initX: number;
-    initY: number;
-    initRot: number;
+    mode: 'move' | 'rotate';
+    centerX: number;
+    centerY: number;
+    initXPercent: number;
+    initYPercent: number;
+    initRotDeg: number;
   } | null>(null);
 
   const handleCanvasPointerDown = (clientX: number, clientY: number) => {
@@ -2489,46 +2744,129 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const clickXPercent = ((clientX - rect.left) / rect.width) * 100;
-    const clickYPercent = ((clientY - rect.top) / rect.height) * 100;
+    const px = clientX - rect.left;
+    const py = clientY - rect.top;
 
-    // Check custom text overlays on current scene
     const currentSceneNum = previewSceneIndex + 1;
     const activeOverlays = customTextOverlays.filter(
       (ov) => currentSceneNum >= ov.startScene && currentSceneNum <= ov.endScene
     );
 
-    for (const ov of activeOverlays) {
-      const ovX = ov.positionXPercent ?? 50;
-      const ovY = ov.positionYPercent;
-      if (Math.abs(clickYPercent - ovY) < 10 && Math.abs(clickXPercent - ovX) < 42) {
+    // 1. If a subtitle is ALREADY selected, first check if user clicked its ROTATION HANDLE!
+    if (selectedSubtitleId) {
+      let targetCenterX = 0;
+      let targetCenterY = 0;
+      let targetRot = 0;
+      let targetBoxH = 40;
+
+      if (selectedSubtitleId === 'main') {
+        targetCenterX = ((subtitleXPercent ?? 50) / 100) * rect.width;
+        targetCenterY = (subtitleYPercent / 100) * rect.height;
+        targetRot = subtitleRotationDeg || 0;
+        targetBoxH = Math.max(38, rect.height * 0.08);
+      } else {
+        const ov = activeOverlays.find((o) => o.id === selectedSubtitleId);
+        if (ov) {
+          targetCenterX = ((ov.positionXPercent ?? 50) / 100) * rect.width;
+          targetCenterY = (ov.positionYPercent / 100) * rect.height;
+          targetRot = ov.rotationDeg || 0;
+          targetBoxH = Math.max(34, rect.height * 0.07);
+        }
+      }
+
+      if (targetCenterX && targetCenterY) {
+        const rotRad = (targetRot * Math.PI) / 180;
+        const stemDist = 42;
+        const unrotHandleY = -targetBoxH / 2 - stemDist;
+        const handlePxX = targetCenterX - unrotHandleY * Math.sin(rotRad);
+        const handlePxY = targetCenterY + unrotHandleY * Math.cos(rotRad);
+
+        const distToHandle = Math.hypot(px - handlePxX, py - handlePxY);
+        if (distToHandle <= 28) {
+          // User clicked rotation knob handle!
+          canvasDragRef.current = {
+            startX: clientX,
+            startY: clientY,
+            targetId: selectedSubtitleId,
+            mode: 'rotate',
+            centerX: targetCenterX,
+            centerY: targetCenterY,
+            initXPercent: selectedSubtitleId === 'main' ? (subtitleXPercent ?? 50) : 50,
+            initYPercent: selectedSubtitleId === 'main' ? subtitleYPercent : 50,
+            initRotDeg: targetRot,
+          };
+          return;
+        }
+      }
+    }
+
+    // 2. Check if user clicked on any custom text overlay body
+    for (let i = activeOverlays.length - 1; i >= 0; i--) {
+      const ov = activeOverlays[i];
+      const ovX = ((ov.positionXPercent ?? 50) / 100) * rect.width;
+      const ovY = (ov.positionYPercent / 100) * rect.height;
+      const ovRot = ov.rotationDeg || 0;
+
+      const rotRad = (ovRot * Math.PI) / 180;
+      const dx = px - ovX;
+      const dy = py - ovY;
+      const unrotX = dx * Math.cos(-rotRad) - dy * Math.sin(-rotRad);
+      const unrotY = dx * Math.sin(-rotRad) + dy * Math.cos(-rotRad);
+
+      const boxHalfW = Math.max(rect.width * 0.32, Math.min(rect.width * 0.45, ov.text.length * 10));
+      const boxHalfH = Math.max(22, ov.text.split('\n').length * 20);
+
+      if (Math.abs(unrotX) <= boxHalfW + 15 && Math.abs(unrotY) <= boxHalfH + 15) {
+        setSelectedSubtitleId(ov.id);
         setActiveDragSubtitle(ov.id);
         canvasDragRef.current = {
           startX: clientX,
           startY: clientY,
           targetId: ov.id,
-          initX: ovX,
-          initY: ovY,
-          initRot: ov.rotationDeg || 0,
+          mode: 'move',
+          centerX: ovX,
+          centerY: ovY,
+          initXPercent: ov.positionXPercent ?? 50,
+          initYPercent: ov.positionYPercent,
+          initRotDeg: ovRot,
         };
         return;
       }
     }
 
-    // Check main narration subtitle (bottom)
-    if (Math.abs(clickYPercent - subtitleYPercent) < 12 && Math.abs(clickXPercent - (subtitleXPercent ?? 50)) < 45) {
+    // 3. Check if user clicked on main narration subtitle
+    const subX = ((subtitleXPercent ?? 50) / 100) * rect.width;
+    const subY = (subtitleYPercent / 100) * rect.height;
+    const subRot = subtitleRotationDeg || 0;
+
+    const rotRad = (subRot * Math.PI) / 180;
+    const dx = px - subX;
+    const dy = py - subY;
+    const unrotX = dx * Math.cos(-rotRad) - dy * Math.sin(-rotRad);
+    const unrotY = dx * Math.sin(-rotRad) + dy * Math.cos(-rotRad);
+
+    const boxHalfW = rect.width * 0.42;
+    const boxHalfH = Math.max(25, rect.height * 0.055);
+
+    if (Math.abs(unrotX) <= boxHalfW + 15 && Math.abs(unrotY) <= boxHalfH + 15) {
+      setSelectedSubtitleId('main');
       setActiveDragSubtitle('main');
       canvasDragRef.current = {
         startX: clientX,
         startY: clientY,
         targetId: 'main',
-        initX: subtitleXPercent ?? 50,
-        initY: subtitleYPercent,
-        initRot: subtitleRotationDeg ?? 0,
+        mode: 'move',
+        centerX: subX,
+        centerY: subY,
+        initXPercent: subtitleXPercent ?? 50,
+        initYPercent: subtitleYPercent,
+        initRotDeg: subRot,
       };
       return;
     }
 
+    // 4. Clicked outside on empty space: deselect
+    setSelectedSubtitleId(null);
     setActiveDragSubtitle(null);
     canvasDragRef.current = null;
   };
@@ -2538,22 +2876,47 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const dxPercent = ((clientX - canvasDragRef.current.startX) / rect.width) * 100;
-    const dyPercent = ((clientY - canvasDragRef.current.startY) / rect.height) * 100;
 
-    if (canvasDragRef.current.targetId === 'main') {
-      const newX = Math.round(Math.max(10, Math.min(90, canvasDragRef.current.initX + dxPercent)));
-      const newY = Math.round(Math.max(10, Math.min(92, canvasDragRef.current.initY + dyPercent)));
-      setSubtitleXPercent(newX);
-      setSubtitleYPercent(newY);
-    } else {
-      const targetId = canvasDragRef.current.targetId;
-      const newX = Math.round(Math.max(10, Math.min(90, canvasDragRef.current.initX + dxPercent)));
-      const newY = Math.round(Math.max(5, Math.min(95, canvasDragRef.current.initY + dyPercent)));
-      handleUpdateCustomTextOverlay(targetId, {
-        positionXPercent: newX,
-        positionYPercent: newY,
-      });
+    if (canvasDragRef.current.mode === 'move') {
+      const dxPercent = ((clientX - canvasDragRef.current.startX) / rect.width) * 100;
+      const dyPercent = ((clientY - canvasDragRef.current.startY) / rect.height) * 100;
+
+      if (canvasDragRef.current.targetId === 'main') {
+        const newX = Math.round(Math.max(5, Math.min(95, canvasDragRef.current.initXPercent + dxPercent)));
+        const newY = Math.round(Math.max(5, Math.min(95, canvasDragRef.current.initYPercent + dyPercent)));
+        setSubtitleXPercent(newX);
+        setSubtitleYPercent(newY);
+      } else {
+        const targetId = canvasDragRef.current.targetId;
+        const newX = Math.round(Math.max(5, Math.min(95, canvasDragRef.current.initXPercent + dxPercent)));
+        const newY = Math.round(Math.max(5, Math.min(95, canvasDragRef.current.initYPercent + dyPercent)));
+        handleUpdateCustomTextOverlay(targetId, {
+          positionXPercent: newX,
+          positionYPercent: newY,
+        });
+      }
+    } else if (canvasDragRef.current.mode === 'rotate') {
+      const px = clientX - rect.left;
+      const py = clientY - rect.top;
+      const curAngleRad = Math.atan2(py - canvasDragRef.current.centerY, px - canvasDragRef.current.centerX);
+      let newDeg = Math.round((curAngleRad * 180) / Math.PI) + 90;
+      while (newDeg > 180) newDeg -= 360;
+      while (newDeg < -180) newDeg += 360;
+
+      // Smart snapping near 0, 90, -90, 45, -45 degrees
+      if (Math.abs(newDeg) <= 3) newDeg = 0;
+      else if (Math.abs(newDeg - 90) <= 3) newDeg = 90;
+      else if (Math.abs(newDeg + 90) <= 3) newDeg = -90;
+      else if (Math.abs(newDeg - 45) <= 2) newDeg = 45;
+      else if (Math.abs(newDeg + 45) <= 2) newDeg = -45;
+
+      if (canvasDragRef.current.targetId === 'main') {
+        setSubtitleRotationDeg(newDeg);
+      } else {
+        handleUpdateCustomTextOverlay(canvasDragRef.current.targetId, {
+          rotationDeg: newDeg,
+        });
+      }
     }
   };
 
@@ -2563,17 +2926,24 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
   const handleCanvasWheel = (e: React.WheelEvent) => {
     if (isRendering || previewViewMode === 'video') return;
-    const target = activeDragSubtitle || 'main';
-    const delta = e.deltaY < 0 ? 2 : -2;
+    const target = selectedSubtitleId || activeDragSubtitle || 'main';
+    const delta = e.deltaY < 0 ? 3 : -3;
 
     if (target === 'main') {
-      setSubtitleRotationDeg((prev) => Math.max(-45, Math.min(45, (prev ?? 0) + delta)));
+      setSubtitleRotationDeg((prev) => {
+        let next = (prev ?? 0) + delta;
+        while (next > 180) next -= 360;
+        while (next < -180) next += 360;
+        return next;
+      });
     } else {
       const ov = customTextOverlays.find((o) => o.id === target);
       if (ov) {
-        const curRot = ov.rotationDeg || 0;
+        let next = (ov.rotationDeg || 0) + delta;
+        while (next > 180) next -= 360;
+        while (next < -180) next += 360;
         handleUpdateCustomTextOverlay(target, {
-          rotationDeg: Math.max(-45, Math.min(45, curRot + delta)),
+          rotationDeg: next,
         });
       }
     }
@@ -6430,6 +6800,33 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
               />
             )}
 
+            {/* Quick Add Custom Subtitle Button above preview */}
+            {!isRendering && previewViewMode === 'live' && (
+              <div className="mb-2 w-full max-w-[310px] flex items-center justify-between gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleAddCustomTextOverlay()}
+                  className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-violet-600 via-indigo-600 to-indigo-700 hover:from-violet-700 hover:to-indigo-800 text-white font-black text-xs shadow-md shadow-indigo-500/25 flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ 내 마음대로 자막 추가</span>
+                </button>
+                {selectedSubtitleId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedSubtitleId(null);
+                      setActiveDragSubtitle(null);
+                    }}
+                    className="px-2.5 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs transition cursor-pointer shrink-0"
+                    title="선택 해제"
+                  >
+                    선택 해제
+                  </button>
+                )}
+              </div>
+            )}
+
             <div className="w-[280px] sm:w-[310px] aspect-[9/16] bg-slate-950 rounded-3xl overflow-hidden shadow-2xl border-4 border-slate-900 relative flex items-center justify-center">
               <canvas
                 ref={canvasRef}
@@ -6493,11 +6890,168 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
               />
             </div>
 
-            {/* Drag & Rotate Hint */}
-            {!isRendering && previewViewMode === 'live' && (
-              <div className="mt-1.5 flex items-center justify-center space-x-1.5 text-[10px] text-slate-500 font-bold bg-slate-100/90 py-1 px-3 rounded-full border border-slate-200 shadow-2xs">
-                <span>🖱️</span>
-                <span>모든 자막은 화면에서 <strong>마우스 드래그로 이동</strong> 및 <strong>휠 스크롤로 회전</strong>할 수 있습니다.</span>
+            {/* Dedicated Interactive Subtitle Rotation & Position Toolbar */}
+            {!isRendering && previewViewMode === 'live' && selectedSubtitleId && (() => {
+              const selectedOverlay = selectedSubtitleId !== 'main' 
+                ? customTextOverlays.find(o => o.id === selectedSubtitleId) 
+                : null;
+              const selectedRot = selectedSubtitleId === 'main' 
+                ? (subtitleRotationDeg || 0) 
+                : (selectedOverlay?.rotationDeg || 0);
+              const selectedX = selectedSubtitleId === 'main' 
+                ? (subtitleXPercent ?? 50) 
+                : (selectedOverlay?.positionXPercent ?? 50);
+              const selectedY = selectedSubtitleId === 'main' 
+                ? subtitleYPercent 
+                : (selectedOverlay?.positionYPercent ?? 50);
+
+              return (
+                <div className="mt-2.5 w-full max-w-[310px] p-3 rounded-2xl bg-gradient-to-b from-indigo-50/95 via-purple-50/90 to-white border-2 border-indigo-300 shadow-md space-y-2.5 text-left animate-fade-in">
+                  {/* Header & Subtitle Identity */}
+                  <div className="flex items-center justify-between gap-1.5 pb-2 border-b border-indigo-100">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="w-2 h-2 rounded-full bg-indigo-600 animate-ping shrink-0" />
+                      <span className="font-extrabold text-xs text-indigo-950 truncate">
+                        {selectedSubtitleId === 'main' ? '🎙️ 기본 나레이션 자막' : '✨ 커스텀 추가 자막'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {selectedSubtitleId !== 'main' && selectedOverlay && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleDeleteCustomTextOverlay(selectedSubtitleId);
+                            setSelectedSubtitleId(null);
+                          }}
+                          className="py-1 px-2 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-700 text-[10px] font-bold transition cursor-pointer flex items-center gap-1"
+                          title="자막 삭제"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          <span>삭제</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedSubtitleId(null);
+                          setActiveDragSubtitle(null);
+                        }}
+                        className="py-1 px-2 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-[10px] font-bold transition cursor-pointer"
+                      >
+                        ✕ 해제
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* If custom overlay, allow instant text editing */}
+                  {selectedSubtitleId !== 'main' && selectedOverlay && (
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-600">자막 문구 수정</label>
+                      <input
+                        type="text"
+                        value={selectedOverlay.text}
+                        onChange={(e) => handleUpdateCustomTextOverlay(selectedSubtitleId, { text: e.target.value })}
+                        placeholder="자막 내용 입력..."
+                        className="w-full px-2.5 py-1.5 rounded-xl border border-indigo-200 bg-white text-xs font-bold text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 shadow-2xs"
+                      />
+                    </div>
+                  )}
+
+                  {/* Rotation Angle Slider & Quick Angle Buttons */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="font-bold text-indigo-900 flex items-center gap-1">
+                        <span>↻ 회전 각도:</span>
+                        <span className="px-1.5 py-0.5 rounded-md bg-indigo-600 text-white font-black text-[10px]">
+                          {selectedRot}°
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleResetRotationSelected()}
+                        className="text-[10px] text-indigo-600 hover:text-indigo-800 font-extrabold underline cursor-pointer"
+                      >
+                        0° 수평 복구
+                      </button>
+                    </div>
+
+                    {/* Angle Slider (-180° to +180°) */}
+                    <input
+                      type="range"
+                      min="-180"
+                      max="180"
+                      step="1"
+                      value={selectedRot}
+                      onChange={(e) => handleSetRotationSelected(Number(e.target.value))}
+                      className="w-full accent-indigo-600 cursor-pointer h-1.5 bg-indigo-100 rounded-lg"
+                    />
+
+                    {/* Quick Angle Preset Buttons */}
+                    <div className="grid grid-cols-5 gap-1 pt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => handleRotateSelected(-15)}
+                        className="py-1 px-1 rounded-lg bg-white hover:bg-indigo-100 text-indigo-900 text-[10px] font-bold border border-indigo-200 transition text-center cursor-pointer active:scale-95"
+                      >
+                        ↺ -15°
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRotateSelected(-5)}
+                        className="py-1 px-1 rounded-lg bg-white hover:bg-indigo-100 text-indigo-900 text-[10px] font-bold border border-indigo-200 transition text-center cursor-pointer active:scale-95"
+                      >
+                        ↺ -5°
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleResetRotationSelected()}
+                        className="py-1 px-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black transition text-center cursor-pointer shadow-2xs active:scale-95"
+                      >
+                        0°
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRotateSelected(5)}
+                        className="py-1 px-1 rounded-lg bg-white hover:bg-indigo-100 text-indigo-900 text-[10px] font-bold border border-indigo-200 transition text-center cursor-pointer active:scale-95"
+                      >
+                        ↻ +5°
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRotateSelected(15)}
+                        className="py-1 px-1 rounded-lg bg-white hover:bg-indigo-100 text-indigo-900 text-[10px] font-bold border border-indigo-200 transition text-center cursor-pointer active:scale-95"
+                      >
+                        ↻ +15°
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Position Info & Center Align */}
+                  <div className="flex items-center justify-between pt-1 border-t border-indigo-100 text-[10px] text-slate-600 font-semibold">
+                    <span>가로 {Math.round(selectedX)}% · 세로 {Math.round(selectedY)}%</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (selectedSubtitleId === 'main') {
+                          setSubtitleXPercent(50);
+                        } else {
+                          handleUpdateCustomTextOverlay(selectedSubtitleId, { positionXPercent: 50 });
+                        }
+                      }}
+                      className="px-2 py-0.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold transition cursor-pointer active:scale-95"
+                    >
+                      가로 중앙 정렬
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* When no subtitle is selected, show friendly tip */}
+            {!isRendering && previewViewMode === 'live' && !selectedSubtitleId && (
+              <div className="mt-1.5 max-w-[310px] flex items-center justify-center space-x-1.5 text-[10px] text-slate-500 font-bold bg-slate-100/90 py-1.5 px-3 rounded-full border border-slate-200 shadow-2xs text-center">
+                <span>💡</span>
+                <span>화면 자막을 누르면 <strong>회전 핸들 & 자유 이동 모드</strong>가 켜집니다.</span>
               </div>
             )}
 
