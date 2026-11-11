@@ -1,6 +1,8 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
+import os from 'os';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI, Type } from '@google/genai';
 import { createClient } from '@supabase/supabase-js';
@@ -1389,8 +1391,9 @@ async function startServer() {
     app.use(vite.middlewares);
   }
 
-  app.listen(PORT, () => {
-    console.log(`AutoShorts (Untold) Server running on http://localhost:${PORT}`);
+  const portNum = Number(PORT) || 3500;
+  app.listen(portNum, '0.0.0.0', () => {
+    console.log(`AutoShorts (Untold) Server running on http://localhost:${portNum} (Network: http://192.168.110.102:${portNum})`);
   });
 }
 
