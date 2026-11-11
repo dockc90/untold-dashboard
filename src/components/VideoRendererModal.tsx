@@ -2477,8 +2477,6 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     customThumbnailImageUrl,
   ]);
 
-  if (!isOpen) return null;
-
   const selectedSubPos = getSelectedSubtitlePos();
 
   // Filter voices by category or favorites
@@ -7431,6 +7429,8 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       </div>
     );
   };
+
+  if (!isOpen) return null;
 
   if (isPageMode) {
     return (

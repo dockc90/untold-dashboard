@@ -1198,7 +1198,7 @@ export default function App() {
       </footer>
 
       {/* In-Browser Video Renderer Modal (1080p / 720p Shorts Generator) */}
-      {renderingProject && (
+      {isVideoRendererOpen && renderingProject && (
         <ErrorBoundary fallbackTitle="비디오 렌더러 복구" onReset={() => setIsVideoRendererOpen(false)}>
           <VideoRendererModal
             isOpen={isVideoRendererOpen}
