@@ -1054,6 +1054,24 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   const pregeneratedVideoFileRef = useRef<File | null>(null);
   const [isSnsShareModalOpen, setIsSnsShareModalOpen] = useState<boolean>(false);
 
+  // Sub-modal popstate listener (핸드폰/PC 뒤로가기 시 SNS 공유창 닫기)
+  useEffect(() => {
+    const handlePop = () => {
+      if (isSnsShareModalOpen) {
+        setIsSnsShareModalOpen(false);
+      }
+    };
+    window.addEventListener('popstate', handlePop);
+    return () => window.removeEventListener('popstate', handlePop);
+  }, [isSnsShareModalOpen]);
+
+  const handleCloseSnsShareModal = () => {
+    setIsSnsShareModalOpen(false);
+    if (typeof window !== 'undefined' && window.history.state?.subModal === 'sns-share') {
+      window.history.back();
+    }
+  };
+
   // 1-Second Thumbnail Extractor & CTR Hooking Title Mode (Carousel-Style Full Customizer)
   const thumbnailFileInputRef = useRef<HTMLInputElement | null>(null);
   const [thumbnailSceneIndex, setThumbnailSceneIndex] = useState<number>(0);
@@ -4018,6 +4036,9 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       }
     } catch (e) {}
 
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ subModal: 'sns-share' }, '');
+    }
     setIsSnsShareModalOpen(true);
     setStatusMessage('카카오톡 & SNS 바로 공유 안내창이 열렸습니다.');
   };
@@ -5419,11 +5440,11 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                           {subtitleRotationDeg ?? 0}°
                         </span>
                       </div>
-                      <div className="flex items-center space-x-1">
+                      <div className="flex items-center space-x-1 mb-1">
                         <input
                           type="range"
-                          min={-45}
-                          max={45}
+                          min={-180}
+                          max={180}
                           value={subtitleRotationDeg ?? 0}
                           onChange={(e) => setSubtitleRotationDeg(parseInt(e.target.value, 10))}
                           disabled={isRendering}
@@ -5439,6 +5460,29 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                             0°
                           </button>
                         )}
+                      </div>
+                      <div className="flex items-center justify-between gap-1 text-[9px] font-bold">
+                        <button
+                          type="button"
+                          onClick={() => handleRotateSelected(-15)}
+                          className="px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-600"
+                        >
+                          -15°
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSetRotationSelected(0)}
+                          className="px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-600"
+                        >
+                          0° 수평
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRotateSelected(+15)}
+                          className="px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-600"
+                        >
+                          +15°
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -6888,6 +6932,155 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                 title={scenes[previewSceneIndex]?.text || project.figureName}
                 authorName={project.figureName || 'Untold Story'}
               />
+
+              {/* Direct On-Canvas Rotation Knob attached directly to Subtitle */}
+              {!isRendering && previewViewMode === 'live' && selectedSubPos && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: `${selectedSubPos.x}%`,
+                    top: `${selectedSubPos.y}%`,
+                    transform: `translate(-50%, -50%) rotate(${selectedSubPos.rot}deg)`,
+                    pointerEvents: 'none',
+                  }}
+                  className="z-30"
+                >
+                  <div
+                    onPointerDown={(e) => {
+                      e.stopPropagation();
+                      try { (e.target as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+                      const canvas = canvasRef.current;
+                      if (!canvas) return;
+                      const rect = canvas.getBoundingClientRect();
+                      const cx = (selectedSubPos.x / 100) * rect.width;
+                      const cy = (selectedSubPos.y / 100) * rect.height;
+                      canvasDragRef.current = {
+                        startX: e.clientX,
+                        startY: e.clientY,
+                        targetId: selectedSubPos.id,
+                        mode: 'rotate',
+                        centerX: cx,
+                        centerY: cy,
+                        initXPercent: selectedSubPos.x,
+                        initYPercent: selectedSubPos.y,
+                        initRotDeg: selectedSubPos.rot,
+                      };
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRotateSelected(15);
+                    }}
+                    className="absolute -top-12 left-1/2 -translate-x-1/2 pointer-events-auto flex flex-col items-center cursor-grab active:cursor-grabbing group/knob"
+                    title="드래그하여 원하는 각도로 회전 (클릭 시 15° 회전)"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 via-purple-600 to-rose-500 hover:from-indigo-500 hover:to-rose-400 active:scale-95 text-white shadow-xl flex items-center justify-center text-sm font-black border-2 border-white transition-all group-hover/knob:scale-110 group-hover/knob:ring-4 group-hover/knob:ring-indigo-400/40">
+                      ↻
+                    </div>
+                    <div className="w-0.5 h-4 bg-indigo-500/80 shadow-xs" />
+                  </div>
+                </div>
+              )}
+
+              {/* On-Canvas Live Subtitle Rotation Floating Control Deck */}
+              {!isRendering && previewViewMode === 'live' && selectedSubPos && (
+                <div 
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute bottom-2.5 left-2 right-2 z-40 bg-slate-900/95 backdrop-blur-md text-white rounded-2xl p-2.5 shadow-2xl border border-indigo-500/50 animate-in fade-in slide-in-from-bottom-2 duration-150"
+                >
+                  <div className="flex items-center justify-between mb-1.5 px-0.5">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                      <span className="text-[11px] font-black text-indigo-200 truncate">
+                        {selectedSubPos.name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className="text-[11px] font-black text-amber-300 font-mono bg-slate-800/90 px-1.5 py-0.5 rounded border border-amber-400/30">
+                        {selectedSubPos.rot > 0 ? `+${selectedSubPos.rot}°` : `${selectedSubPos.rot}°`}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleResetRotationSelected()}
+                        className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-white/10 cursor-pointer"
+                        title="0도로 수평 복원"
+                      >
+                        0°
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSubtitleId(null)}
+                        className="text-slate-400 hover:text-white px-1 cursor-pointer"
+                        title="닫기"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Range Slider (-180° to +180°) */}
+                  <div className="flex items-center gap-2 mb-2 px-0.5">
+                    <span className="text-[9px] text-slate-400 font-bold shrink-0">-180°</span>
+                    <input
+                      type="range"
+                      min="-180"
+                      max="180"
+                      step="1"
+                      value={selectedSubPos.rot}
+                      onChange={(e) => handleSetRotationSelected(Number(e.target.value))}
+                      className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-400"
+                    />
+                    <span className="text-[9px] text-slate-400 font-bold shrink-0">+180°</span>
+                  </div>
+
+                  {/* Quick Angle Buttons */}
+                  <div className="grid grid-cols-5 gap-1 text-[10px] font-bold">
+                    <button
+                      type="button"
+                      onClick={() => handleRotateSelected(-15)}
+                      className="py-1 rounded-lg bg-slate-800/90 hover:bg-indigo-600/70 border border-white/10 text-slate-200 transition-colors flex items-center justify-center gap-0.5 cursor-pointer"
+                      title="반시계 15도 회전"
+                    >
+                      <span>⟲</span> 15°
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRotateSelected(-5)}
+                      className="py-1 rounded-lg bg-slate-800/90 hover:bg-indigo-600/70 border border-white/10 text-slate-200 transition-colors cursor-pointer"
+                      title="반시계 5도 미세회전"
+                    >
+                      -5°
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSetRotationSelected(0)}
+                      className={`py-1 rounded-lg font-black transition-colors cursor-pointer ${
+                        selectedSubPos.rot === 0
+                          ? 'bg-indigo-600 text-white shadow-xs'
+                          : 'bg-slate-800 hover:bg-indigo-600/70 text-slate-300 border border-white/10'
+                      }`}
+                      title="수평 정렬"
+                    >
+                      수평
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRotateSelected(+5)}
+                      className="py-1 rounded-lg bg-slate-800/90 hover:bg-indigo-600/70 border border-white/10 text-slate-200 transition-colors cursor-pointer"
+                      title="시계 5도 미세회전"
+                    >
+                      +5°
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRotateSelected(+15)}
+                      className="py-1 rounded-lg bg-slate-800/90 hover:bg-indigo-600/70 border border-white/10 text-slate-200 transition-colors flex items-center justify-center gap-0.5 cursor-pointer"
+                      title="시계 15도 회전"
+                    >
+                      <span>⟳</span> 15°
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Dedicated Interactive Subtitle Rotation & Position Toolbar */}
@@ -7109,7 +7302,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       <div 
         className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-slate-900/80 backdrop-blur-md animate-fade-in"
         onClick={(e) => {
-          if (e.target === e.currentTarget) setIsSnsShareModalOpen(false);
+          if (e.target === e.currentTarget) handleCloseSnsShareModal();
         }}
       >
         <div className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-slate-200 space-y-4 animate-scale-in text-slate-800">
@@ -7124,7 +7317,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
             </div>
             <button
               type="button"
-              onClick={() => setIsSnsShareModalOpen(false)}
+              onClick={handleCloseSnsShareModal}
               className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition cursor-pointer"
             >
               <X className="w-5 h-5" />
@@ -7229,7 +7422,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
           {/* Close Button */}
           <button
             type="button"
-            onClick={() => setIsSnsShareModalOpen(false)}
+            onClick={handleCloseSnsShareModal}
             className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs rounded-2xl shadow-xs transition cursor-pointer"
           >
             확인 완료

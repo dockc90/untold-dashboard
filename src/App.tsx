@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Header, AppTab } from './components/Header';
 import { TrendRadar, normalizeChannel } from './components/TrendRadar';
 import { ScriptStudio } from './components/ScriptStudio';
@@ -100,6 +100,152 @@ export default function App() {
   const [isVideoRendererOpen, setIsVideoRendererOpen] = useState(false);
   const [renderingProject, setRenderingProject] = useState<ShortsProject | null>(SAMPLE_PROJECT);
   const [viralTopic, setViralTopic] = useState<string>('손흥민');
+
+  // Mobile / PC native back button & history management
+  const isPopStateRef = useRef(false);
+  const prevHistoryStateRef = useRef<{ tab: AppTab; step: 'trends' | 'editor' | 'renderer'; isModal: boolean }>({
+    tab: currentTab,
+    step: studioStep,
+    isModal: isVideoRendererOpen,
+  });
+  const [exitToastMessage, setExitToastMessage] = useState<string | null>(null);
+  const lastBackPressTimeRef = useRef<number>(0);
+
+  // 1. Initial State & PopState Listener (핸드폰/PC 브라우저 자체 뒤로가기)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // Root guard state for mobile double-back exit
+    const rootState = {
+      tab: 'studio',
+      step: 'trends',
+      isModalOpen: false,
+      isRoot: true,
+      depth: 0,
+    };
+
+    if (!window.history.state || window.history.state.depth === undefined) {
+      window.history.replaceState(rootState, '');
+      window.history.pushState({ tab: 'studio', step: 'trends', depth: 0, isRoot: false }, '');
+    }
+
+    const handlePopState = (event: PopStateEvent) => {
+      isPopStateRef.current = true;
+      const state = event.state;
+
+      // Check if user popped into the root guard state
+      if (state && state.isRoot) {
+        const now = Date.now();
+        if (now - lastBackPressTimeRef.current < 2200) {
+          // Double back pressed within 2.2 seconds -> allow exit
+          window.history.back();
+          return;
+        }
+
+        // First back press at root -> Show gentle toast & restore history position so window doesn't close
+        lastBackPressTimeRef.current = now;
+        setExitToastMessage('💡 뒤로가기 버튼을 한 번 더 누르면 창이 닫힙니다.');
+        setTimeout(() => setExitToastMessage(null), 2500);
+
+        // Repush to keep the guard alive
+        window.history.pushState({ tab: 'studio', step: 'trends', depth: 0, isRoot: false }, '');
+        setCurrentTab('studio');
+        setStudioStep('trends');
+        setIsVideoRendererOpen(false);
+        setTimeout(() => {
+          isPopStateRef.current = false;
+        }, 60);
+        return;
+      }
+
+      // Normal navigation popstate
+      if (state && typeof state === 'object') {
+        if (state.tab) setCurrentTab(state.tab);
+        if (state.step) setStudioStep(state.step);
+        setIsVideoRendererOpen(Boolean(state.isModalOpen));
+
+        prevHistoryStateRef.current = {
+          tab: state.tab || 'studio',
+          step: state.step || 'trends',
+          isModal: Boolean(state.isModalOpen),
+        };
+      } else {
+        // Fallback to Step 1 trends
+        setCurrentTab('studio');
+        setStudioStep('trends');
+        setIsVideoRendererOpen(false);
+        prevHistoryStateRef.current = {
+          tab: 'studio',
+          step: 'trends',
+          isModal: false,
+        };
+      }
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      setTimeout(() => {
+        isPopStateRef.current = false;
+      }, 80);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
+  // 2. Synchronize history on forward user actions (Step changes, tab switches, modal opens)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (isPopStateRef.current) return;
+
+    const prev = prevHistoryStateRef.current;
+    const isChanged = prev.tab !== currentTab || prev.step !== studioStep || prev.isModal !== isVideoRendererOpen;
+
+    if (isChanged) {
+      let depth = 0;
+      if (currentTab !== 'studio') {
+        depth = 1;
+      } else if (studioStep === 'editor') {
+        depth = 1;
+      } else if (studioStep === 'renderer') {
+        depth = 2;
+      }
+      if (isVideoRendererOpen) depth += 1;
+
+      const nextState = {
+        tab: currentTab,
+        step: studioStep,
+        isModalOpen: isVideoRendererOpen,
+        depth,
+        isRoot: false,
+      };
+
+      window.history.pushState(nextState, '');
+
+      prevHistoryStateRef.current = {
+        tab: currentTab,
+        step: studioStep,
+        isModal: isVideoRendererOpen,
+      };
+    }
+  }, [currentTab, studioStep, isVideoRendererOpen]);
+
+  // 3. Prevent accidental tab close or page leave when user has an active script draft
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (studioStep === 'editor' || studioStep === 'renderer') {
+        e.preventDefault();
+        e.returnValue = '작성 중인 쇼츠 대본이나 영상 설정이 있습니다. 정말 나가시겠습니까?';
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [studioStep]);
 
   // Load saved projects on mount: LocalStorage cache + IndexedDB + Supabase Cloud Database sync
   useEffect(() => {
@@ -1065,6 +1211,12 @@ export default function App() {
             onSaveProject={handleSaveProject}
           />
         </ErrorBoundary>
+      )}
+      {/* Mobile Double-back Exit Toast */}
+      {exitToastMessage && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[999] px-4 py-2.5 bg-slate-900/95 text-white text-xs font-bold rounded-2xl shadow-2xl backdrop-blur-md border border-slate-700 animate-fade-in flex items-center gap-2 pointer-events-none">
+          <span>{exitToastMessage}</span>
+        </div>
       )}
     </div>
   );

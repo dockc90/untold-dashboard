@@ -94,8 +94,34 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
   // Collage / Multi-photo merge modal state
   const [collageModalSceneIdx, setCollageModalSceneIdx] = useState<number | null>(null);
 
+  // Sub-modal popstate listener (핸드폰/PC 뒤로가기 시 서브 모달 닫기)
+  useEffect(() => {
+    const handlePop = () => {
+      if (collageModalSceneIdx !== null) {
+        setCollageModalSceneIdx(null);
+      }
+      if (videoEditorSceneIdx !== null) {
+        setVideoEditorSceneIdx(null);
+      }
+    };
+    window.addEventListener('popstate', handlePop);
+    return () => window.removeEventListener('popstate', handlePop);
+  }, [collageModalSceneIdx, videoEditorSceneIdx]);
+
   const handleOpenCollageModal = (sceneIdx: number) => {
     setCollageModalSceneIdx(sceneIdx);
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ subModal: 'collage', sceneIdx }, '');
+    }
+  };
+
+  const handleCloseCollageModal = () => {
+    if (collageModalSceneIdx !== null) {
+      setCollageModalSceneIdx(null);
+      if (typeof window !== 'undefined' && window.history.state?.subModal === 'collage') {
+        window.history.back();
+      }
+    }
   };
 
   const handleApplyCollageImage = (mergedDataUrl: string) => {
@@ -108,7 +134,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
       userCropUrl: mergedDataUrl,
     };
     setEditableScenes(updated);
-    setCollageModalSceneIdx(null);
+    handleCloseCollageModal();
     if (currentProject) {
       const proj = { ...currentProject, scenes: updated };
       onUpdateProject?.(proj);
@@ -124,6 +150,18 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
 
   const handleOpenVideoEditor = (sceneIdx: number) => {
     setVideoEditorSceneIdx(sceneIdx);
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ subModal: 'video-editor', sceneIdx }, '');
+    }
+  };
+
+  const handleCloseVideoEditor = () => {
+    if (videoEditorSceneIdx !== null) {
+      setVideoEditorSceneIdx(null);
+      if (typeof window !== 'undefined' && window.history.state?.subModal === 'video-editor') {
+        window.history.back();
+      }
+    }
   };
 
   const handleVideoFileUpload = (sceneIdx: number, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1508,7 +1546,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
         >
           <ScenePhotoCollageModal
             isOpen={true}
-            onClose={() => setCollageModalSceneIdx(null)}
+            onClose={handleCloseCollageModal}
             sceneNumber={editableScenes[collageModalSceneIdx].sceneNumber}
             timeRange={editableScenes[collageModalSceneIdx].timeRange}
             narrationSnippet={(editableScenes[collageModalSceneIdx]?.narration || '').slice(0, 50)}
@@ -1526,7 +1564,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
         >
           <SceneVideoEditorModal
             isOpen={true}
-            onClose={() => setVideoEditorSceneIdx(null)}
+            onClose={handleCloseVideoEditor}
             sceneNumber={editableScenes[videoEditorSceneIdx].sceneNumber}
             timeRange={editableScenes[videoEditorSceneIdx].timeRange}
             narrationSnippet={(editableScenes[videoEditorSceneIdx]?.narration || '').slice(0, 50)}
