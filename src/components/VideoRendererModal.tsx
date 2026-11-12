@@ -68,6 +68,21 @@ import {
 import { VOICE_OPTIONS } from '../data/voices';
 import { playDistinctVoicePreview, stopAllVoicePreviews } from '../utils/voicePlayer';
 import { getSceneFallbackImage } from '../utils/sceneImages';
+import {
+  listGeminiVoices,
+  synthesizeGeminiTtsBatch,
+  getActiveGeminiKey,
+  explainSinsooError,
+} from '../services/sinsooApi';
+import {
+  chunkSubtitles,
+  createZipBlob,
+  generateCsv,
+  generateSrt,
+  safeFileName,
+  SubtitleCue,
+  triggerDownload,
+} from '../utils/exportPackager';
 
 interface VideoRendererModalProps {
   isOpen: boolean;
@@ -930,6 +945,10 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   // States
   const [isPlayingVoiceSample, setIsPlayingVoiceSample] = useState(false);
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
+  const [geminiVoiceId, setGeminiVoiceId] = useState<string>('Kore');
+  const [geminiBatchBusy, setGeminiBatchBusy] = useState(false);
+  const [geminiBatchStatus, setGeminiBatchStatus] = useState<string>('');
+  const [zipExportBusy, setZipExportBusy] = useState(false);
   const [isRendering, setIsRendering] = useState(false);
   const [renderProgress, setRenderProgress] = useState(0); // 0 - 100
   const [currentRenderingScene, setCurrentRenderingScene] = useState(1);
@@ -6331,6 +6350,84 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                     일레븐랩스 API를 통해 렌더링 및 미리듣기 시 설정된 모델({elevenLabsModel}), 안정성({Math.round(elevenLabsStability * 100)}%), 유사도({Math.round(elevenLabsSimilarity * 100)}%)가 실시간으로 반영됩니다.
                   </p>
                 </div>
+
+                {/* Gemini 30-Voice Batch TTS Engine (Quota-saving DP Pause Splitter) */}
+                <div className="p-4 rounded-2xl bg-[#FBFBFA] border border-[#E3E2DE] space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-black text-[#191919] flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-amber-500" />
+                      <span>Gemini 30종 배치 TTS (무료 한도 절약 엔진)</span>
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold">
+                      1-Call Batch
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#787774] leading-relaxed">
+                    모든 씬의 내레이션을 <code>&lt;long pause&gt;</code> 마커로 묶어 단 1회 요청으로 합성한 뒤, 동적 계획법으로 장면별 WAV 파일로 자동 분할·저장합니다.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <select
+                      value={geminiVoiceId}
+                      onChange={(e) => setGeminiVoiceId(e.target.value)}
+                      className="flex-1 px-2.5 py-2 rounded-xl border border-[#E3E2DE] bg-white text-xs text-[#37352F]"
+                    >
+                      {listGeminiVoices().map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {v.label}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      disabled={geminiBatchBusy}
+                      onClick={async () => {
+                        if (!getActiveGeminiKey()) {
+                          setGeminiBatchStatus('상단 [API 설정]에서 Gemini API 키를 먼저 입력해 주세요.');
+                          return;
+                        }
+                        setGeminiBatchBusy(true);
+                        setGeminiBatchStatus('전체 씬 대본을 1회 배치 TTS로 합성 중…');
+                        try {
+                          const texts = project.scenes.map((s) => s.narration || '');
+                          const results = await synthesizeGeminiTtsBatch({
+                            texts,
+                            voice: geminiVoiceId,
+                            onProgress: (d, t) => setGeminiBatchStatus(`배치 TTS 진행: ${d}/${t} 묶음 완료`),
+                            onNote: (n) => setGeminiBatchStatus(n),
+                          });
+                          const zipEntries: { name: string; blob?: Blob; text?: string }[] = [];
+                          results.forEach((piece, idx) => {
+                            if (piece) {
+                              zipEntries.push({
+                                name: `audio/${String(idx + 1).padStart(2, '0')}_장면_${piece.dur.toFixed(1)}초.wav`,
+                                blob: piece.blob,
+                              });
+                            }
+                          });
+                          if (zipEntries.length > 0) {
+                            const zipBlob = await createZipBlob(zipEntries);
+                            triggerDownload(zipBlob, `${safeFileName(project.figureName, 30)}_Gemini_배치음성.zip`);
+                            setGeminiBatchStatus(`완료! ${zipEntries.length}개 장면 WAV 파일이 ZIP으로 다운로드되었습니다.`);
+                          } else {
+                            setGeminiBatchStatus('합성할 내레이션 텍스트가 없습니다.');
+                          }
+                        } catch (err) {
+                          setGeminiBatchStatus(explainSinsooError(err));
+                        } finally {
+                          setGeminiBatchBusy(false);
+                        }
+                      }}
+                      className="px-3.5 py-2 rounded-xl bg-[#23272A] hover:bg-black text-white text-xs font-bold disabled:opacity-50 cursor-pointer shrink-0"
+                    >
+                      {geminiBatchBusy ? '합성·분할 중…' : '전체 씬 WAV 일괄 생성'}
+                    </button>
+                  </div>
+                  {geminiBatchStatus && (
+                    <div className="text-[11px] font-medium text-[#37352F] bg-white px-3 py-2 rounded-lg border border-[#EDEDEB]">
+                      {geminiBatchStatus}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -6828,6 +6925,71 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                   <p className="leading-relaxed font-medium">
                     9:16 세로 규격, 상단 워터마크 없는 무결점 비디오, 브라우저 직접 렌더링으로 캡컷(CapCut) 등 외부 프로그램 없이 바로 유튜브에 업로드할 수 있습니다.
                   </p>
+                </div>
+
+                {/* SRT + Cut-sheet + Upload Copy ZIP Packager */}
+                <div className="p-4 rounded-2xl bg-[#FBFBFA] border border-[#E3E2DE] space-y-2.5">
+                  <div className="text-xs font-black text-[#191919] flex items-center justify-between">
+                    <span>📦 편집 프로그램(캡컷·프리미어)용 SRT & 자료 ZIP</span>
+                  </div>
+                  <p className="text-[11px] text-[#787774] leading-relaxed">
+                    렌더링 영상 외에 타임코드 자막(<code>.srt</code>), 컷시트(<code>.csv</code>), 전체 대본 및 업로드 해시태그를 한 번에 백업합니다.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const subs: SubtitleCue[] = [];
+                        let cursor = 0;
+                        project.scenes.forEach((sc) => {
+                          const dur = Math.max(2.5, (sc.narration?.length || 12) / 5.5 + 0.3);
+                          chunkSubtitles(sc.narration || '', dur, 22).forEach((c) => {
+                            subs.push({ s: cursor + c.s, e: cursor + c.e, t: c.t });
+                          });
+                          cursor += dur;
+                        });
+                        const srtBlob = new Blob([generateSrt(subs, 0)], { type: 'text/plain;charset=utf-8' });
+                        triggerDownload(srtBlob, `${safeFileName(project.figureName, 30)}_자막.srt`);
+                      }}
+                      className="px-3 py-2 rounded-xl bg-white hover:bg-[#F1F1EF] border border-[#E3E2DE] text-xs font-semibold text-[#37352F] cursor-pointer"
+                    >
+                      📄 자막.srt 단독 다운로드
+                    </button>
+                    <button
+                      type="button"
+                      disabled={zipExportBusy}
+                      onClick={async () => {
+                        setZipExportBusy(true);
+                        try {
+                          const subs: SubtitleCue[] = [];
+                          const csvRows: (string | number)[][] = [['순서', '시간대', '내레이션', '화면 가이드']];
+                          let cursor = 0;
+                          project.scenes.forEach((sc, i) => {
+                            const dur = Math.max(2.5, (sc.narration?.length || 12) / 5.5 + 0.3);
+                            csvRows.push([i + 1, sc.timeRange || `${cursor.toFixed(1)}s`, sc.narration, sc.visualGuide || '']);
+                            chunkSubtitles(sc.narration || '', dur, 22).forEach((c) => {
+                              subs.push({ s: cursor + c.s, e: cursor + c.e, t: c.t });
+                            });
+                            cursor += dur;
+                          });
+                          const zip = await createZipBlob([
+                            { name: '자막.srt', text: generateSrt(subs, 0) },
+                            { name: '컷시트.csv', text: generateCsv(csvRows) },
+                            {
+                              name: '대본_및_업로드문구.txt',
+                              text: `인물/주제: ${project.figureName}\n\n[제목 후보]\n${project.titles.join('\n')}\n\n[설명글]\n${project.description}\n\n[해시태그]\n${project.hashtags.map((h) => `#${h.replace(/^#/, '')}`).join(' ')}\n\n[전체 대본]\n${project.fullScript}`,
+                            },
+                          ]);
+                          triggerDownload(zip, `${safeFileName(project.figureName, 30)}_편집자료_전체.zip`);
+                        } finally {
+                          setZipExportBusy(false);
+                        }
+                      }}
+                      className="px-3 py-2 rounded-xl bg-[#23272A] hover:bg-black text-white text-xs font-bold disabled:opacity-50 cursor-pointer"
+                    >
+                      {zipExportBusy ? '압축 중…' : '📦 SRT·컷시트·대본 ZIP 받기'}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

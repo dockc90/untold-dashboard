@@ -15,6 +15,9 @@ const VideoRendererModal = lazy(() => import('./components/VideoRendererModal').
 const CarouselStudio = lazy(() => import('./components/CarouselStudio').then(m => ({ default: m.CarouselStudio })));
 const ViralStudio = lazy(() => import('./components/ViralStudio').then(m => ({ default: m.ViralStudio })));
 const SavedProjectsView = lazy(() => import('./components/SavedProjectsView').then(m => ({ default: m.SavedProjectsView })));
+const VideoRepurposeStudio = lazy(() => import('./components/VideoRepurposeStudio').then(m => ({ default: m.VideoRepurposeStudio })));
+const MediaCollectorModal = lazy(() => import('./components/MediaCollectorModal').then(m => ({ default: m.MediaCollectorModal })));
+const ApiSettingsModal = lazy(() => import('./components/ApiSettingsModal').then(m => ({ default: m.ApiSettingsModal })));
 
 const StudioLoadingFallback: React.FC<{ label?: string }> = ({ label = '스튜디오 로딩 중...' }) => (
   <div className="flex-1 flex flex-col items-center justify-center p-8 min-h-[360px] text-slate-500 space-y-3 animate-fade-in">
@@ -110,6 +113,13 @@ export default function App() {
   const [isVideoRendererOpen, setIsVideoRendererOpen] = useState(false);
   const [renderingProject, setRenderingProject] = useState<ShortsProject | null>(SAMPLE_PROJECT);
   const [viralTopic, setViralTopic] = useState<string>('손흥민');
+
+  // Sinsoo Studio features: Repurpose Track A, API Settings, Media Collector
+  const [studioMode, setStudioMode] = useState<'trends_new' | 'repurpose'>('trends_new');
+  const [isApiSettingsOpen, setIsApiSettingsOpen] = useState(false);
+  const [isMediaCollectorOpen, setIsMediaCollectorOpen] = useState(false);
+  const [mediaCollectorQuery, setMediaCollectorQuery] = useState('');
+  const [incomingRepurposeFile, setIncomingRepurposeFile] = useState<File | null>(null);
 
   // Mobile / PC native back button & history management
   const isPopStateRef = useRef(false);
@@ -741,6 +751,11 @@ export default function App() {
         setCurrentTab={setCurrentTab}
         savedCount={savedProjects.length}
         onResetToHome={handleResetToHome}
+        onOpenApiSettings={() => setIsApiSettingsOpen(true)}
+        onOpenMediaCollector={() => {
+          setMediaCollectorQuery(selectedFigure?.name || '');
+          setIsMediaCollectorOpen(true);
+        }}
       />
 
       {/* Error notification banner */}
@@ -779,7 +794,59 @@ export default function App() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-6 pb-32 sm:pb-36 md:pb-12 pb-safe flex flex-col min-w-0 max-w-full">
         {currentTab === 'studio' && (
           <div className="flex-1 flex flex-col min-h-0 w-full">
-            {studioStep === 'trends' ? (
+            {studioStep === 'trends' && (
+              <div className="mb-3 sm:mb-4 flex items-center justify-between flex-wrap gap-2">
+                <div className="inline-flex items-center bg-[#F1F1EF] p-1 rounded-xl border border-[#E3E2DE] text-xs gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setStudioMode('trends_new')}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
+                      studioMode === 'trends_new'
+                        ? 'bg-white text-[#191919] shadow-xs font-semibold'
+                        : 'text-[#787774] hover:text-[#37352F]'
+                    }`}
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>화제 인물 신규 제작</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStudioMode('repurpose')}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
+                      studioMode === 'repurpose'
+                        ? 'bg-white text-[#191919] shadow-xs font-semibold'
+                        : 'text-[#787774] hover:text-[#37352F]'
+                    }`}
+                  >
+                    <Flame className="w-3.5 h-3.5 text-amber-500" />
+                    <span>기존 영상 AI 재가공</span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200/80">
+                      Track A
+                    </span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {studioStep === 'trends' && studioMode === 'repurpose' ? (
+              <Suspense fallback={<StudioLoadingFallback label="기존 영상 재가공 스튜디오 로딩 중..." />}>
+                <VideoRepurposeStudio
+                  incomingFile={incomingRepurposeFile}
+                  onConsumeIncomingFile={() => setIncomingRepurposeFile(null)}
+                  onOpenSettings={() => setIsApiSettingsOpen(true)}
+                  onOpenCollector={(q) => {
+                    setMediaCollectorQuery(q || '');
+                    setIsMediaCollectorOpen(true);
+                  }}
+                  onSendToRenderer={(repurposedProject) => {
+                    setCurrentProject(repurposedProject);
+                    setRenderingProject(repurposedProject);
+                    setStudioStep('renderer');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                />
+              </Suspense>
+            ) : studioStep === 'trends' ? (
               <div className="flex-1 flex flex-col min-h-0 space-y-3 sm:space-y-4 w-full">
                 {/* Step 1 Top Guidance Banner (Notion Minimalist Hero) */}
                 <div className="bg-white rounded-2xl p-5 sm:p-6 border border-[#E9E9E7] shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 w-full">
@@ -1185,6 +1252,32 @@ export default function App() {
           </Suspense>
         </ErrorBoundary>
       )}
+      {/* Api Settings & Media Collector Modals (Lazy loaded) */}
+      {isApiSettingsOpen && (
+        <Suspense fallback={null}>
+          <ApiSettingsModal
+            isOpen={isApiSettingsOpen}
+            onClose={() => setIsApiSettingsOpen(false)}
+          />
+        </Suspense>
+      )}
+      {isMediaCollectorOpen && (
+        <Suspense fallback={null}>
+          <MediaCollectorModal
+            isOpen={isMediaCollectorOpen}
+            onClose={() => setIsMediaCollectorOpen(false)}
+            defaultQuery={mediaCollectorQuery}
+            onOpenSettings={() => setIsApiSettingsOpen(true)}
+            onSendFileToRepurpose={(file) => {
+              setIncomingRepurposeFile(file);
+              setCurrentTab('studio');
+              setStudioStep('trends');
+              setStudioMode('repurpose');
+            }}
+          />
+        </Suspense>
+      )}
+
       {/* Mobile Double-back Exit Toast */}
       {exitToastMessage && (
         <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-[999] px-4 py-2.5 bg-slate-900/95 text-white text-xs font-bold rounded-2xl shadow-2xl backdrop-blur-md border border-slate-700 animate-fade-in flex items-center gap-2 pointer-events-none">

@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Sparkles, 
   Film, 
   FolderHeart, 
   Flame,
-  Layers
+  Layers,
+  KeyRound,
+  Video,
 } from 'lucide-react';
+import { getActiveGeminiKey, getActiveYoutubeKey } from '../services/sinsooApi';
 
 export type AppTab = 'studio' | 'carousel' | 'viral' | 'saved';
 
@@ -14,9 +17,29 @@ interface HeaderProps {
   setCurrentTab: (tab: AppTab) => void;
   savedCount: number;
   onResetToHome?: () => void;
+  onOpenApiSettings?: () => void;
+  onOpenMediaCollector?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab, savedCount, onResetToHome }) => {
+export const Header: React.FC<HeaderProps> = ({
+  currentTab,
+  setCurrentTab,
+  savedCount,
+  onResetToHome,
+  onOpenApiSettings,
+  onOpenMediaCollector,
+}) => {
+  const [hasGemini, setHasGemini] = useState(() => Boolean(getActiveGeminiKey()));
+  const [hasYt, setHasYt] = useState(() => Boolean(getActiveYoutubeKey()));
+
+  useEffect(() => {
+    const syncKeys = () => {
+      setHasGemini(Boolean(getActiveGeminiKey()));
+      setHasYt(Boolean(getActiveYoutubeKey()));
+    };
+    window.addEventListener('autoshorts:sinsoo-settings-changed', syncKeys);
+    return () => window.removeEventListener('autoshorts:sinsoo-settings-changed', syncKeys);
+  }, []);
   return (
     <header className="sticky top-0 z-50 bg-[#FBFBFA]/95 backdrop-blur-md border-b border-[#EDEDEB] text-[#37352F] w-full">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
@@ -51,8 +74,29 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab, saved
             </div>
           </button>
 
-          {/* Mobile Right: Quick Saved & Status */}
+          {/* Mobile Right: Tools, API Keys & Quick Saved */}
           <div className="flex items-center sm:hidden space-x-1">
+            {onOpenMediaCollector && (
+              <button
+                type="button"
+                onClick={onOpenMediaCollector}
+                className="p-1.5 rounded-xl bg-[#F1F1EF] text-[#37352F] border border-[#E3E2DE] cursor-pointer"
+                title="화면 녹화 · 소재 수집"
+              >
+                <Video className="w-3.5 h-3.5 text-rose-500" />
+              </button>
+            )}
+            {onOpenApiSettings && (
+              <button
+                type="button"
+                onClick={onOpenApiSettings}
+                className="flex items-center space-x-1 px-2 py-1.5 rounded-xl bg-[#F1F1EF] text-[#37352F] border border-[#E3E2DE] text-[11px] font-semibold cursor-pointer"
+                title="API 키 · 음성 설정"
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${hasGemini ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                <KeyRound className="w-3 h-3" />
+              </button>
+            )}
             <button
               onClick={() => setCurrentTab('saved')}
               className={`flex items-center space-x-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer border ${
@@ -71,8 +115,9 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab, saved
             </button>
           </div>
 
-          {/* Desktop Tab Navigation (Notion Minimalist Pill Container) */}
-          <div className="hidden md:flex items-center space-x-1 bg-[#F1F1EF] p-1 rounded-xl border border-[#E3E2DE] text-xs">
+          {/* Desktop Navigation + API/Collector Pills (Notion Minimalist Style) */}
+          <div className="hidden md:flex items-center gap-2">
+            <div className="flex items-center space-x-1 bg-[#F1F1EF] p-1 rounded-xl border border-[#E3E2DE] text-xs">
             <button
               onClick={() => setCurrentTab('studio')}
               className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg font-medium transition-all whitespace-nowrap cursor-pointer ${
@@ -128,6 +173,35 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab, saved
                 </span>
               )}
             </button>
+            </div>
+
+            {onOpenMediaCollector && (
+              <button
+                type="button"
+                onClick={onOpenMediaCollector}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#F1F1EF] hover:bg-[#E9E9E7] border border-[#E3E2DE] text-xs font-medium text-[#37352F] transition cursor-pointer"
+                title="화면 녹화 · CC 유튜브 소재 찾기 · 로컬 자료함"
+              >
+                <Video className="w-3.5 h-3.5 text-rose-500" />
+                <span>소재·녹화</span>
+              </button>
+            )}
+
+            {onOpenApiSettings && (
+              <button
+                type="button"
+                onClick={onOpenApiSettings}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#F1F1EF] hover:bg-[#E9E9E7] border border-[#E3E2DE] text-xs font-medium text-[#37352F] transition cursor-pointer"
+                title="Gemini & YouTube API 키 설정 · 음성(30종)"
+              >
+                <span className="inline-flex items-center gap-1">
+                  <span className={`w-2 h-2 rounded-full ${hasGemini ? 'bg-emerald-500' : 'bg-slate-400'}`} title="Gemini API" />
+                  <span className={`w-2 h-2 rounded-full ${hasYt ? 'bg-emerald-500' : 'bg-slate-400'}`} title="YouTube API" />
+                </span>
+                <KeyRound className="w-3.5 h-3.5 text-[#37352F]" />
+                <span>API 설정</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
