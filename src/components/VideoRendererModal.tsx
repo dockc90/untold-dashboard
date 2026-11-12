@@ -71,6 +71,8 @@ import { getSceneFallbackImage } from '../utils/sceneImages';
 import {
   listGeminiVoices,
   synthesizeGeminiTtsBatch,
+  synthesizeElevenLabsTts,
+  loadSinsooSettings,
   getActiveGeminiKey,
   explainSinsooError,
 } from '../services/sinsooApi';
@@ -948,6 +950,8 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   const [geminiVoiceId, setGeminiVoiceId] = useState<string>('Kore');
   const [geminiBatchBusy, setGeminiBatchBusy] = useState(false);
   const [geminiBatchStatus, setGeminiBatchStatus] = useState<string>('');
+  const [elevenBatchBusy, setElevenBatchBusy] = useState(false);
+  const [elevenBatchStatus, setElevenBatchStatus] = useState<string>('');
   const [zipExportBusy, setZipExportBusy] = useState(false);
   const [isRendering, setIsRendering] = useState(false);
   const [renderProgress, setRenderProgress] = useState(0); // 0 - 100
@@ -6344,7 +6348,60 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                         </>
                       )}
                     </button>
+
+                    <button
+                      type="button"
+                      disabled={elevenBatchBusy}
+                      onClick={async () => {
+                        const targets = project.scenes.filter((s) => s.narration?.trim());
+                        if (!targets.length) {
+                          setElevenBatchStatus('합성할 씬 내레이션이 없습니다.');
+                          return;
+                        }
+                        setElevenBatchBusy(true);
+                        setElevenBatchStatus(`ElevenLabs(${elevenLabsModel}) 0/${targets.length} 장면 MP3 생성 중…`);
+                        try {
+                          const sKey = loadSinsooSettings().elevenLabsKey?.trim() || undefined;
+                          const zipEntries: { name: string; blob?: Blob; text?: string }[] = [];
+                          for (let i = 0; i < targets.length; i++) {
+                            const sc = targets[i];
+                            setElevenBatchStatus(`ElevenLabs 합성 중: ${i + 1}/${targets.length} (씬 #${sc.sceneNumber})`);
+                            const res = await synthesizeElevenLabsTts({
+                              text: sc.narration,
+                              voiceId: selectedVoiceId,
+                              modelId: elevenLabsModel,
+                              stability: elevenLabsStability,
+                              similarityBoost: elevenLabsSimilarity,
+                              style: elevenLabsStyle,
+                              speakerBoost: elevenLabsSpeakerBoost,
+                              apiKey: sKey,
+                            });
+                            zipEntries.push({
+                              name: `audio/${String(sc.sceneNumber).padStart(2, '0')}_장면.mp3`,
+                              blob: res.blob,
+                            });
+                          }
+                          const zipBlob = await createZipBlob(zipEntries);
+                          triggerDownload(zipBlob, `${safeFileName(project.figureName, 30)}_ElevenLabs_음성.zip`);
+                          setElevenBatchStatus(`완료 ✓ ${zipEntries.length}개 고음질 MP3가 ZIP으로 다운로드되었습니다.`);
+                        } catch (err) {
+                          setElevenBatchStatus(explainSinsooError(err));
+                        } finally {
+                          setElevenBatchBusy(false);
+                        }
+                      }}
+                      className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-50"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>{elevenBatchBusy ? 'MP3 일괄 생성 중…' : '전체 씬 MP3 일괄 생성 ZIP'}</span>
+                    </button>
                   </div>
+
+                  {elevenBatchStatus && (
+                    <div className="text-[11px] font-medium text-[#37352F] bg-white px-3 py-2 rounded-lg border border-[#EDEDEB]">
+                      {elevenBatchStatus}
+                    </div>
+                  )}
 
                   <p className="text-[11px] text-slate-500 font-medium">
                     일레븐랩스 API를 통해 렌더링 및 미리듣기 시 설정된 모델({elevenLabsModel}), 안정성({Math.round(elevenLabsStability * 100)}%), 유사도({Math.round(elevenLabsSimilarity * 100)}%)가 실시간으로 반영됩니다.

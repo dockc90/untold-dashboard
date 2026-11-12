@@ -12,6 +12,7 @@ import {
   Loader2,
   ExternalLink,
   RefreshCw,
+  Crown,
 } from 'lucide-react';
 import {
   SinsooSettings,
@@ -20,11 +21,15 @@ import {
   listGeminiModels,
   genGeminiText,
   synthesizeGeminiTts,
+  synthesizeElevenLabsTts,
+  testElevenLabsTts,
   listGeminiVoices,
   yFetch,
   explainSinsooError,
   GEMINI_FALLBACK_CATALOG,
+  ELEVENLABS_MODELS,
 } from '../services/sinsooApi';
+import { VOICE_OPTIONS } from '../data/voices';
 
 interface ApiSettingsModalProps {
   isOpen: boolean;
@@ -41,6 +46,7 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
   const [form, setForm] = useState<SinsooSettings>(() => loadSinsooSettings());
   const [showGemini, setShowGemini] = useState(false);
   const [showYt, setShowYt] = useState(false);
+  const [showEleven, setShowEleven] = useState(false);
 
   const [testingGemini, setTestingGemini] = useState(false);
   const [geminiStatus, setGeminiStatus] = useState<{ ok?: boolean; text: string } | null>(null);
@@ -48,8 +54,13 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
   const [testingYt, setTestingYt] = useState(false);
   const [ytStatus, setYtStatus] = useState<{ ok?: boolean; text: string } | null>(null);
 
+  const [testingEleven, setTestingEleven] = useState(false);
+  const [elevenStatus, setElevenStatus] = useState<{ ok?: boolean; text: string } | null>(null);
+
   const [testingVoice, setTestingVoice] = useState(false);
+  const [testingElevenVoice, setTestingElevenVoice] = useState(false);
   const [voiceNote, setVoiceNote] = useState<string>('');
+  const [elevenVoiceNote, setElevenVoiceNote] = useState<string>('');
   const [saveToast, setSaveToast] = useState<string>('');
 
   const voices = listGeminiVoices();
@@ -171,6 +182,51 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
     }
   };
 
+  const handleTestElevenLabs = async () => {
+    persist(form);
+    setTestingEleven(true);
+    setElevenStatus({ text: 'ElevenLabs 유료 구독 API 연동 확인 중 (/api/tts)…' });
+    try {
+      const res = await testElevenLabsTts({
+        apiKey: form.elevenLabsKey?.trim() || undefined,
+        voiceId: form.elevenLabsVoiceId,
+        modelId: form.elevenLabsModel,
+      });
+      setElevenStatus({
+        ok: true,
+        text: `연동 성공 ✓ (${res.model} · ${res.source === 'server' ? '서버 .env 유료 키 사용' : '입력 키 직접 연결'} · ${(res.bytes / 1024).toFixed(1)}KB)`,
+      });
+    } catch (err) {
+      setElevenStatus({ ok: false, text: explainSinsooError(err) });
+    } finally {
+      setTestingEleven(false);
+    }
+  };
+
+  const handleElevenVoicePreview = async () => {
+    persist(form);
+    setTestingElevenVoice(true);
+    setElevenVoiceNote('일레븐랩스 유료 엔진으로 샘플 음성 생성 중…');
+    try {
+      const res = await synthesizeElevenLabsTts({
+        text: '안녕하세요. 일레븐랩스 유료 성우 보이스 테스트입니다. 3초 만에 시선을 사로잡는 도입부를 만들어 보세요.',
+        voiceId: form.elevenLabsVoiceId,
+        modelId: form.elevenLabsModel,
+        apiKey: form.elevenLabsKey?.trim() || undefined,
+      });
+      const url = URL.createObjectURL(res.blob);
+      const audio = new Audio(url);
+      audio.onended = () => URL.revokeObjectURL(url);
+      await audio.play();
+      const vName = VOICE_OPTIONS.find((v) => v.id === form.elevenLabsVoiceId)?.name || form.elevenLabsVoiceId;
+      setElevenVoiceNote(`재생 완료 ✓ (${vName} · ${res.model})`);
+    } catch (err) {
+      setElevenVoiceNote(explainSinsooError(err));
+    } finally {
+      setTestingElevenVoice(false);
+    }
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 bg-black/45 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
@@ -220,7 +276,7 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
               }`}
             >
               <Volume2 className="w-3.5 h-3.5 text-indigo-600" />
-              <span>Gemini 음성(30종) · 출력 기본값</span>
+              <span>음성 (ElevenLabs · Gemini) · 출력 기본값</span>
             </button>
             <button
               type="button"
@@ -450,13 +506,184 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
                   </div>
                 </div>
               </div>
+
+              {/* ElevenLabs Paid Subscription Card (Full Width) */}
+              <div className="md:col-span-2 bg-white p-4 rounded-xl border border-[#E9E9E7] space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="text-sm font-bold text-[#191919] flex items-center gap-1.5">
+                    <Crown className="w-4 h-4 text-amber-500" />
+                    ElevenLabs 유료 TTS 연동
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                      서버 .env 자동 연동
+                    </span>
+                  </h3>
+                  <a
+                    href="https://elevenlabs.io/app/settings/api-keys"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11px] text-indigo-600 hover:underline flex items-center gap-0.5"
+                  >
+                    ElevenLabs 대시보드 <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+                <p className="text-xs text-[#787774] leading-relaxed">
+                  서버(.env / Vercel)에 등록된 유료 <code className="bg-[#F1F1EF] px-1 py-0.5 rounded text-[11px]">ELEVENLABS_API_KEY</code>를 <code className="bg-[#F1F1EF] px-1 py-0.5 rounded text-[11px]">/api/tts</code>로 바로 사용합니다. 개인 키로 덮어쓰려면 아래 입력란에만 추가하세요.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 items-end">
+                  <div className="md:col-span-2">
+                    <span className="block text-[11px] font-medium text-[#787774] mb-1">
+                      개인 ElevenLabs 키 덮어쓰기 (선택 · 비워두면 서버 유료 키 사용)
+                    </span>
+                    <div className="flex items-center gap-1.5 bg-[#FBFBFA] border border-[#E3E2DE] rounded-xl px-3 py-2 focus-within:border-[#37352F]">
+                      <input
+                        type={showEleven ? 'text' : 'password'}
+                        value={form.elevenLabsKey || ''}
+                        onChange={(e) => setForm({ ...form, elevenLabsKey: e.target.value })}
+                        placeholder="비워두면 서버 ELEVENLABS_API_KEY 자동 사용 (sk_...)"
+                        autoComplete="off"
+                        className="w-full bg-transparent text-xs outline-none text-[#191919]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowEleven((v) => !v)}
+                        className="text-[#9B9A97] hover:text-[#37352F] cursor-pointer"
+                      >
+                        {showEleven ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <label className="block text-xs font-medium text-[#37352F]">
+                    ElevenLabs 모델
+                    <select
+                      value={form.elevenLabsModel || 'eleven_v4'}
+                      onChange={(e) => setForm({ ...form, elevenLabsModel: e.target.value })}
+                      className="mt-1 w-full px-2.5 py-2 rounded-lg border border-[#E3E2DE] bg-white text-xs"
+                    >
+                      {ELEVENLABS_MODELS.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={handleTestElevenLabs}
+                    disabled={testingEleven}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold transition cursor-pointer disabled:opacity-60"
+                  >
+                    {testingEleven ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Volume2 className="w-3.5 h-3.5" />}
+                    <span>ElevenLabs 유료 연동 테스트</span>
+                  </button>
+                  {elevenStatus && (
+                    <span
+                      className={`text-xs px-2.5 py-1 rounded-lg border ${
+                        elevenStatus.ok === true
+                          ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                          : elevenStatus.ok === false
+                          ? 'bg-rose-50 border-rose-200 text-rose-800'
+                          : 'bg-[#F7F6F3] border-[#E3E2DE] text-[#37352F]'
+                      }`}
+                    >
+                      {elevenStatus.text}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
           {tab === 'voice' && (
             <div className="space-y-4">
+              {/* Default TTS Engine & ElevenLabs 16 Voices */}
               <div className="bg-white p-4 rounded-xl border border-[#E9E9E7] space-y-3">
-                <h3 className="text-sm font-bold text-[#191919]">기본 Gemini TTS 음성 (한국어 지원 30종)</h3>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div>
+                    <h3 className="text-sm font-bold text-[#191919] flex items-center gap-1.5">
+                      <Crown className="w-4 h-4 text-amber-500" />
+                      기본 AI 음성 엔진 & ElevenLabs 유료 16인 성우
+                    </h3>
+                    <p className="text-xs text-[#787774] mt-0.5">
+                      기존 영상 재가공(3~5초 도입 내레이션)과 씬별 오디오 생성에 우선 사용할 TTS 엔진을 선택하세요.
+                    </p>
+                  </div>
+                  <div className="inline-flex bg-[#F1F1EF] p-0.5 rounded-xl border border-[#E3E2DE] text-xs gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, ttsProvider: 'elevenlabs' })}
+                      className={`px-3 py-1 rounded-lg font-medium transition cursor-pointer ${
+                        (form.ttsProvider || 'elevenlabs') === 'elevenlabs'
+                          ? 'bg-white text-[#191919] shadow-2xs font-semibold'
+                          : 'text-[#787774]'
+                      }`}
+                    >
+                      👑 ElevenLabs (유료)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, ttsProvider: 'gemini' })}
+                      className={`px-3 py-1 rounded-lg font-medium transition cursor-pointer ${
+                        form.ttsProvider === 'gemini'
+                          ? 'bg-white text-[#191919] shadow-2xs font-semibold'
+                          : 'text-[#787774]'
+                      }`}
+                    >
+                      ✨ Gemini (무료 30종)
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="block text-xs font-medium text-[#37352F]">
+                    ElevenLabs 기본 성우 (16인)
+                    <select
+                      value={form.elevenLabsVoiceId || VOICE_OPTIONS[0].id}
+                      onChange={(e) => setForm({ ...form, elevenLabsVoiceId: e.target.value })}
+                      className="mt-1 w-full px-2.5 py-2 rounded-lg border border-[#E3E2DE] bg-white text-xs"
+                    >
+                      {VOICE_OPTIONS.map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {v.name} · {v.role} ({v.tone})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block text-xs font-medium text-[#37352F]">
+                    ElevenLabs 기본 모델
+                    <select
+                      value={form.elevenLabsModel || 'eleven_v4'}
+                      onChange={(e) => setForm({ ...form, elevenLabsModel: e.target.value })}
+                      className="mt-1 w-full px-2.5 py-2 rounded-lg border border-[#E3E2DE] bg-white text-xs"
+                    >
+                      {ELEVENLABS_MODELS.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                <div className="flex items-center gap-3 flex-wrap pt-1">
+                  <button
+                    type="button"
+                    onClick={handleElevenVoicePreview}
+                    disabled={testingElevenVoice}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-semibold transition cursor-pointer"
+                  >
+                    {testingElevenVoice ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Volume2 className="w-3.5 h-3.5 text-amber-600" />}
+                    <span>ElevenLabs 성우 테스트 재생</span>
+                  </button>
+                  {elevenVoiceNote && <span className="text-xs text-[#787774]">{elevenVoiceNote}</span>}
+                </div>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl border border-[#E9E9E7] space-y-3">
+                <h3 className="text-sm font-bold text-[#191919]">Gemini TTS 음성 (한국어 지원 30종)</h3>
                 <p className="text-xs text-[#787774]">
                   기존 영상 재가공의 3~5초 도입 내레이션과 배치 TTS 대본 합성에 기본 적용됩니다.
                 </p>

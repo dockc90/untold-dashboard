@@ -8,7 +8,12 @@ import {
   KeyRound,
   Video,
 } from 'lucide-react';
-import { getActiveGeminiKey, getActiveYoutubeKey } from '../services/sinsooApi';
+import {
+  getActiveGeminiKey,
+  getActiveYoutubeKey,
+  getActiveElevenLabsKey,
+  loadSinsooSettings,
+} from '../services/sinsooApi';
 
 export type AppTab = 'studio' | 'carousel' | 'viral' | 'saved';
 
@@ -31,11 +36,17 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [hasGemini, setHasGemini] = useState(() => Boolean(getActiveGeminiKey()));
   const [hasYt, setHasYt] = useState(() => Boolean(getActiveYoutubeKey()));
+  const [hasEleven, setHasEleven] = useState(() => {
+    const s = loadSinsooSettings();
+    return Boolean(getActiveElevenLabsKey() || (s.ttsProvider || 'elevenlabs') === 'elevenlabs');
+  });
 
   useEffect(() => {
     const syncKeys = () => {
+      const s = loadSinsooSettings();
       setHasGemini(Boolean(getActiveGeminiKey()));
       setHasYt(Boolean(getActiveYoutubeKey()));
+      setHasEleven(Boolean(getActiveElevenLabsKey() || (s.ttsProvider || 'elevenlabs') === 'elevenlabs'));
     };
     window.addEventListener('autoshorts:sinsoo-settings-changed', syncKeys);
     return () => window.removeEventListener('autoshorts:sinsoo-settings-changed', syncKeys);
@@ -192,11 +203,12 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 onClick={onOpenApiSettings}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#F1F1EF] hover:bg-[#E9E9E7] border border-[#E3E2DE] text-xs font-medium text-[#37352F] transition cursor-pointer"
-                title="Gemini & YouTube API 키 설정 · 음성(30종)"
+                title="Gemini · YouTube · ElevenLabs 유료 음성 API 설정"
               >
                 <span className="inline-flex items-center gap-1">
                   <span className={`w-2 h-2 rounded-full ${hasGemini ? 'bg-emerald-500' : 'bg-slate-400'}`} title="Gemini API" />
                   <span className={`w-2 h-2 rounded-full ${hasYt ? 'bg-emerald-500' : 'bg-slate-400'}`} title="YouTube API" />
+                  <span className={`w-2 h-2 rounded-full ${hasEleven ? 'bg-amber-500' : 'bg-slate-400'}`} title="ElevenLabs 유료 TTS" />
                 </span>
                 <KeyRound className="w-3.5 h-3.5 text-[#37352F]" />
                 <span>API 설정</span>

@@ -45,9 +45,12 @@ import {
   decodeAudioBlob,
   audioBufferToWavBlob,
   synthesizeGeminiTts,
+  synthesizeElevenLabsTts,
+  ELEVENLABS_MODELS,
   uploadGeminiFile,
   waitGeminiFileActive,
 } from '../services/sinsooApi';
+import { VOICE_OPTIONS } from '../data/voices';
 import {
   SubtitleCue,
   createZipBlob,
@@ -83,6 +86,8 @@ export interface RepurposeCandidate {
   subBg: 'box' | 'stroke' | 'none';
   intro: {
     mode: 'none' | 'tts' | 'rec';
+    ttsEngine?: 'elevenlabs' | 'gemini';
+    elevenVoiceId?: string;
     text: string;
     voice: string;
     style: string;
@@ -447,6 +452,8 @@ export const VideoRepurposeStudio: React.FC<VideoRepurposeStudioProps> = ({
             subBg: 'box',
             intro: {
               mode: 'tts',
+              ttsEngine: sGlobal.ttsProvider || 'elevenlabs',
+              elevenVoiceId: sGlobal.elevenLabsVoiceId || VOICE_OPTIONS[0].id,
               text: String(c.intro || '').trim(),
               voice: sGlobal.voice || 'Kore',
               style: sGlobal.ttsStyle || '차분하고 또렷한 다큐멘터리 내레이션',
@@ -734,26 +741,46 @@ JSON: {"options":["문장1","문장2","문장3"]}`,
 
   const generateIntroTtsForCandidate = async (c: RepurposeCandidate) => {
     if (!c.intro.text.trim()) throw new Error('도입 내레이션 문장을 먼저 입력해 주세요.');
-    const r = await synthesizeGeminiTts({
-      text: c.intro.text,
-      voice: c.intro.voice,
-      style: c.intro.style,
-      model: settings.ttsModel,
-    });
-    const decoded = await decodeAudioBlob(r.blob);
+    const engine = c.intro.ttsEngine || settings.ttsProvider || 'elevenlabs';
+    let blob: Blob;
+    let ext = 'wav';
+    let mime = 'audio/wav';
+
+    if (engine === 'elevenlabs') {
+      const r = await synthesizeElevenLabsTts({
+        text: c.intro.text,
+        voiceId: c.intro.elevenVoiceId || settings.elevenLabsVoiceId || VOICE_OPTIONS[0].id,
+        modelId: settings.elevenLabsModel || ELEVENLABS_MODELS[0].id,
+        apiKey: settings.elevenLabsKey,
+      });
+      blob = r.blob;
+      ext = 'mp3';
+      mime = 'audio/mpeg';
+    } else {
+      const r = await synthesizeGeminiTts({
+        text: c.intro.text,
+        voice: c.intro.voice,
+        style: c.intro.style,
+        model: settings.ttsModel,
+      });
+      blob = r.blob;
+    }
+
+    const decoded = await decodeAudioBlob(blob);
     if (c.intro.assetId) await sinsooVault.deleteAsset(c.intro.assetId);
     const saved = await sinsooVault.putAsset({
       projectId: c.id,
       kind: 'tts',
-      name: `도입_${safeFileName(c.title, 20)}.wav`,
-      type: 'audio/wav',
-      blob: r.blob,
+      name: `도입_${safeFileName(c.title, 20)}.${ext}`,
+      type: mime,
+      blob,
     });
     updateCandidate(c.id, (prev) => ({
       ...prev,
       intro: {
         ...prev.intro,
         mode: 'tts',
+        ttsEngine: engine,
         assetId: saved.id,
         dur: Math.round(decoded.duration * 10) / 10,
       },
@@ -761,8 +788,10 @@ JSON: {"options":["문장1","문장2","문장3"]}`,
   };
 
   const handleGenerateSingleIntroTts = async (c: RepurposeCandidate) => {
-    if (!getActiveGeminiKey()) return onOpenSettings();
+    const engine = c.intro.ttsEngine || settings.ttsProvider || 'elevenlabs';
+    if (engine === 'gemini' && !getActiveGeminiKey()) return onOpenSettings();
     setTtsBusy(true);
+    setAnalysisError('');
     try {
       await generateIntroTtsForCandidate(c);
     } catch (e) {
@@ -773,10 +802,12 @@ JSON: {"options":["문장1","문장2","문장3"]}`,
   };
 
   const handleGenerateAllIntroTts = async () => {
-    if (!getActiveGeminiKey()) return onOpenSettings();
     const targets = picks.filter((c) => c.intro.mode === 'tts' && c.intro.text.trim());
     if (!targets.length) return;
+    const needsGemini = targets.some((c) => (c.intro.ttsEngine || settings.ttsProvider || 'elevenlabs') === 'gemini');
+    if (needsGemini && !getActiveGeminiKey()) return onOpenSettings();
     setTtsBusy(true);
+    setAnalysisError('');
     try {
       for (const c of targets) {
         await generateIntroTtsForCandidate(c);
@@ -873,14 +904,16 @@ JSON: {"options":["문장1","문장2","문장3"]}`,
       if (c.intro.assetId) {
         const a = await sinsooVault.getAsset(c.intro.assetId);
         if (a?.blob) {
-          let finalWav = a.blob;
-          if (Math.abs(sp - 1) > 0.01) {
+          let finalBlob = a.blob;
+          const isStretched = Math.abs(sp - 1) > 0.01;
+          if (isStretched) {
             const decoded = await decodeAudioBlob(a.blob);
-            finalWav = audioBufferToWavBlob(stretchAudioBuffer(decoded, sp));
+            finalBlob = audioBufferToWavBlob(stretchAudioBuffer(decoded, sp));
           }
+          const ext = !isStretched && a.type.includes('mpeg') ? 'mp3' : 'wav';
           entries.push({
-            name: sp !== 1 ? `도입_내레이션_${sp.toFixed(2)}x.wav` : '도입_내레이션.wav',
-            blob: finalWav,
+            name: sp !== 1 ? `도입_내레이션_${sp.toFixed(2)}x.${ext}` : `도입_내레이션.${ext}`,
+            blob: finalBlob,
           });
         }
       }
@@ -1945,40 +1978,99 @@ JSON으로만 출력:
                       />
 
                       {activeCand.intro.mode === 'tts' && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                          <label className="block">
-                            성우 음색 (30종)
-                            <select
-                              value={activeCand.intro.voice}
-                              onChange={(e) =>
-                                updateCandidate(activeCand.id, (p) => ({
-                                  ...p,
-                                  intro: { ...p.intro, voice: e.target.value },
-                                }))
-                              }
-                              className="mt-1 w-full px-2.5 py-1.5 rounded-lg border border-[#E3E2DE] bg-white"
-                            >
-                              {voices.map((v) => (
-                                <option key={v.id} value={v.id}>
-                                  {v.label}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                          <label className="block">
-                            연기 톤 / 말투
-                            <input
-                              type="text"
-                              value={activeCand.intro.style}
-                              onChange={(e) =>
-                                updateCandidate(activeCand.id, (p) => ({
-                                  ...p,
-                                  intro: { ...p.intro, style: e.target.value },
-                                }))
-                              }
-                              className="mt-1 w-full px-2.5 py-1.5 rounded-lg border border-[#E3E2DE] bg-[#FBFBFA]"
-                            />
-                          </label>
+                        <div className="space-y-2.5 p-2.5 rounded-xl bg-[#F7F6F3] border border-[#E3E2DE]">
+                          <div className="flex items-center justify-between flex-wrap gap-2">
+                            <span className="font-semibold text-[#191919]">AI 음성 엔진</span>
+                            <div className="inline-flex bg-[#F1F1EF] p-0.5 rounded-xl border border-[#E3E2DE] text-[11px] gap-1">
+                              {(['elevenlabs', 'gemini'] as const).map((eng) => {
+                                const activeEngine = activeCand.intro.ttsEngine || settings.ttsProvider || 'elevenlabs';
+                                return (
+                                  <button
+                                    key={eng}
+                                    type="button"
+                                    onClick={() =>
+                                      updateCandidate(activeCand.id, (p) => ({
+                                        ...p,
+                                        intro: { ...p.intro, ttsEngine: eng },
+                                      }))
+                                    }
+                                    className={`px-2.5 py-1 rounded-lg font-medium transition cursor-pointer ${
+                                      activeEngine === eng
+                                        ? 'bg-white text-[#191919] shadow-2xs font-bold'
+                                        : 'text-[#787774] hover:text-[#191919]'
+                                    }`}
+                                  >
+                                    {eng === 'elevenlabs' ? '👑 일레븐랩스 (유료 16인)' : '✨ Gemini TTS (30종)'}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {(activeCand.intro.ttsEngine || settings.ttsProvider || 'elevenlabs') === 'elevenlabs' ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                              <label className="block">
+                                일레븐랩스 성우 (16인 · {settings.elevenLabsModel || 'eleven_v4'})
+                                <select
+                                  value={activeCand.intro.elevenVoiceId || settings.elevenLabsVoiceId || VOICE_OPTIONS[0].id}
+                                  onChange={(e) =>
+                                    updateCandidate(activeCand.id, (p) => ({
+                                      ...p,
+                                      intro: { ...p.intro, elevenVoiceId: e.target.value },
+                                    }))
+                                  }
+                                  className="mt-1 w-full px-2.5 py-1.5 rounded-lg border border-[#E3E2DE] bg-white"
+                                >
+                                  {VOICE_OPTIONS.map((v) => (
+                                    <option key={v.id} value={v.id}>
+                                      {v.name} · {v.role} ({v.tone})
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                              <div className="flex items-end">
+                                <p className="text-[11px] text-[#787774] bg-white px-2.5 py-1.5 rounded-lg border border-[#E3E2DE] w-full">
+                                  서버 유료 구독(<code className="text-[10px]">.env</code>) 자동 연동 · MP3 고음질 생성
+                                </p>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                              <label className="block">
+                                Gemini 성우 음색 (30종)
+                                <select
+                                  value={activeCand.intro.voice}
+                                  onChange={(e) =>
+                                    updateCandidate(activeCand.id, (p) => ({
+                                      ...p,
+                                      intro: { ...p.intro, voice: e.target.value },
+                                    }))
+                                  }
+                                  className="mt-1 w-full px-2.5 py-1.5 rounded-lg border border-[#E3E2DE] bg-white"
+                                >
+                                  {voices.map((v) => (
+                                    <option key={v.id} value={v.id}>
+                                      {v.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                              <label className="block">
+                                연기 톤 / 말투
+                                <input
+                                  type="text"
+                                  value={activeCand.intro.style}
+                                  onChange={(e) =>
+                                    updateCandidate(activeCand.id, (p) => ({
+                                      ...p,
+                                      intro: { ...p.intro, style: e.target.value },
+                                    }))
+                                  }
+                                  className="mt-1 w-full px-2.5 py-1.5 rounded-lg border border-[#E3E2DE] bg-white"
+                                />
+                              </label>
+                            </div>
+                          )}
                         </div>
                       )}
 

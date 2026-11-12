@@ -13,6 +13,10 @@ const LS_MODEL_STATE = 'autoshorts.sinsoo.modelState.v1';
 export interface SinsooSettings {
   geminiKey: string;
   ytKey: string;
+  elevenLabsKey: string;
+  ttsProvider: 'elevenlabs' | 'gemini';
+  elevenLabsModel: string;
+  elevenLabsVoiceId: string;
   model: string;
   models: string[];
   okModels: string[];
@@ -35,9 +39,19 @@ export interface SinsooSettings {
   analysisRes: 'auto' | 'low' | 'medium';
 }
 
+export const ELEVENLABS_MODELS = [
+  { id: 'eleven_v4', label: 'Eleven v4 (최신 · 유료 구독 기본)' },
+  { id: 'eleven_multilingual_v2', label: 'Multilingual v2 (다국어 안정형)' },
+  { id: 'eleven_flash_v2_5', label: 'Flash v2.5 (초저지연 고속)' },
+] as const;
+
 export const DEFAULT_SINSOO_SETTINGS: SinsooSettings = {
   geminiKey: '',
   ytKey: '',
+  elevenLabsKey: '',
+  ttsProvider: 'elevenlabs',
+  elevenLabsModel: 'eleven_v4',
+  elevenLabsVoiceId: 'JBFqnCBsd6RMkjVDRZzb',
   model: 'gemini-2.5-flash',
   models: ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro'],
   okModels: [],
@@ -132,14 +146,14 @@ export function listGeminiVoices(): GeminiVoiceInfo[] {
 }
 
 export class SinsooApiError extends Error {
-  api: 'gemini' | 'youtube' | 'parse';
+  api: 'gemini' | 'youtube' | 'elevenlabs' | 'parse';
   status: number;
   raw?: unknown;
   aborted?: 'timeout' | 'cancel';
   daily?: boolean;
   wait?: string;
 
-  constructor(api: 'gemini' | 'youtube' | 'parse', status: number, message: string, raw?: unknown) {
+  constructor(api: 'gemini' | 'youtube' | 'elevenlabs' | 'parse', status: number, message: string, raw?: unknown) {
     super(message);
     this.name = 'SinsooApiError';
     this.api = api;
@@ -183,6 +197,10 @@ export function getActiveGeminiKey(): string {
 
 export function getActiveYoutubeKey(): string {
   return loadSinsooSettings().ytKey?.trim() || '';
+}
+
+export function getActiveElevenLabsKey(): string {
+  return loadSinsooSettings().elevenLabsKey?.trim() || '';
 }
 
 /* ───────── Error Classification (ported from gemini.js & api.js) ───────── */
@@ -243,6 +261,15 @@ export function explainSinsooError(err: unknown): string {
   if (!err) return '알 수 없는 오류가 발생했습니다.';
   if (err instanceof SinsooApiError) {
     if (err.aborted || err.daily) return err.message;
+    if (err.api === 'elevenlabs') {
+      if (err.status === 401 || /invalid_api_key|unauthorized/i.test(err.message)) {
+        return 'ElevenLabs API 키가 유효하지 않거나 만료되었습니다. .env 또는 API 설정의 ElevenLabs 키를 확인해 주세요.';
+      }
+      if (err.status === 402 || err.status === 429 || /quota_exceeded|character limit/i.test(err.message)) {
+        return 'ElevenLabs 구독 크레딧(글자 수 한도)이 부족하거나 요청이 너무 많습니다.';
+      }
+      return err.message || `ElevenLabs TTS 오류 (${err.status})`;
+    }
     if (err.api === 'youtube') {
       const m = err.message || '';
       if (err.status === 401) return m;
@@ -1040,6 +1067,156 @@ export async function synthesizeGeminiTts(opt: {
     throw e;
   }
   throw lastErr || new SinsooApiError('gemini', 404, '사용 가능한 Gemini TTS 모델이 없습니다.');
+}
+
+export interface ElevenLabsTtsOptions {
+  text: string;
+  voiceId?: string;
+  modelId?: string;
+  stability?: number;
+  similarityBoost?: number;
+  style?: number;
+  speakerBoost?: boolean;
+  apiKey?: string;
+  signal?: AbortSignal;
+}
+
+export interface ElevenLabsTtsResult {
+  blob: Blob;
+  model: string;
+  voiceId: string;
+  engine: 'elevenlabs';
+  source: 'server' | 'direct';
+}
+
+export async function synthesizeElevenLabsTts(opt: ElevenLabsTtsOptions): Promise<ElevenLabsTtsResult> {
+  const settings = loadSinsooSettings();
+  const cleanText = (opt.text || '').trim();
+  if (!cleanText) {
+    throw new SinsooApiError('elevenlabs', 400, '변환할 대사가 비어 있습니다.');
+  }
+
+  const voiceId = (opt.voiceId || settings.elevenLabsVoiceId || 'JBFqnCBsd6RMkjVDRZzb').trim();
+  const modelId = (opt.modelId || settings.elevenLabsModel || 'eleven_v4').trim();
+  const stability = typeof opt.stability === 'number' ? opt.stability : 0.5;
+  const similarityBoost = typeof opt.similarityBoost === 'number' ? opt.similarityBoost : 0.75;
+  const style = typeof opt.style === 'number' ? opt.style : 0.15;
+  const useSpeakerBoost = opt.speakerBoost !== false;
+  const userKey = (opt.apiKey ?? settings.elevenLabsKey ?? '').trim();
+  const signal = withTimeout(opt.signal, 45000);
+
+  // 1) Try workspace/Vercel /api/tts first (automatically uses ELEVENLABS_API_KEY in server .env)
+  let serverFallbackReason = '';
+  try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (userKey) headers['xi-api-key'] = userKey;
+    const res = await fetch('/api/tts', {
+      method: 'POST',
+      headers,
+      signal,
+      body: JSON.stringify({
+        text: cleanText,
+        voice_id: voiceId,
+        model_id: modelId,
+        stability,
+        similarity_boost: similarityBoost,
+        style,
+        use_speaker_boost: useSpeakerBoost,
+      }),
+    });
+    const engineHeader = res.headers.get('X-TTS-Engine') || '';
+    if (res.ok && engineHeader.startsWith('ElevenLabs-')) {
+      const blob = await res.blob();
+      if (blob.size > 0) {
+        return {
+          blob,
+          model: engineHeader.replace(/^ElevenLabs-/, '') || modelId,
+          voiceId,
+          engine: 'elevenlabs',
+          source: 'server',
+        };
+      }
+    }
+    if (res.ok && engineHeader === 'System-Fallback') {
+      serverFallbackReason = '서버 ELEVENLABS_API_KEY가 비어 있거나 할당량 초과로 폴백(System-Fallback) 되었습니다.';
+    } else if (!res.ok) {
+      serverFallbackReason = `서버 /api/tts 응답 오류 (${res.status})`;
+    }
+  } catch (err) {
+    const ab = abortError(err, signal);
+    if (ab) throw ab;
+    serverFallbackReason = '서버 /api/tts 엔드포인트에 연결할 수 없습니다.';
+  }
+
+  // 2) Direct browser call when personal xi-api-key override is supplied
+  if (userKey) {
+    try {
+      const elRes = await fetch(
+        `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`,
+        {
+          method: 'POST',
+          headers: {
+            'xi-api-key': userKey,
+            'Content-Type': 'application/json',
+          },
+          signal,
+          body: JSON.stringify({
+            text: cleanText,
+            model_id: modelId,
+            voice_settings: {
+              stability,
+              similarity_boost: similarityBoost,
+              style,
+              use_speaker_boost: useSpeakerBoost,
+            },
+          }),
+        }
+      );
+      if (!elRes.ok) {
+        const rawErr = await elRes.json().catch(() => ({}));
+        const msg = rawErr?.detail?.message || rawErr?.detail?.status || rawErr?.message || `ElevenLabs HTTP ${elRes.status}`;
+        throw new SinsooApiError('elevenlabs', elRes.status, String(msg), rawErr);
+      }
+      const blob = await elRes.blob();
+      if (!blob.size) {
+        throw new SinsooApiError('elevenlabs', 502, 'ElevenLabs에서 빈 오디오가 반환되었습니다.');
+      }
+      return {
+        blob,
+        model: modelId,
+        voiceId,
+        engine: 'elevenlabs',
+        source: 'direct',
+      };
+    } catch (err) {
+      const ab = abortError(err, signal);
+      if (ab) throw ab;
+      if (err instanceof SinsooApiError) throw err;
+      throw new SinsooApiError('elevenlabs', 0, err instanceof Error ? err.message : 'ElevenLabs 직접 호출 실패');
+    }
+  }
+
+  throw new SinsooApiError(
+    'elevenlabs',
+    503,
+    serverFallbackReason || 'ElevenLabs 유료 TTS가 응답하지 않았습니다. API 설정에서 서버 연동 상태를 확인하거나 개인 키를 입력해 주세요.'
+  );
+}
+
+export async function testElevenLabsTts(opt?: { apiKey?: string; voiceId?: string; modelId?: string }) {
+  const res = await synthesizeElevenLabsTts({
+    text: '안녕하세요. 일레븐랩스 유료 음성이 정상 연동되었습니다.',
+    voiceId: opt?.voiceId,
+    modelId: opt?.modelId,
+    apiKey: opt?.apiKey,
+  });
+  return {
+    ok: true as const,
+    model: res.model,
+    source: res.source,
+    bytes: res.blob.size,
+    blob: res.blob,
+  };
 }
 
 async function wavToMonoFloat32(blob: Blob): Promise<{ data: Float32Array; sr: number }> {
