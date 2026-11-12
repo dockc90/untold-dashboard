@@ -11,8 +11,6 @@ import {
   Compass, 
   ArrowRight,
   Globe,
-  Youtube,
-  Instagram,
   BarChart2,
   Info,
   Film,
@@ -20,6 +18,14 @@ import {
   X
 } from 'lucide-react';
 import { TrendingFigure, CategoryType, TimeFilter, SourceChannel } from '../types';
+import { 
+  InstagramIcon, 
+  InstagramBadge, 
+  YouTubeIcon, 
+  YouTubeBadge, 
+  NaverIcon, 
+  NaverBadge 
+} from './BrandIcons';
 
 interface TrendRadarProps {
   figures: TrendingFigure[];
@@ -54,12 +60,12 @@ const CATEGORY_ICONS: Record<CategoryType, string> = {
 };
 
 const CATEGORY_GRADIENTS: Record<CategoryType, string> = {
-  all: 'from-rose-500 to-indigo-600',
+  all: 'from-[#1E1E1E] to-[#4338CA]',
   viral: 'from-orange-500 to-amber-500',
   sports: 'from-blue-600 to-indigo-600',
   entertainment: 'from-amber-500 to-rose-500',
   actor: 'from-purple-600 to-indigo-600',
-  economy: 'from-slate-700 to-indigo-900',
+  economy: 'from-slate-700 to-slate-900',
   global: 'from-fuchsia-600 to-pink-500',
   social: 'from-emerald-600 to-teal-700',
 };
@@ -75,19 +81,19 @@ export const FigureAvatar: React.FC<{ name: string; category: CategoryType; imag
 
   const initial = name.replace(/[^가-힣a-zA-Z]/g, '').slice(0, 2) || name.slice(0, 2);
   const icon = CATEGORY_ICONS[category] || '🔥';
-  const gradient = CATEGORY_GRADIENTS[category] || 'from-indigo-600 to-rose-500';
+  const gradient = CATEGORY_GRADIENTS[category] || 'from-[#1E1E1E] to-[#4338CA]';
 
   if (!imageUrl || hasError) {
     return (
-      <div className={`w-11 h-11 rounded-2xl bg-gradient-to-tr ${gradient} flex flex-col items-center justify-center text-white shadow-2xs relative shrink-0 overflow-hidden`}>
-        <span className="text-xs font-black tracking-tight leading-none">{initial}</span>
+      <div className={`w-11 h-11 rounded-xl bg-gradient-to-tr ${gradient} flex flex-col items-center justify-center text-white shadow-2xs relative shrink-0 overflow-hidden`}>
+        <span className="text-xs font-bold tracking-tight leading-none">{initial}</span>
         <span className="text-[9px] leading-none mt-0.5 opacity-90">{icon}</span>
       </div>
     );
   }
 
   return (
-    <div className={`w-11 h-11 rounded-2xl relative shrink-0 overflow-hidden bg-gradient-to-tr ${gradient} border border-slate-200 shadow-2xs`}>
+    <div className={`w-11 h-11 rounded-xl relative shrink-0 overflow-hidden bg-gradient-to-tr ${gradient} border border-[#E9E9E7] shadow-2xs`}>
       <img
         src={imageUrl}
         alt=""
@@ -100,7 +106,7 @@ export const FigureAvatar: React.FC<{ name: string; category: CategoryType; imag
       />
       {!loaded && (
         <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
-          <span className="text-xs font-black">{initial}</span>
+          <span className="text-xs font-bold">{initial}</span>
           <span className="text-[9px] mt-0.5">{icon}</span>
         </div>
       )}
@@ -140,13 +146,13 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
 
   const handleRefreshClick = async () => {
     if (isLoading) return;
-    setRefreshToast('⏳ 네이버·유튜브·인스타 3대 플랫폼에서 최신 화제성 인물을 실시간으로 수집하고 있습니다...');
+    setRefreshToast('⏳ 네이버·유튜브·인스타 3대 플랫폼 최신 화제성 인물 수집 중...');
     try {
       await onRefreshTrends(timeFilter, categoryFilter, sourceChannel);
       const now = new Date();
       const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
       setLastUpdatedTime(timeStr);
-      setRefreshToast('✨ 최신 화제성 인물이 실시간으로 최신화되었습니다! (전 세계 트렌드 랭킹 반영)');
+      setRefreshToast('✨ 최신 화제성 인물이 실시간으로 최신화되었습니다!');
       setTimeout(() => setRefreshToast(null), 4000);
     } catch (err: any) {
       setRefreshToast('✨ 최신 화제 인물 데이터로 갱신되었습니다!');
@@ -154,14 +160,10 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
     }
   };
 
-  // Filter figures (유튜브·네이버·인스타 및 24h·48h·7d 완벽 필터링 보장)
+  // Filter figures
   const filteredFigures = figures.filter((fig) => {
     const norm = normalizeChannel(fig.primaryChannel);
 
-    // 플랫폼 채널 매칭:
-    // 1) 'all': 전체 표시
-    // 2) 'multi': 모든 플랫폼 탭에서 공통 표시
-    // 3) norm이 해당 채널과 일치하거나, 해당 플랫폼 지표(youtubeViews, naverRank, instaReels)가 있으면 포함!
     const matchesChannel = (() => {
       if (sourceChannel === 'all') return true;
       if (norm === 'multi') return true;
@@ -172,10 +174,6 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
       return false;
     })();
 
-    // 시간대 필터 매칭:
-    // - 7d: 주간 전체 인물 (24h, 48h, 7d 모두 포함)
-    // - 48h: 24h 및 48h 인물 포함
-    // - 24h: 24h 급상승 인물 및 실시간 핫(isHot) 인물 포함
     const matchesTime = (() => {
       if (timeFilter === '7d') return true;
       if (timeFilter === '48h') return fig.timeframe === '24h' || fig.timeframe === '48h' || !fig.timeframe;
@@ -206,29 +204,29 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
-      {/* Top Header of Radar */}
-      <div className="p-4 bg-slate-50/80 border-b border-slate-200 space-y-3">
+    <div className="flex flex-col h-full bg-white border border-[#E9E9E7] rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+      {/* Top Header of Radar: Notion Minimalist Style */}
+      <div className="p-4 sm:p-5 bg-[#FBFBFA] border-b border-[#EDEDEB] space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center space-x-2">
-            <div className="p-2 rounded-xl bg-rose-50 text-rose-600 border border-rose-200">
-              <Compass className="w-4 h-4" />
+          <div className="flex items-center space-x-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[#F1F1EF] border border-[#E3E2DE] text-[#37352F] flex items-center justify-center shrink-0">
+              <Compass className="w-4 h-4 text-[#37352F]" />
             </div>
             <div>
               <div className="flex items-center space-x-1.5">
-                <h2 className="text-sm font-extrabold text-slate-900">
+                <h2 className="text-sm sm:text-base font-bold text-[#191919]">
                   Untold 트렌드 레이더
                 </h2>
                 <button
                   type="button"
                   onClick={() => setShowDbInfo(!showDbInfo)}
-                  className="p-0.5 text-slate-400 hover:text-indigo-600 transition cursor-pointer"
+                  className="p-0.5 text-[#9B9A97] hover:text-[#37352F] transition cursor-pointer"
                   title="DB 수집 출처 안내"
                 >
                   <Info className="w-3.5 h-3.5" />
                 </button>
               </div>
-              <p className="text-[11px] text-slate-500 font-medium">실시간 3대 플랫폼 트렌드</p>
+              <p className="text-[11px] text-[#787774] font-medium leading-none mt-0.5">실시간 3대 플랫폼 트렌드 분석</p>
             </div>
           </div>
 
@@ -237,7 +235,7 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
               type="button"
               onClick={handleRefreshClick}
               disabled={isLoading}
-              className="flex items-center space-x-1.5 px-3 py-1.5 bg-gradient-to-r from-rose-500 via-rose-600 to-indigo-600 hover:from-rose-600 hover:to-indigo-700 text-white rounded-xl text-xs font-black transition shadow-sm cursor-pointer disabled:opacity-50 active:scale-95"
+              className="flex items-center space-x-1.5 px-3 py-1.5 bg-[#23272A] hover:bg-[#111213] text-white rounded-xl text-xs font-semibold transition shadow-xs cursor-pointer disabled:opacity-50 active:scale-95"
               title="실시간 네이버·유튜브·인스타 최신 화제 인물 데이터로 새로고침"
             >
               <RotateCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
@@ -247,10 +245,10 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
             <button
               type="button"
               onClick={() => setIsCustomModalOpen(true)}
-              className="flex items-center space-x-1 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer"
+              className="flex items-center space-x-1 px-2.5 py-1.5 bg-[#F1F1EF] hover:bg-white text-[#37352F] border border-[#E3E2DE] rounded-xl text-xs font-medium transition shadow-2xs cursor-pointer"
               title="원하는 인물 직접 추가하기"
             >
-              <PlusCircle className="w-3.5 h-3.5" />
+              <PlusCircle className="w-3.5 h-3.5 text-[#787774]" />
               <span className="hidden sm:inline">직접 추가</span>
             </button>
           </div>
@@ -258,20 +256,20 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
 
         {/* Real-time Refresh Toast Notification */}
         {refreshToast && (
-          <div className="p-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-rose-600 text-white font-black text-xs text-center shadow-md animate-fade-in flex items-center justify-center gap-2">
+          <div className="p-2.5 rounded-xl bg-[#23272A] text-white font-medium text-xs text-center shadow-md animate-fade-in flex items-center justify-center gap-2">
             <Sparkles className="w-4 h-4 text-amber-300 animate-pulse shrink-0" />
             <span>{refreshToast}</span>
           </div>
         )}
 
-        {/* DB Source Explanation Box (collapsible) */}
+        {/* DB Source Explanation Box */}
         {showDbInfo && (
-          <div className="p-3 rounded-2xl bg-indigo-50/80 border border-indigo-100 text-[11px] text-indigo-900 space-y-1.5 animate-fadeIn">
-            <div className="flex items-center space-x-1.5 font-bold text-indigo-800">
+          <div className="p-3.5 rounded-xl bg-[#F1F1EF] border border-[#E3E2DE] text-[11px] text-[#37352F] space-y-1.5 animate-fadeIn">
+            <div className="flex items-center space-x-1.5 font-bold text-[#191919]">
               <BarChart2 className="w-4 h-4 text-indigo-600" />
               <span>실시간 데이터 수집 및 교차 검증 파이프라인</span>
             </div>
-            <p className="text-indigo-700 leading-relaxed font-medium">
+            <p className="text-[#787774] leading-relaxed font-normal">
               1. <strong>네이버 데이터랩</strong>: 지난 24~48시간 검색량 급상승 키워드 및 연관 검색어 추출.<br/>
               2. <strong>유튜브 인기 급상승 쇼츠</strong>: 대한민국 시청자 대상 100만 뷰 이상 바이럴 영상 인물 교차 분석.<br/>
               3. <strong>인스타그램 릴스</strong>: 릴스 배경음악 챌린지 및 핫토픽 필터링.
@@ -279,14 +277,14 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
           </div>
         )}
 
-        {/* 1. Source Channels Tabs (1-row compact design for mobile) */}
-        <div className="grid grid-cols-4 gap-1 p-1 sm:p-1.5 bg-slate-200/70 rounded-2xl border border-slate-200 text-xs font-bold">
+        {/* 1. Source Channels Tabs with Official Brand Badges (Notion Pill Bar) */}
+        <div className="grid grid-cols-4 gap-1 p-1 bg-[#F1F1EF] rounded-xl border border-[#E3E2DE] text-xs font-medium">
           <button
             onClick={() => setSourceChannel('all')}
-            className={`py-2 px-1 sm:px-2.5 rounded-xl transition flex items-center justify-center space-x-1 cursor-pointer touch-manipulation active:scale-95 ${
+            className={`py-1.5 px-1 sm:px-2.5 rounded-lg transition flex items-center justify-center space-x-1 cursor-pointer touch-manipulation active:scale-95 ${
               sourceChannel === 'all'
-                ? 'bg-white text-slate-900 shadow-2xs font-black'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-white text-[#191919] shadow-xs font-bold'
+                : 'text-[#787774] hover:text-[#191919]'
             }`}
           >
             <Globe className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
@@ -295,51 +293,51 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
 
           <button
             onClick={() => setSourceChannel('youtube')}
-            className={`py-2 px-1 sm:px-2.5 rounded-xl transition flex items-center justify-center space-x-1 cursor-pointer touch-manipulation active:scale-95 ${
+            className={`py-1.5 px-1 sm:px-2.5 rounded-lg transition flex items-center justify-center space-x-1.5 cursor-pointer touch-manipulation active:scale-95 ${
               sourceChannel === 'youtube'
-                ? 'bg-rose-500 text-white shadow-2xs font-black'
-                : 'text-slate-600 hover:text-rose-600'
+                ? 'bg-white text-red-600 shadow-xs font-bold'
+                : 'text-[#787774] hover:text-red-600'
             }`}
           >
-            <Youtube className="w-3.5 h-3.5 fill-current shrink-0" />
+            <YouTubeIcon className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">유튜브</span>
           </button>
 
           <button
             onClick={() => setSourceChannel('naver')}
-            className={`py-2 px-1 sm:px-2.5 rounded-xl transition flex items-center justify-center space-x-1 cursor-pointer touch-manipulation active:scale-95 ${
+            className={`py-1.5 px-1 sm:px-2.5 rounded-lg transition flex items-center justify-center space-x-1.5 cursor-pointer touch-manipulation active:scale-95 ${
               sourceChannel === 'naver'
-                ? 'bg-emerald-600 text-white shadow-2xs font-black'
-                : 'text-slate-600 hover:text-emerald-600'
+                ? 'bg-white text-emerald-700 shadow-xs font-bold'
+                : 'text-[#787774] hover:text-emerald-700'
             }`}
           >
-            <span className="font-black text-[9px] text-emerald-400 bg-emerald-950 px-1 rounded shrink-0">N</span>
+            <NaverIcon className="w-3 h-3 text-[#03C75A] shrink-0" />
             <span className="truncate">네이버</span>
           </button>
 
           <button
             onClick={() => setSourceChannel('instagram')}
-            className={`py-2 px-1 sm:px-2.5 rounded-xl transition flex items-center justify-center space-x-1 cursor-pointer touch-manipulation active:scale-95 ${
+            className={`py-1.5 px-1 sm:px-2.5 rounded-lg transition flex items-center justify-center space-x-1.5 cursor-pointer touch-manipulation active:scale-95 ${
               sourceChannel === 'instagram'
-                ? 'bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 text-white shadow-2xs font-black'
-                : 'text-slate-600 hover:text-purple-600'
+                ? 'bg-white text-[#bc1888] shadow-xs font-bold'
+                : 'text-[#787774] hover:text-[#bc1888]'
             }`}
           >
-            <Instagram className="w-3.5 h-3.5 shrink-0" />
+            <InstagramIcon className="w-3.5 h-3.5 text-[#e1306c] shrink-0" />
             <span className="truncate">인스타</span>
           </button>
         </div>
 
-        {/* 2. Time Tabs */}
-        <div className="grid grid-cols-3 gap-1 bg-white p-1 rounded-2xl border border-slate-200 text-[11px] sm:text-xs">
+        {/* 2. Time Tabs (Notion Clean Pill) */}
+        <div className="grid grid-cols-3 gap-1 bg-[#F1F1EF] p-1 rounded-xl border border-[#E3E2DE] text-[11px] sm:text-xs">
           {(['24h', '48h', '7d'] as TimeFilter[]).map((tf) => (
             <button
               key={tf}
               onClick={() => setTimeFilter(tf)}
-              className={`py-1.5 text-center font-bold rounded-xl transition whitespace-nowrap px-1 ${
+              className={`py-1.5 text-center rounded-lg transition whitespace-nowrap px-1 cursor-pointer ${
                 timeFilter === tf
-                  ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 font-extrabold shadow-2xs'
-                  : 'text-slate-500 hover:text-slate-800'
+                  ? 'bg-white text-[#191919] font-bold shadow-xs'
+                  : 'text-[#787774] hover:text-[#191919] font-medium'
               }`}
             >
               {tf === '24h' && '24시간'}
@@ -351,13 +349,13 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
 
         {/* Search Input */}
         <div className="relative">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-[#9B9A97] absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="인물, 채널, 키워드 검색 (예: 손흥민, 네이버, 흑백요리사)"
-            className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+            className="w-full bg-white border border-[#E3E2DE] rounded-xl pl-9 pr-3 py-2 text-xs text-[#37352F] placeholder-[#9B9A97] focus:outline-none focus:border-[#23272A] focus:ring-1 focus:ring-[#23272A] transition"
           />
         </div>
 
@@ -368,10 +366,10 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
               <button
                 key={cat.id}
                 onClick={() => setCategoryFilter(cat.id)}
-                className={`whitespace-nowrap px-3 py-1.5 rounded-xl transition font-bold border shrink-0 ${
+                className={`whitespace-nowrap px-3 py-1.5 rounded-lg transition font-medium border shrink-0 cursor-pointer ${
                   categoryFilter === cat.id
-                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
-                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                    ? 'bg-[#23272A] text-white border-[#23272A] shadow-2xs font-semibold'
+                    : 'bg-white text-[#787774] border-[#E3E2DE] hover:text-[#37352F] hover:bg-[#F1F1EF]'
                 }`}
               >
                 {cat.label}
@@ -382,21 +380,21 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
       </div>
 
       {/* Figures Scroll List / Grid */}
-      <div className="flex-1 overflow-y-auto p-4 bg-slate-50/50 space-y-3">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-5 bg-[#FAF9F7]/50 space-y-3.5">
         {/* Real-time Status & 1-Click Refresh Bar */}
-        <div className="flex items-center justify-between px-1 text-[11px] font-bold text-slate-500">
+        <div className="flex items-center justify-between px-1 text-[11px] font-semibold text-[#787774]">
           <div className="flex items-center gap-1.5">
             <Flame className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
-            <span className="text-slate-800 font-extrabold">실시간 화제 인물 랭킹 ({filteredFigures.length}명)</span>
-            <span className="px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 text-[9px] font-black">
-              업데이트: {lastUpdatedTime}
+            <span className="text-[#37352F] font-bold">실시간 화제 인물 랭킹 ({filteredFigures.length}명)</span>
+            <span className="px-1.5 py-0.2 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/60 text-[9px] font-bold">
+              {lastUpdatedTime}
             </span>
           </div>
           <button
             type="button"
             onClick={handleRefreshClick}
             disabled={isLoading}
-            className="text-[11px] text-indigo-600 hover:text-indigo-800 font-black flex items-center gap-1 cursor-pointer transition disabled:opacity-50"
+            className="text-[11px] text-[#37352F] hover:text-black font-semibold flex items-center gap-1 cursor-pointer transition disabled:opacity-50"
             title="새로고침 버튼을 눌러 최신 화제 인물로 다시 갱신"
           >
             <RotateCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
@@ -406,17 +404,17 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
 
         {filteredFigures.length === 0 ? (
           <div className="text-center py-16 px-4 space-y-3">
-            <Flame className="w-10 h-10 text-slate-300 mx-auto" />
-            <p className="text-sm font-bold text-slate-600">조건에 맞는 화제 인물이 없습니다.</p>
+            <Flame className="w-10 h-10 text-[#D3D1CB] mx-auto" />
+            <p className="text-sm font-semibold text-[#787774]">조건에 맞는 화제 인물이 없습니다.</p>
             <button
               onClick={() => setIsCustomModalOpen(true)}
-              className="text-xs text-indigo-600 hover:text-indigo-700 underline font-bold"
+              className="text-xs text-[#23272A] hover:underline font-semibold"
             >
               원하는 인물을 직접 등록하여 분석해보세요
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
             {[...filteredFigures]
               .sort((a, b) => {
                 if (b.viralityScore !== a.viralityScore) {
@@ -433,8 +431,8 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
                     onClick={() => onSelectFigure(fig)}
                     className={`group relative p-4 sm:p-5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
                       isSelected
-                        ? 'bg-indigo-50/70 border-indigo-500 shadow-md ring-2 ring-indigo-500/30'
-                        : 'bg-white hover:bg-slate-50/80 border-slate-200 hover:border-indigo-300 shadow-2xs hover:shadow-md'
+                        ? 'bg-white border-[#23272A] shadow-xs ring-1 ring-[#23272A]/10'
+                        : 'bg-white hover:bg-[#FAF9F7] border-[#E9E9E7] hover:border-[#D3D1CB] shadow-[0_1px_3px_rgba(0,0,0,0.02)]'
                     }`}
                   >
                     <div>
@@ -444,161 +442,161 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
                           <FigureAvatar name={fig.name} category={fig.category} imageUrl={fig.imageUrl} />
                           <div>
                             <div className="flex items-center space-x-1.5 flex-wrap">
-                              <span className="font-extrabold text-sm sm:text-base text-slate-900 group-hover:text-indigo-600 transition">
+                              <span className="font-bold text-sm sm:text-base text-[#191919] group-hover:text-black transition">
                                 {fig.name}
                               </span>
                               {rank === 1 ? (
-                                <span className="px-1.5 py-0.2 text-[9px] font-black bg-gradient-to-r from-amber-500 to-rose-500 text-white rounded-md shadow-2xs animate-pulse">
+                                <span className="px-1.5 py-0.2 text-[9px] font-bold bg-amber-50 text-amber-800 border border-amber-200/80 rounded-md">
                                   🥇 1위
                                 </span>
                               ) : rank === 2 ? (
-                                <span className="px-1.5 py-0.2 text-[9px] font-black bg-slate-200 text-slate-800 rounded-md">
+                                <span className="px-1.5 py-0.2 text-[9px] font-bold bg-[#F1F1EF] text-[#37352F] border border-[#E3E2DE] rounded-md">
                                   🥈 2위
                                 </span>
                               ) : rank === 3 ? (
-                                <span className="px-1.5 py-0.2 text-[9px] font-black bg-amber-100 text-amber-800 rounded-md">
+                                <span className="px-1.5 py-0.2 text-[9px] font-bold bg-[#F1F1EF] text-[#787774] border border-[#E3E2DE] rounded-md">
                                   🥉 3위
                                 </span>
                               ) : (
-                                <span className="px-1.5 py-0.2 text-[9px] font-bold bg-slate-100 text-slate-500 rounded-md">
+                                <span className="px-1.5 py-0.2 text-[9px] font-medium bg-[#F1F1EF] text-[#9B9A97] rounded-md">
                                   #{rank}
                                 </span>
                               )}
                               {fig.isHot && (
-                                <span className="px-1.5 py-0.2 text-[9px] font-black bg-rose-100 text-rose-700 rounded-md flex items-center gap-0.5">
+                                <span className="px-1.5 py-0.2 text-[9px] font-semibold bg-rose-50 text-rose-700 border border-rose-200/60 rounded-md flex items-center gap-0.5">
                                   <TrendingUp className="w-2.5 h-2.5" /> 급상승
                                 </span>
                               )}
                             </div>
-                            <p className="text-xs text-slate-600 font-medium line-clamp-1 mt-0.5">{fig.title}</p>
+                            <p className="text-xs text-[#787774] font-medium line-clamp-1 mt-0.5">{fig.title}</p>
                           </div>
                         </div>
 
                         {/* Virality Score */}
-                        <div className="flex items-center space-x-1 px-2.5 py-1 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 font-black text-xs shrink-0">
+                        <div className="flex items-center space-x-1 px-2 py-0.5 rounded-lg bg-rose-50/80 border border-rose-200/60 text-rose-700 font-bold text-xs shrink-0">
                           <Flame className="w-3.5 h-3.5 fill-rose-500 text-rose-500" />
                           <span>{fig.viralityScore}점</span>
                         </div>
                       </div>
 
-                    {/* Multi-Channel Live Metrics Pills (네이버, 유튜브, 인스타그램) */}
-                    {fig.channelMetrics && (
-                      <div className="flex flex-wrap items-center gap-1.5 mb-2.5">
-                        {fig.channelMetrics.youtubeViews && (
-                          <span className="flex items-center space-x-1 text-[10px] font-bold px-2 py-0.5 rounded-lg bg-rose-50 text-rose-700 border border-rose-200">
-                            <Youtube className="w-3 h-3 fill-rose-600 text-rose-600" />
-                            <span>{fig.channelMetrics.youtubeViews}</span>
-                          </span>
-                        )}
-                        {fig.channelMetrics.naverRank && (
-                          <span className="flex items-center space-x-1 text-[10px] font-bold px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200">
-                            <span className="w-2.5 h-2.5 bg-emerald-600 text-white rounded-xs flex items-center justify-center text-[7px] font-black">N</span>
-                            <span>{fig.channelMetrics.naverRank}</span>
-                          </span>
-                        )}
-                        {fig.channelMetrics.instaReels && (
-                          <span className="flex items-center space-x-1 text-[10px] font-bold px-2 py-0.5 rounded-lg bg-purple-50 text-purple-800 border border-purple-200">
-                            <Instagram className="w-3 h-3 text-purple-600" />
-                            <span>{fig.channelMetrics.instaReels}</span>
-                          </span>
-                        )}
-                      </div>
-                    )}
+                      {/* Multi-Channel Live Metrics Pills with Official Brand Badges */}
+                      {fig.channelMetrics && (
+                        <div className="flex flex-wrap items-center gap-1.5 mb-2.5">
+                          {fig.channelMetrics.youtubeViews && (
+                            <span className="flex items-center space-x-1 text-[10px] font-medium px-2 py-0.5 rounded-lg bg-red-50/60 text-red-700 border border-red-200/60">
+                              <YouTubeIcon className="w-3 h-3 shrink-0" />
+                              <span>{fig.channelMetrics.youtubeViews}</span>
+                            </span>
+                          )}
+                          {fig.channelMetrics.naverRank && (
+                            <span className="flex items-center space-x-1 text-[10px] font-medium px-2 py-0.5 rounded-lg bg-emerald-50/60 text-emerald-800 border border-emerald-200/60">
+                              <NaverIcon className="w-2.5 h-2.5 text-[#03C75A] shrink-0" />
+                              <span>{fig.channelMetrics.naverRank}</span>
+                            </span>
+                          )}
+                          {fig.channelMetrics.instaReels && (
+                            <span className="flex items-center space-x-1 text-[10px] font-medium px-2 py-0.5 rounded-lg bg-purple-50/60 text-purple-800 border border-purple-200/60">
+                              <InstagramIcon className="w-2.5 h-2.5 text-[#e1306c] shrink-0" />
+                              <span>{fig.channelMetrics.instaReels}</span>
+                            </span>
+                          )}
+                        </div>
+                      )}
 
-                    {/* Buzz Summary */}
-                    <p className="text-xs text-slate-600 line-clamp-2 mb-2.5 leading-relaxed">
-                      {fig.buzzSummary}
-                    </p>
-
-                    {/* Suggested Angle */}
-                    <div className="p-2.5 rounded-xl bg-amber-50/80 border border-amber-200/80 mb-2.5">
-                      <div className="flex items-center space-x-1 text-[11px] font-bold text-amber-800 mb-1">
-                        <TrendingUp className="w-3 h-3 text-amber-600" />
-                        <span>추천 기획 방향</span>
-                      </div>
-                      <p className="text-[11px] text-amber-900 leading-snug line-clamp-2 font-medium">
-                        "{fig.suggestedAngle}"
+                      {/* Buzz Summary */}
+                      <p className="text-xs text-[#787774] line-clamp-2 mb-2.5 leading-relaxed font-normal">
+                        {fig.buzzSummary}
                       </p>
+
+                      {/* Suggested Angle */}
+                      <div className="p-2.5 rounded-xl bg-[#F1F1EF] border border-[#E3E2DE] mb-2.5">
+                        <div className="flex items-center space-x-1 text-[11px] font-semibold text-[#37352F] mb-0.5">
+                          <TrendingUp className="w-3 h-3 text-amber-600" />
+                          <span>추천 기획 방향</span>
+                        </div>
+                        <p className="text-[11px] text-[#787774] leading-snug line-clamp-2 font-normal">
+                          "{fig.suggestedAngle}"
+                        </p>
+                      </div>
+
+                      {/* Tags */}
+                      <div className="flex items-center space-x-1 overflow-hidden mb-3">
+                        <span className="text-[10px] font-semibold text-[#37352F] bg-[#F1F1EF] px-1.5 py-0.5 rounded border border-[#E3E2DE] shrink-0">
+                          태그
+                        </span>
+                        <span className="text-[10px] text-[#9B9A97] truncate font-medium">
+                          {fig.tags.slice(0, 4).map((t) => `#${t}`).join(' ')}
+                        </span>
+                      </div>
                     </div>
 
-                    {/* Tags */}
-                    <div className="flex items-center space-x-1 overflow-hidden mb-3">
-                      <span className="text-[10px] font-black text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded-md border border-indigo-100 shrink-0">
-                        태그
-                      </span>
-                      <span className="text-[10px] text-slate-500 truncate font-semibold">
-                        {fig.tags.slice(0, 4).map((t) => `#${t}`).join(' ')}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Action Buttons: 쇼츠 제작 & 캐러셀 제작 (Mobile-First 44px Touch Targets) */}
-                  <div className="grid grid-cols-2 gap-2 mt-auto pt-1">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelectFigure(fig);
-                      }}
-                      className="min-h-[44px] py-2.5 px-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-black text-xs shadow-xs flex items-center justify-center space-x-1.5 transition cursor-pointer touch-manipulation"
-                      title="쇼츠 대본 및 영상 제작"
-                    >
-                      <Film className="w-4 h-4 shrink-0" />
-                      <span className="truncate font-black">쇼츠 제작</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (onSelectFigureForCarousel) {
-                          onSelectFigureForCarousel(fig);
-                        } else {
+                    {/* Action Buttons: 쇼츠 제작 & 캐러셀 제작 */}
+                    <div className="grid grid-cols-2 gap-2 mt-auto pt-1">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
                           onSelectFigure(fig);
-                        }
-                      }}
-                      className="min-h-[44px] py-2.5 px-2 rounded-xl bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-600 hover:to-amber-600 active:scale-95 text-white font-black text-xs shadow-xs flex items-center justify-center space-x-1.5 transition cursor-pointer touch-manipulation"
-                      title="카드뉴스 캐러셀 제작"
-                    >
-                      <Layers className="w-4 h-4 shrink-0" />
-                      <span className="truncate font-black">캐러셀 제작</span>
-                    </button>
+                        }}
+                        className="min-h-[42px] py-2 px-2 rounded-xl bg-[#23272A] hover:bg-[#111213] active:scale-95 text-white font-semibold text-xs shadow-xs flex items-center justify-center space-x-1.5 transition cursor-pointer touch-manipulation"
+                        title="쇼츠 대본 및 영상 제작"
+                      >
+                        <Film className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">쇼츠 제작</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onSelectFigureForCarousel) {
+                            onSelectFigureForCarousel(fig);
+                          } else {
+                            onSelectFigure(fig);
+                          }
+                        }}
+                        className="min-h-[42px] py-2 px-2 rounded-xl bg-white hover:bg-[#F1F1EF] active:scale-95 text-[#37352F] border border-[#E3E2DE] font-semibold text-xs shadow-xs flex items-center justify-center space-x-1.5 transition cursor-pointer touch-manipulation"
+                        title="카드뉴스 캐러셀 제작"
+                      >
+                        <Layers className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                        <span className="truncate">캐러셀 제작</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         )}
       </div>
 
       {/* Modal for adding custom figure */}
       {isCustomModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl space-y-4 text-slate-800">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-[#E9E9E7] rounded-2xl max-w-md w-full p-6 sm:p-7 shadow-xl space-y-4 text-[#37352F]">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center space-x-2.5 min-w-0">
-                <div className="p-2.5 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-200 shrink-0">
-                  <Sparkles className="w-5 h-5" />
+                <div className="p-2 rounded-xl bg-[#F1F1EF] text-[#37352F] border border-[#E3E2DE] shrink-0">
+                  <Sparkles className="w-4 h-4 text-amber-500" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="text-base font-extrabold text-slate-900 truncate">원하는 인물 직접 AI 분석</h3>
-                  <p className="text-xs text-slate-500 truncate">네이버·유튜브·인스타 트렌드를 종합 분석합니다.</p>
+                  <h3 className="text-base font-bold text-[#191919] truncate">원하는 인물 직접 AI 분석</h3>
+                  <p className="text-xs text-[#787774] truncate">네이버·유튜브·인스타 트렌드를 종합 분석합니다.</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsCustomModalOpen(false)}
-                className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-100 text-slate-600 hover:text-rose-600 font-black text-xs transition cursor-pointer shrink-0 active:scale-95"
+                className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-[#F1F1EF] hover:bg-rose-50 text-[#787774] hover:text-rose-600 font-medium text-xs transition cursor-pointer shrink-0 active:scale-95"
                 title="닫기"
               >
-                <X className="w-4 h-4 text-slate-600" />
+                <X className="w-3.5 h-3.5" />
                 <span>닫기</span>
               </button>
             </div>
 
             <form onSubmit={handleCustomSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                <label className="block text-xs font-semibold text-[#37352F] mb-1.5">
                   인물 이름 또는 별칭
                 </label>
                 <input
@@ -607,18 +605,18 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
                   placeholder="예: 안성재, 손흥민, 변우석, 로제, 페이커..."
                   value={customName}
                   onChange={(e) => setCustomName(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  className="w-full bg-[#FAF9F7] border border-[#E3E2DE] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#37352F] placeholder-[#9B9A97] focus:outline-none focus:border-[#23272A] focus:ring-1 focus:ring-[#23272A]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                <label className="block text-xs font-semibold text-[#37352F] mb-1.5">
                   카테고리
                 </label>
                 <select
                   value={customCategory}
                   onChange={(e) => setCustomCategory(e.target.value as CategoryType)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-indigo-500 font-medium"
+                  className="w-full bg-[#FAF9F7] border border-[#E3E2DE] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#37352F] focus:outline-none focus:border-[#23272A] font-medium"
                 >
                   <option value="entertainment">연예·가수</option>
                   <option value="actor">배우·드라마</option>
@@ -633,14 +631,14 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsCustomModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100"
+                  className="px-3.5 py-2 rounded-xl text-xs font-medium text-[#787774] hover:text-[#37352F] bg-[#F1F1EF]"
                 >
                   취소
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingCustom || !customName.trim()}
-                  className="flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-extrabold bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-md shadow-indigo-500/20 disabled:opacity-50"
+                  className="flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-[#23272A] hover:bg-[#111213] text-white transition shadow-xs disabled:opacity-50"
                 >
                   {isSubmittingCustom ? (
                     <>

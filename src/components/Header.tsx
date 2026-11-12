@@ -18,11 +18,11 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab, savedCount, onResetToHome }) => {
   return (
-    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 text-slate-800 shadow-xs w-full">
+    <header className="sticky top-0 z-50 bg-[#FBFBFA]/95 backdrop-blur-md border-b border-[#EDEDEB] text-[#37352F] w-full">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         {/* Main Header Row */}
         <div className="h-14 sm:h-16 flex items-center justify-between gap-2">
-          {/* Brand / Logo (Always Navigates to Home 1-Step Trends View) */}
+          {/* Brand / Logo (Sensory Notion Aesthetic) */}
           <button
             type="button"
             onClick={() => {
@@ -35,19 +35,19 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab, saved
             className="flex items-center space-x-2 sm:space-x-2.5 text-left group transition cursor-pointer focus:outline-none shrink-0"
             title="홈 화면(1단계 트렌드 인물 선택)으로 이동"
           >
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-rose-500 via-amber-500 to-indigo-600 flex items-center justify-center shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform shrink-0">
-              <Film className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-[#1E1E1E] via-[#2A2B32] to-[#4338CA] flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform shrink-0">
+              <Film className="w-4 h-4 text-white" />
             </div>
             <div>
               <div className="flex items-center space-x-1.5">
-                <span className="font-black text-base sm:text-lg tracking-tight bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-800 bg-clip-text text-transparent">
+                <span className="font-bold text-base sm:text-lg tracking-tight text-[#191919]">
                   AutoShorts
                 </span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded-full font-black bg-rose-50 text-rose-600 border border-rose-200 shrink-0">
-                  AI 2.0
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-gradient-to-r from-amber-500/10 to-orange-500/10 text-amber-700 border border-amber-200/80 shrink-0 leading-none">
+                  PRO
                 </span>
               </div>
-              <p className="hidden sm:block text-[11px] text-slate-500 font-medium">화제의 인물 쇼츠 스튜디오</p>
+              <p className="hidden sm:block text-[11px] text-[#9B9A97] font-medium leading-none mt-0.5">화제의 인물 쇼츠 스튜디오</p>
             </div>
           </button>
 
@@ -55,70 +55,72 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab, saved
           <div className="flex items-center sm:hidden space-x-1">
             <button
               onClick={() => setCurrentTab('saved')}
-              className={`flex items-center space-x-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                currentTab === 'saved' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'
+              className={`flex items-center space-x-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer border ${
+                currentTab === 'saved' 
+                  ? 'bg-[#23272A] text-white border-[#23272A]' 
+                  : 'bg-[#F1F1EF] text-[#37352F] border-[#E3E2DE] hover:bg-white'
               }`}
             >
               <FolderHeart className="w-3.5 h-3.5 text-rose-500" />
               <span>보관함</span>
               {savedCount > 0 && (
-                <span className="ml-0.5 px-1.5 py-0.2 text-[9px] bg-rose-500 text-white font-black rounded-full">
+                <span className="ml-0.5 px-1.5 py-0.2 text-[9px] bg-rose-500 text-white font-bold rounded-full">
                   {savedCount}
                 </span>
               )}
             </button>
           </div>
 
-          {/* Desktop Tab Navigation (Hidden on small mobile) */}
-          <div className="hidden md:flex items-center space-x-1 bg-slate-100/90 p-1 rounded-2xl border border-slate-200 text-xs">
+          {/* Desktop Tab Navigation (Notion Minimalist Pill Container) */}
+          <div className="hidden md:flex items-center space-x-1 bg-[#F1F1EF] p-1 rounded-xl border border-[#E3E2DE] text-xs">
             <button
               onClick={() => setCurrentTab('studio')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg font-medium transition-all whitespace-nowrap cursor-pointer ${
                 currentTab === 'studio'
-                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/20'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                  ? 'bg-white text-[#37352F] shadow-xs font-semibold'
+                  : 'text-[#787774] hover:text-[#37352F] hover:bg-white/60'
               }`}
             >
-              <Sparkles className="w-4 h-4" />
+              <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
               <span>쇼츠 제작</span>
             </button>
 
             <button
               onClick={() => setCurrentTab('carousel')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg font-medium transition-all whitespace-nowrap cursor-pointer ${
                 currentTab === 'carousel'
-                  ? 'bg-gradient-to-r from-rose-500 to-amber-500 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                  ? 'bg-white text-[#37352F] shadow-xs font-semibold'
+                  : 'text-[#787774] hover:text-[#37352F] hover:bg-white/60'
               }`}
             >
-              <Layers className="w-4 h-4 text-rose-500" />
+              <Layers className="w-3.5 h-3.5 text-rose-500" />
               <span>캐러셀</span>
-              <span className="text-[10px] font-black px-1.5 py-0.2 rounded-full bg-rose-100 text-rose-700 ml-0.5">
+              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-rose-50 text-rose-600 border border-rose-200/80 ml-0.5">
                 NEW
               </span>
             </button>
 
             <button
               onClick={() => setCurrentTab('viral')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg font-medium transition-all whitespace-nowrap cursor-pointer ${
                 currentTab === 'viral'
-                  ? 'bg-amber-600 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                  ? 'bg-white text-[#37352F] shadow-xs font-semibold'
+                  : 'text-[#787774] hover:text-[#37352F] hover:bg-white/60'
               }`}
             >
-              <Flame className="w-4 h-4 text-amber-500" />
+              <Flame className="w-3.5 h-3.5 text-amber-500" />
               <span>썸네일</span>
             </button>
 
             <button
               onClick={() => setCurrentTab('saved')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg font-medium transition-all whitespace-nowrap cursor-pointer ${
                 currentTab === 'saved'
-                  ? 'bg-slate-800 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                  ? 'bg-white text-[#37352F] shadow-xs font-semibold'
+                  : 'text-[#787774] hover:text-[#37352F] hover:bg-white/60'
               }`}
             >
-              <FolderHeart className="w-4 h-4 text-rose-400" />
+              <FolderHeart className="w-3.5 h-3.5 text-rose-500" />
               <span>보관함</span>
               {savedCount > 0 && (
                 <span className="ml-1 px-1.5 py-0.2 text-[10px] bg-rose-500 text-white font-bold rounded-full">

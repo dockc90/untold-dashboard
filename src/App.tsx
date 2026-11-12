@@ -734,8 +734,8 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100/70 text-slate-900 flex flex-col font-sans selection:bg-indigo-600 selection:text-white w-full max-w-full overflow-x-hidden">
-      {/* Global Header with Light Theme and HeyPapa Branding */}
+    <div className="min-h-screen bg-[#FBFBFA] text-[#37352F] flex flex-col font-sans selection:bg-[#EAE9E5] selection:text-[#37352F] w-full max-w-full overflow-x-hidden">
+      {/* Global Header with Notion Light Theme */}
       <Header
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
@@ -781,27 +781,25 @@ export default function App() {
           <div className="flex-1 flex flex-col min-h-0 w-full">
             {studioStep === 'trends' ? (
               <div className="flex-1 flex flex-col min-h-0 space-y-3 sm:space-y-4 w-full">
-                {/* Step 1 Top Guidance Banner (Mobile-Optimized Compact Design) */}
-                <div className="bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 text-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs border border-indigo-700/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 sm:gap-4 w-full">
-                  <div className="space-y-1 w-full sm:w-auto">
-                    <div className="flex items-center space-x-1.5">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white shadow-2xs">
-                        1단계
-                      </span>
-                      <span className="text-[11px] sm:text-xs font-bold text-indigo-200">화제의 인물 실시간 레이더</span>
+                {/* Step 1 Top Guidance Banner (Notion Minimalist Hero) */}
+                <div className="bg-white rounded-2xl p-5 sm:p-6 border border-[#E9E9E7] shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 w-full">
+                  <div className="space-y-1.5 w-full sm:w-auto">
+                    <div className="inline-flex items-center space-x-1.5 px-2 py-0.5 rounded-md bg-[#F1F1EF] text-[#37352F] text-[11px] font-semibold border border-[#E3E2DE] leading-none">
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                      <span>AutoShorts · 실시간 트렌드 인물 스튜디오</span>
                     </div>
-                    <h2 className="text-sm sm:text-lg font-black tracking-tight leading-snug">
+                    <h2 className="text-base sm:text-xl font-bold text-[#191919] tracking-tight leading-snug">
                       인물을 터치하면 3초 후킹 대본 & 쇼츠 영상이 즉시 생성됩니다
                     </h2>
-                    <p className="text-[10px] sm:text-xs text-indigo-200/90 font-medium hidden xs:block">
-                      네이버·유튜브·인스타 100만 뷰 바이럴 인물 클릭 ➔ 전용 스튜디오 이동
+                    <p className="text-xs text-[#787774] font-normal">
+                      네이버·유튜브·인스타 100만 뷰 바이럴 인물 클릭 ➔ 감성 자막 & 1080p 고화질 렌더링
                     </p>
                   </div>
 
-                  <div className="hidden sm:flex items-center justify-center space-x-2 bg-white/10 backdrop-blur-md px-3.5 py-2 rounded-xl border border-white/15 text-xs font-bold text-amber-300 shrink-0">
-                    <span>인물 카드 선택</span>
+                  <div className="hidden sm:inline-flex items-center gap-2 bg-[#F1F1EF] px-3.5 py-2 rounded-xl border border-[#E3E2DE] text-xs font-medium text-[#787774] shrink-0">
+                    <span className="text-[#37352F] font-semibold">인물 카드 선택</span>
                     <span>➔</span>
-                    <span className="text-white">쇼츠 또는 캐러셀 제작</span>
+                    <span className="text-[#37352F] font-semibold">쇼츠 or 캐러셀</span>
                   </div>
                 </div>
 
@@ -988,8 +986,8 @@ export default function App() {
               </div>
             ) : studioStep === 'editor' ? (
               <div className="flex-1 flex flex-col min-h-0 space-y-3 sm:space-y-4 w-full max-w-full min-w-0 overflow-hidden">
-                {/* Step 2 Header Navigation Bar (Responsive on Mobile & Desktop) */}
-                <div className="bg-white rounded-2xl border border-slate-200 p-2.5 sm:p-3.5 shadow-2xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 w-full max-w-full min-w-0 overflow-hidden">
+                {/* Step 2 Header Navigation Bar (Notion Style) */}
+                <div className="bg-white rounded-2xl border border-[#E9E9E7] p-2.5 sm:p-3.5 shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 w-full max-w-full min-w-0 overflow-hidden">
                   <div className="flex items-center justify-between sm:justify-start gap-2 min-w-0">
                     <button
                       type="button"
@@ -997,19 +995,19 @@ export default function App() {
                         setStudioStep('trends');
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                       }}
-                      className="flex items-center space-x-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-black text-xs transition border border-slate-200 cursor-pointer shadow-2xs shrink-0"
+                      className="flex items-center space-x-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-[#F1F1EF] hover:bg-white text-[#37352F] font-medium text-xs transition border border-[#E3E2DE] cursor-pointer shadow-2xs shrink-0"
                     >
-                      <ArrowLeft className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                      <ArrowLeft className="w-3.5 h-3.5 text-[#787774] shrink-0" />
                       <span className="hidden xs:inline">인물 재선택</span>
                       <span className="xs:hidden">인물 변경</span>
                     </button>
 
                     <div className="flex items-center space-x-1.5 min-w-0 overflow-hidden">
-                      <span className="text-[11px] sm:text-xs font-black text-indigo-700 bg-indigo-50 px-2 py-1 rounded-xl border border-indigo-200 truncate">
+                      <span className="text-[11px] sm:text-xs font-semibold text-[#191919] bg-[#F1F1EF] px-2 py-1 rounded-xl border border-[#E3E2DE] truncate">
                         {selectedFigure ? selectedFigure.name : '인물 미선택'}
                       </span>
                       {selectedFigure && (
-                        <span className="text-[10px] sm:text-[11px] font-black text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-full border border-rose-200 flex items-center gap-0.5 shrink-0">
+                        <span className="text-[10px] sm:text-[11px] font-semibold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded-full border border-rose-200/60 flex items-center gap-0.5 shrink-0">
                           <Flame className="w-3 h-3 fill-rose-500 text-rose-500 shrink-0" />
                           <span>{selectedFigure.viralityScore}점</span>
                         </span>
@@ -1017,25 +1015,25 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Step Progress Indicators (Consolidated Actionable Pipeline) */}
-                  <div className="flex items-center justify-between sm:justify-end space-x-1.5 sm:space-x-2 text-[11px] sm:text-xs font-bold text-slate-500 bg-slate-50 sm:bg-transparent p-1 sm:p-0 rounded-xl sm:rounded-none border border-slate-200 sm:border-0 w-full sm:w-auto overflow-hidden">
+                  {/* Step Progress Indicators */}
+                  <div className="flex items-center justify-between sm:justify-end space-x-1.5 sm:space-x-2 text-[11px] sm:text-xs font-medium text-[#787774] bg-[#F1F1EF] sm:bg-transparent p-1 sm:p-0 rounded-xl sm:rounded-none border border-[#E3E2DE] sm:border-0 w-full sm:w-auto overflow-hidden">
                     <button
                       type="button"
                       onClick={() => {
                         setStudioStep('trends');
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                       }}
-                      className="text-slate-500 hover:text-indigo-600 transition cursor-pointer shrink-0"
+                      className="text-[#787774] hover:text-[#191919] transition cursor-pointer shrink-0"
                     >
                       <span className="sm:hidden">1. 인물</span>
                       <span className="hidden sm:inline">1단계: 인물 선택</span>
                     </button>
-                    <span className="text-slate-300 shrink-0">➔</span>
-                    <span className="text-indigo-600 font-black bg-indigo-50 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg border border-indigo-200 shrink-0">
+                    <span className="text-[#D3D1CB] shrink-0">➔</span>
+                    <span className="text-[#191919] font-bold bg-white sm:bg-[#F1F1EF] px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg border border-[#E3E2DE] shadow-2xs shrink-0">
                       <span className="sm:hidden">2. 대본</span>
                       <span className="hidden sm:inline">2단계: 대본 스튜디오</span>
                     </span>
-                    <span className="text-slate-300 shrink-0">➔</span>
+                    <span className="text-[#D3D1CB] shrink-0">➔</span>
                     <button
                       type="button"
                       onClick={() => {
@@ -1045,7 +1043,7 @@ export default function App() {
                           window.scrollTo({ top: 0, behavior: 'smooth' });
                         }
                       }}
-                      className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-gradient-to-r from-rose-500 via-indigo-600 to-indigo-700 hover:from-rose-600 hover:to-indigo-800 text-white font-black transition cursor-pointer shrink-0 shadow-xs flex items-center gap-1 active:scale-95"
+                      className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-[#23272A] hover:bg-[#111213] text-white font-semibold transition cursor-pointer shrink-0 shadow-xs flex items-center gap-1 active:scale-95"
                     >
                       <span>3. 영상 제작</span>
                       <span>➔</span>

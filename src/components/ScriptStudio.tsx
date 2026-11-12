@@ -689,9 +689,9 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
   }, [editableScript, editableScenes, selectedHookIndex, videoTone]);
 
   return (
-    <div className="flex flex-col h-full bg-white border border-slate-200 rounded-2xl sm:rounded-3xl overflow-hidden shadow-sm w-full max-w-full min-w-0">
+    <div className="flex flex-col h-full bg-white border border-[#E9E9E7] rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.02)] w-full max-w-full min-w-0">
       {/* Top Banner / Selected Figure Info & Planning Studio */}
-      <div className="p-3 sm:p-4 bg-slate-50/80 border-b border-slate-200 w-full max-w-full min-w-0 overflow-hidden space-y-3">
+      <div className="p-3 sm:p-4 bg-[#FBFBFA] border-b border-[#EDEDEB] w-full max-w-full min-w-0 overflow-hidden space-y-3">
         {/* ROW 1: 인물 프로필 정보 & 상단 주요 컨트롤 바 (2단 분리 레이아웃) */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 w-full min-w-0 max-w-full">
           {/* Left: 인물 정보 */}
@@ -700,29 +700,29 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
               <button
                 type="button"
                 onClick={onBackToTrends}
-                className="p-2 sm:px-3 sm:py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition shadow-2xs flex items-center space-x-1.5 cursor-pointer font-bold text-xs shrink-0"
+                className="p-2 sm:px-3 sm:py-2 rounded-xl bg-white hover:bg-[#F1F1EF] text-[#37352F] border border-[#E3E2DE] transition shadow-2xs flex items-center space-x-1.5 cursor-pointer font-medium text-xs shrink-0"
                 title="1단계: 트렌드 인물 선택으로 돌아가기"
               >
-                <ArrowLeft className="w-4 h-4 text-indigo-600 shrink-0" />
+                <ArrowLeft className="w-4 h-4 text-[#787774] shrink-0" />
                 <span className="hidden sm:inline">인물 변경</span>
               </button>
             )}
-            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-tr from-rose-500 to-indigo-600 flex items-center justify-center text-white font-extrabold text-sm sm:text-base shadow-sm shrink-0">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-tr from-[#1E1E1E] to-[#4338CA] flex items-center justify-center text-white font-bold text-sm sm:text-base shadow-xs shrink-0">
               {selectedFigure ? selectedFigure.name.slice(0, 2) : '쇼츠'}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-                <h2 className="text-sm sm:text-base font-extrabold text-slate-900 truncate">
+                <h2 className="text-sm sm:text-base font-bold text-[#191919] truncate">
                   {selectedFigure ? selectedFigure.name : '인물을 선택해주세요'}
                 </h2>
                 {selectedFigure && (
-                  <span className="text-[10px] sm:text-[11px] px-2 py-0.5 rounded-full font-black bg-rose-50 text-rose-600 border border-rose-200 flex items-center gap-1 shrink-0">
+                  <span className="text-[10px] sm:text-[11px] px-2 py-0.5 rounded-full font-bold bg-rose-50 text-rose-700 border border-rose-200/60 flex items-center gap-1 shrink-0">
                     <Flame className="w-3 h-3 fill-rose-500 text-rose-500" />
                     화제성 {selectedFigure.viralityScore}점
                   </span>
                 )}
               </div>
-              <p className="text-[11px] sm:text-xs text-slate-500 font-medium truncate mt-0.5">
+              <p className="text-[11px] sm:text-xs text-[#787774] font-normal truncate mt-0.5">
                 {selectedFigure?.suggestedAngle || '화제의 인물 맞춤 대본 및 씬별 기획'}
               </p>
             </div>
@@ -734,7 +734,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
             <select
               value={targetPersona}
               onChange={(e) => setTargetPersona(e.target.value as TargetPersona)}
-              className="bg-white border border-slate-200 text-xs font-bold text-slate-700 rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-indigo-500 shadow-2xs shrink-0 cursor-pointer"
+              className="bg-white border border-[#E3E2DE] text-xs font-medium text-[#37352F] rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-[#23272A] shadow-2xs shrink-0 cursor-pointer"
             >
               <option value="4060_emotional">4060 감동</option>
               <option value="1020_dopamine">1020 도파민</option>
@@ -744,12 +744,12 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
             </select>
 
             {/* Duration Selector */}
-            <div className="flex items-center bg-slate-200/70 rounded-xl border border-slate-200 p-0.5 text-xs font-bold shrink-0">
+            <div className="flex items-center bg-[#F1F1EF] rounded-xl border border-[#E3E2DE] p-0.5 text-xs font-medium shrink-0">
               <button
                 type="button"
                 onClick={() => setDuration(45)}
                 className={`px-2.5 py-1 rounded-lg transition text-center cursor-pointer ${
-                  duration === 45 ? 'bg-white text-slate-900 shadow-2xs font-black' : 'text-slate-600 hover:text-slate-900'
+                  duration === 45 ? 'bg-white text-[#191919] shadow-2xs font-bold' : 'text-[#787774] hover:text-[#191919]'
                 }`}
               >
                 45초
@@ -758,7 +758,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                 type="button"
                 onClick={() => setDuration(60)}
                 className={`px-2.5 py-1 rounded-lg transition text-center cursor-pointer ${
-                  duration === 60 ? 'bg-white text-slate-900 shadow-2xs font-black' : 'text-slate-600 hover:text-slate-900'
+                  duration === 60 ? 'bg-white text-[#191919] shadow-2xs font-bold' : 'text-[#787774] hover:text-[#191919]'
                 }`}
               >
                 60초
@@ -771,18 +771,18 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                 type="button"
                 onClick={() => onGenerateScript(targetPersona, duration, videoTone, activeStoryAngle, customKeyword)}
                 disabled={isGenerating || !selectedFigure}
-                className="flex items-center justify-center space-x-1 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs rounded-xl shadow-xs transition disabled:opacity-50 cursor-pointer"
+                className="flex items-center justify-center space-x-1 px-3 py-1.5 bg-[#F1F1EF] hover:bg-white text-[#37352F] border border-[#E3E2DE] font-semibold text-xs rounded-xl shadow-xs transition disabled:opacity-50 cursor-pointer"
                 title="설정된 키워드와 컨셉으로 대본 새로고침"
               >
                 <RotateCw className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
-                <span>대본 새로고침</span>
+                <span>새로고침</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => onGenerateScript(targetPersona, duration, videoTone, activeStoryAngle, customKeyword)}
                 disabled={isGenerating || !selectedFigure}
-                className="flex items-center justify-center space-x-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition disabled:opacity-50 cursor-pointer"
+                className="flex items-center justify-center space-x-1.5 px-3.5 py-1.5 bg-[#23272A] hover:bg-[#111213] text-white font-semibold text-xs rounded-xl shadow-xs transition disabled:opacity-50 cursor-pointer"
               >
                 <Sparkles className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
                 <span>{isGenerating ? '생성 중...' : '대본 생성'}</span>
@@ -792,9 +792,9 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
         </div>
 
         {/* ROW 2: 원하는 키워드 & 추천 태그 기획 카드 (독립된 세련된 박스) */}
-        <div className="p-3 bg-white rounded-2xl border border-indigo-100 shadow-2xs space-y-2.5 w-full">
+        <div className="p-3 bg-white rounded-xl border border-[#E9E9E7] shadow-2xs space-y-2.5 w-full">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full">
-            <div className="flex items-center space-x-1.5 text-xs font-black text-indigo-700 shrink-0">
+            <div className="flex items-center space-x-1.5 text-xs font-semibold text-[#191919] shrink-0">
               <Sparkles className="w-4 h-4 text-indigo-600" />
               <span>강조 키워드:</span>
             </div>
@@ -809,7 +809,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                   }
                 }}
                 placeholder="대본에 반영할 핵심 키워드 직접 입력 (예: 30대 창업 실패, 1993년 부도 위기, 세가 사장의 500만 달러 투자 등)"
-                className="w-full text-xs sm:text-sm bg-slate-50 focus:bg-white border border-indigo-200 focus:border-indigo-600 rounded-xl px-3.5 py-2 text-slate-900 placeholder:text-slate-400 font-bold focus:outline-none transition shadow-2xs pr-8"
+                className="w-full text-xs sm:text-sm bg-[#FAF9F7] focus:bg-white border border-[#E3E2DE] focus:border-[#23272A] rounded-xl px-3.5 py-2 text-[#37352F] placeholder:text-[#9B9A97] font-medium focus:outline-none transition shadow-2xs pr-8"
               />
               {customKeyword && (
                 <button
