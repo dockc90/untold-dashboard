@@ -3,19 +3,28 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { Header, AppTab } from './components/Header';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { TrendRadar, normalizeChannel } from './components/TrendRadar';
 import { ScriptStudio } from './components/ScriptStudio';
-import { SavedProjectsView } from './components/SavedProjectsView';
-import { VideoRendererModal } from './components/VideoRendererModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { ViralStudio } from './components/ViralStudio';
-import { CarouselStudio } from './components/CarouselStudio';
+
+// Code-split heavy studio modules for ultra-lightweight initial mobile loading
+const VideoRendererModal = lazy(() => import('./components/VideoRendererModal').then(m => ({ default: m.VideoRendererModal })));
+const CarouselStudio = lazy(() => import('./components/CarouselStudio').then(m => ({ default: m.CarouselStudio })));
+const ViralStudio = lazy(() => import('./components/ViralStudio').then(m => ({ default: m.ViralStudio })));
+const SavedProjectsView = lazy(() => import('./components/SavedProjectsView').then(m => ({ default: m.SavedProjectsView })));
+
+const StudioLoadingFallback: React.FC<{ label?: string }> = ({ label = '스튜디오 로딩 중...' }) => (
+  <div className="flex-1 flex flex-col items-center justify-center p-8 min-h-[360px] text-slate-500 space-y-3 animate-fade-in">
+    <div className="w-9 h-9 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+    <span className="text-xs font-black text-slate-700">{label}</span>
+  </div>
+);
 import { INITIAL_TRENDING_FIGURES } from './data/initialTrends';
 import { SAMPLE_PROJECT } from './data/sampleProject';
-import { TrendingFigure, ShortsProject, CategoryType, TimeFilter, TargetPersona, VideoMoodTone, SourceChannel } from './types';
+import { TrendingFigure, ShortsProject, CategoryType, TimeFilter, TargetPersona, VideoMoodTone, SourceChannel, SceneItem } from './types';
 import { AlertCircle, X, ArrowLeft, Flame, Sparkles } from 'lucide-react';
 import { 
   fetchProjectsFromSupabase, 
@@ -48,7 +57,7 @@ export function mergeProjectsPreservingPhotos(existingList: ShortsProject[], inc
       map.set(incoming.id, incoming);
     } else {
       // Merge scenes: prioritize scene with uploadedImageUrl so photos are NEVER lost!
-      const mergedScenes = incoming.scenes.map((incScene, idx) => {
+      const mergedScenes: SceneItem[] = incoming.scenes.map((incScene, idx) => {
         const existScene = existing.scenes?.[idx];
         return {
           ...incScene,
@@ -1068,66 +1077,74 @@ export default function App() {
             ) : (
               <div className="flex-1 flex flex-col min-h-0 space-y-4">
                 {/* Step 3: 쇼츠 영상 렌더링 & 변환 풀 페이지 */}
-                <VideoRendererModal
-                  isOpen={true}
-                  isPageMode={true}
-                  onClose={() => {
-                    setStudioStep('editor');
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  onBackToEditor={() => {
-                    setStudioStep('editor');
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  onBackToTrends={() => {
-                    setStudioStep('trends');
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  project={renderingProject || currentProject || SAMPLE_PROJECT}
-                  onUpdateProject={(updated) => {
-                    setCurrentProject(updated);
-                    setRenderingProject(updated);
-                  }}
-                  onSaveProject={handleSaveProject}
-                />
+                <Suspense fallback={<StudioLoadingFallback label="쇼츠 영상 렌더러 로딩 중..." />}>
+                  <VideoRendererModal
+                    isOpen={true}
+                    isPageMode={true}
+                    onClose={() => {
+                      setStudioStep('editor');
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    onBackToEditor={() => {
+                      setStudioStep('editor');
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    onBackToTrends={() => {
+                      setStudioStep('trends');
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    project={renderingProject || currentProject || SAMPLE_PROJECT}
+                    onUpdateProject={(updated) => {
+                      setCurrentProject(updated);
+                      setRenderingProject(updated);
+                    }}
+                    onSaveProject={handleSaveProject}
+                  />
+                </Suspense>
               </div>
             )}
           </div>
         )}
 
         {currentTab === 'carousel' && (
-          <CarouselStudio
-            initialTopic={selectedFigure?.name || currentProject?.figureName || viralTopic}
-            initialCategory={selectedFigure?.category || 'entertainment'}
-            initialScript={currentProject?.fullScript || (currentProject?.scenes ? currentProject.scenes.map(s => s.narration).join('\n') : '')}
-            currentProject={currentProject}
-            onBackToStudio={() => {
-              setCurrentTab('studio');
-              setStudioStep('trends');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-          />
+          <Suspense fallback={<StudioLoadingFallback label="캐러셀 스튜디오 로딩 중..." />}>
+            <CarouselStudio
+              initialTopic={selectedFigure?.name || currentProject?.figureName || viralTopic}
+              initialCategory={selectedFigure?.category || 'entertainment'}
+              initialScript={currentProject?.fullScript || (currentProject?.scenes ? currentProject.scenes.map(s => s.narration).join('\n') : '')}
+              currentProject={currentProject}
+              onBackToStudio={() => {
+                setCurrentTab('studio');
+                setStudioStep('trends');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
+          </Suspense>
         )}
 
         {currentTab === 'viral' && (
-          <ViralStudio
-            initialTopic={selectedFigure?.name || currentProject?.figureName || viralTopic}
-            initialCategory={selectedFigure?.category || 'entertainment'}
-            initialScript={currentProject?.fullScript || (currentProject?.scenes ? currentProject.scenes.map(s => s.narration).join('\n') : '')}
-            currentProject={currentProject}
-            onBackToStudio={() => setCurrentTab('studio')}
-          />
+          <Suspense fallback={<StudioLoadingFallback label="썸네일 스튜디오 로딩 중..." />}>
+            <ViralStudio
+              initialTopic={selectedFigure?.name || currentProject?.figureName || viralTopic}
+              initialCategory={selectedFigure?.category || 'entertainment'}
+              initialScript={currentProject?.fullScript || (currentProject?.scenes ? currentProject.scenes.map(s => s.narration).join('\n') : '')}
+              currentProject={currentProject}
+              onBackToStudio={() => setCurrentTab('studio')}
+            />
+          </Suspense>
         )}
 
         {currentTab === 'saved' && (
-          <SavedProjectsView
-            projects={savedProjects}
-            draftProject={draftProject}
-            onOpenProject={handleOpenProject}
-            onDeleteProject={handleDeleteProject}
-            onSyncRefresh={handleSyncRefresh}
-            onImportProjects={handleImportProjects}
-          />
+          <Suspense fallback={<StudioLoadingFallback label="보관함 불러오는 중..." />}>
+            <SavedProjectsView
+              projects={savedProjects}
+              draftProject={draftProject}
+              onOpenProject={handleOpenProject}
+              onDeleteProject={handleDeleteProject}
+              onSyncRefresh={handleSyncRefresh}
+              onImportProjects={handleImportProjects}
+            />
+          </Suspense>
         )}
       </main>
 
@@ -1156,16 +1173,18 @@ export default function App() {
       {/* In-Browser Video Renderer Modal (1080p / 720p Shorts Generator) */}
       {isVideoRendererOpen && renderingProject && (
         <ErrorBoundary fallbackTitle="비디오 렌더러 복구" onReset={() => setIsVideoRendererOpen(false)}>
-          <VideoRendererModal
-            isOpen={isVideoRendererOpen}
-            onClose={() => setIsVideoRendererOpen(false)}
-            project={renderingProject}
-            onUpdateProject={(updated) => {
-              setCurrentProject(updated);
-              setRenderingProject(updated);
-            }}
-            onSaveProject={handleSaveProject}
-          />
+          <Suspense fallback={<StudioLoadingFallback label="비디오 렌더러 모달 로딩 중..." />}>
+            <VideoRendererModal
+              isOpen={isVideoRendererOpen}
+              onClose={() => setIsVideoRendererOpen(false)}
+              project={renderingProject}
+              onUpdateProject={(updated) => {
+                setCurrentProject(updated);
+                setRenderingProject(updated);
+              }}
+              onSaveProject={handleSaveProject}
+            />
+          </Suspense>
         </ErrorBoundary>
       )}
       {/* Mobile Double-back Exit Toast */}

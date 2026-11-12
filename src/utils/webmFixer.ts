@@ -321,14 +321,14 @@ export async function fixWebmBlob(blob: Blob, durationMs: number): Promise<Blob>
     const arrayBuffer = await fixed.arrayBuffer();
     const bytes = new Uint8Array(arrayBuffer);
     const patchedBytes = patchWebmBinaryDurationAndCues(bytes, durationMs);
-    return new Blob([patchedBytes], { type: blob.type || 'video/webm' });
+    return new Blob([patchedBytes as unknown as BlobPart], { type: blob.type || 'video/webm' });
   } catch (err) {
     console.warn('[webmFixer] fixWebmBlob primary failed, trying direct binary patcher:', err);
     try {
       const arrayBuffer = await blob.arrayBuffer();
       const bytes = new Uint8Array(arrayBuffer);
       const patchedBytes = patchWebmBinaryDurationAndCues(bytes, durationMs);
-      return new Blob([patchedBytes], { type: blob.type || 'video/webm' });
+      return new Blob([patchedBytes as unknown as BlobPart], { type: blob.type || 'video/webm' });
     } catch (e2) {
       console.warn('[webmFixer] direct binary patcher fallback failed:', e2);
       return blob;

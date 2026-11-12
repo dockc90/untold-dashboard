@@ -208,6 +208,10 @@ export interface SceneItem {
   bgmSuggestion?: string;
   uploadedImageUrl?: string; // 업로드되거나 설정된 이미지 URL
   uploadedVideoUrl?: string; // 업로드되거나 설정된 동영상 URL/Blob
+  userCropUrl?: string; // 사용자 지정 크롭/편집 이미지 URL
+  imageUrl?: string; // 호환용 이미지 URL
+  image?: string; // 호환용 이미지 URL
+  text?: string; // 호환용 자막 텍스트
   mediaType?: 'image' | 'video'; // 현재 씬의 미디어 타입 (기본 'image', 동영상 첨부 시 'video')
   videoStartTime?: number; // 캡컷식 비디오 시작 시간 (초)
   videoEndTime?: number; // 캡컷식 비디오 종료 시간 (초)
@@ -254,6 +258,8 @@ export interface ShortsProject {
   subtitleYPercent?: number; // 메인 자막 Y축 (기본 81%)
   subtitleRotationDeg?: number; // 메인 자막 회전 각도 (기본 0도)
   subtitleBgOpacity?: number; // 메인 자막 상자 배경 투명도 (0 ~ 100%, 기본 90%)
+  subtitleFont?: SubtitleFontFamily; // 저장된 폰트
+  topic?: string; // 주제/타이틀 호환용
   // 2026 알고리즘 치트키 필드
   firstTwoLinesSeo?: string;
   timestamps?: { time: string; label: string }[];

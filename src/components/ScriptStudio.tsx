@@ -21,7 +21,9 @@ import {
   RotateCw,
   Share2,
   Edit3,
-  RefreshCw
+  RefreshCw,
+  Play,
+  Scissors
 } from 'lucide-react';
 import { TrendingFigure, ShortsProject, TargetPersona, VideoMoodTone, SceneItem, MotionEffectType } from '../types';
 import { ScenePhotoCollageModal } from './ScenePhotoCollageModal';
@@ -615,8 +617,8 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
         charCount: (editableScript || '').length || 100,
         estimatedSeconds: estimatedSeconds || 45,
         createdAt: new Date().toISOString(),
-        selectedVoiceId: currentProject?.selectedVoiceId || 'JBFqnCBsd6RMkjVDRZzb',
-        voiceSpeedMultiplier: currentProject?.voiceSpeedMultiplier || 1.1,
+        selectedVoiceId: 'JBFqnCBsd6RMkjVDRZzb',
+        voiceSpeedMultiplier: 1.1,
       };
     }
 

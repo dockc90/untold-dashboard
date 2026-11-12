@@ -49,6 +49,7 @@ interface ViralStudioProps {
   initialTopic?: string;
   initialCategory?: string;
   initialScript?: string;
+  currentProject?: any;
   onBackToStudio?: () => void;
 }
 

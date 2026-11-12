@@ -1123,6 +1123,8 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   const audioContextRef = useRef<AudioContext | null>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
   const sampleAudioRef = useRef<HTMLAudioElement | null>(null);
+  const backdropCacheRef = useRef<WeakMap<object, HTMLCanvasElement>>(new WeakMap());
+  const videoBlobUrlRef = useRef<string | null>(null);
 
   // Screen Wake Lock API for zero sleep during video render
   const wakeLockRef = useRef<any>(null);
@@ -1268,8 +1270,9 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
-      if (videoBlobUrl) {
-        URL.revokeObjectURL(videoBlobUrl);
+      if (videoBlobUrlRef.current) {
+        URL.revokeObjectURL(videoBlobUrlRef.current);
+        videoBlobUrlRef.current = null;
       }
       if (sampleAudioRef.current) {
         sampleAudioRef.current.pause();
@@ -1624,8 +1627,11 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     });
   };
 
-  // Helper: Generates a lightweight, silky smooth blurred backdrop on an offscreen canvas
+  // Helper: Generates a lightweight, silky smooth blurred backdrop on an offscreen canvas with instant memoized cache
   const createBlurredBackdropCanvas = (img: HTMLImageElement | HTMLVideoElement): HTMLCanvasElement => {
+    if (backdropCacheRef.current.has(img)) {
+      return backdropCacheRef.current.get(img)!;
+    }
     const bgCanvas = document.createElement('canvas');
     bgCanvas.width = 360;
     bgCanvas.height = 640;
@@ -1649,6 +1655,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       bctx.fillStyle = 'rgba(10, 15, 30, 0.45)';
       bctx.fillRect(0, 0, 360, 640);
     }
+    backdropCacheRef.current.set(img, bgCanvas);
     return bgCanvas;
   };
 
@@ -3570,6 +3577,10 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     await requestWakeLock();
     setRenderProgress(0);
     setStatusMessage('에셋 사진 다운로드 및 내레이션 음성 합성 준비 중...');
+    if (videoBlobUrlRef.current) {
+      URL.revokeObjectURL(videoBlobUrlRef.current);
+      videoBlobUrlRef.current = null;
+    }
     setVideoBlobUrl(null);
     recordedChunksRef.current = [];
 
@@ -3848,7 +3859,11 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         const shareFileName = `Untold_${project.figureName || 'Shorts'}_${resolution}.mp4`;
         pregeneratedVideoFileRef.current = new File([blob], shareFileName, { type: 'video/mp4' });
       } catch (e) {}
+      if (videoBlobUrlRef.current) {
+        URL.revokeObjectURL(videoBlobUrlRef.current);
+      }
       const url = URL.createObjectURL(blob);
+      videoBlobUrlRef.current = url;
       setVideoBlobUrl(url);
       setPreviewViewMode('video');
       setIsRendering(false);
@@ -4899,7 +4914,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                       </div>
                       <button
                         type="button"
-                        onClick={handleAddCustomTextOverlay}
+                        onClick={() => handleAddCustomTextOverlay()}
                         className="flex items-center gap-1 py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs shadow-xs transition cursor-pointer active:scale-95"
                       >
                         <Plus className="w-3.5 h-3.5" />
@@ -4916,7 +4931,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                         </p>
                         <button
                           type="button"
-                          onClick={handleAddCustomTextOverlay}
+                          onClick={() => handleAddCustomTextOverlay()}
                           className="mt-2 py-1.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition inline-flex items-center gap-1 cursor-pointer"
                         >
                           <Plus className="w-3.5 h-3.5" />
