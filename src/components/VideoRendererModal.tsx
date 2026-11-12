@@ -40,7 +40,10 @@ import {
   AlignCenter,
   AlignRight,
   Bookmark,
-  Save
+  Save,
+  ChevronDown,
+  ChevronUp,
+  EyeOff
 } from 'lucide-react';
 import { fixWebmBlob, patchWebmBinaryDurationAndCues } from '../utils/webmFixer';
 import { ShortsSafeZoneOverlay, PlatformGuideSelector, PlatformGuideType } from './ShortsSafeZoneOverlay';
@@ -938,6 +941,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   const [previewViewMode, setPreviewViewMode] = useState<'live' | 'video'>('live');
   const [previewSceneIndex, setPreviewSceneIndex] = useState(0);
   const [platformGuide, setPlatformGuide] = useState<PlatformGuideType>('none');
+  const [isPreviewCollapsed, setIsPreviewCollapsed] = useState(false);
 
   // Step 3 Vault Save States
   const [isSavingToVault, setIsSavingToVault] = useState(false);
@@ -6961,141 +6965,147 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                   )}
                 </div>
               )}
-
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={isRendering}
-                className="w-full py-2.5 px-4 rounded-xl border border-slate-200 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-50"
-              >
-                <X className="w-4 h-4 text-slate-500" />
-                <span>닫기</span>
-              </button>
             </div>
           </div>
 
-          {/* Right Column: 9:16 Video Player Preview / Canvas (6 cols, Order 1 on Mobile for instant visual feedback) */}
-          <div className="md:col-span-6 flex flex-col items-center justify-center order-1 md:order-2">
-            {/* Preview Mode Switcher (When video exists) */}
-            {videoBlobUrl && !isRendering && (
-              <div className="mb-2 flex items-center bg-slate-200/80 p-1 rounded-2xl border border-slate-300 text-xs font-bold shadow-2xs">
-                <button
-                  type="button"
-                  onClick={() => setPreviewViewMode('live')}
-                  className={`px-3 py-1.5 rounded-xl transition flex items-center space-x-1.5 cursor-pointer ${
-                    previewViewMode === 'live'
-                      ? 'bg-indigo-600 text-white shadow-xs font-black'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>편집 뷰</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPreviewViewMode('video')}
-                  className={`px-3 py-1.5 rounded-xl transition flex items-center space-x-1.5 cursor-pointer ${
-                    previewViewMode === 'video'
-                      ? 'bg-emerald-600 text-white shadow-xs font-black'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                  <span>완성 영상</span>
-                </button>
+          {/* Right Column: 9:16 Video Player Preview / Canvas (Sticky on Mobile & Desktop for Real-Time Feedback) */}
+          <div className="md:col-span-6 flex flex-col items-center justify-start order-1 md:order-2 sticky top-0 z-30 bg-white/95 backdrop-blur-md pt-1.5 pb-2.5 -mx-4 px-4 sm:-mx-7 sm:px-7 border-b md:border-b-0 border-slate-200/90 shadow-xs md:shadow-none md:static md:mx-0 md:px-0 md:pt-0 md:pb-0 md:sticky md:top-4 md:self-start">
+            {/* Live Sync Preview Player Controls & Header */}
+            <div className="w-full max-w-[340px] flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-200/60">
+              <div className="flex items-center space-x-1.5 min-w-0">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                <span className="text-xs font-black text-slate-800 tracking-tight truncate">
+                  {previewSceneIndex + 1}씬 실시간 뷰
+                </span>
+                {videoBlobUrl && !isRendering && (
+                  <div className="flex items-center bg-slate-200/80 p-0.5 rounded-lg border border-slate-300 text-[10px] font-black shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewViewMode('live')}
+                      className={`px-1.5 py-0.5 rounded transition ${
+                        previewViewMode === 'live' ? 'bg-indigo-600 text-white' : 'text-slate-600'
+                      }`}
+                    >
+                      편집
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewViewMode('video')}
+                      className={`px-1.5 py-0.5 rounded transition ${
+                        previewViewMode === 'video' ? 'bg-emerald-600 text-white' : 'text-slate-600'
+                      }`}
+                    >
+                      영상
+                    </button>
+                  </div>
+                )}
               </div>
-            )}
 
-            {/* Live Sync Preview Player Controls */}
-            {!isRendering && previewViewMode === 'live' && (
-              <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-200/60">
-                <div className="flex items-center space-x-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-xs font-black text-slate-800">
-                    {previewSceneIndex + 1}씬 싱크 확인
-                  </span>
-                </div>
+              <div className="flex items-center space-x-1.5 shrink-0">
+                {!isRendering && previewViewMode === 'live' && (
+                  <button
+                    type="button"
+                    onClick={handleToggleSceneLiveSyncPlay}
+                    disabled={isLoadingSceneAudio}
+                    className="flex items-center space-x-1 px-2.5 py-1 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-700 to-rose-600 hover:from-indigo-500 hover:to-rose-500 text-white font-black text-[11px] shadow-xs active:scale-95 transition cursor-pointer disabled:opacity-50"
+                    title="현재 씬의 음성과 자막 싱크를 실시간 재생합니다"
+                  >
+                    {isPlayingSceneSync ? (
+                      <>
+                        <Square className="w-3 h-3 fill-current text-rose-200" />
+                        <span>정지</span>
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-3 h-3 fill-current text-amber-300" />
+                        <span>{isLoadingSceneAudio ? '...' : '싱크 재생'}</span>
+                      </>
+                    )}
+                  </button>
+                )}
 
+                {/* Mobile Preview Collapse/Expand Toggle */}
                 <button
                   type="button"
-                  onClick={handleToggleSceneLiveSyncPlay}
-                  disabled={isLoadingSceneAudio}
-                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-700 to-rose-600 hover:from-indigo-500 hover:to-rose-500 text-white font-black text-xs shadow-md shadow-indigo-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50"
-                  title="현재 씬의 일레븐랩스 음성과 캔버스 자막이 100% 일치하는지 실시간 재생하여 확인합니다"
+                  onClick={() => setIsPreviewCollapsed(!isPreviewCollapsed)}
+                  className="md:hidden px-2 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold flex items-center gap-0.5 border border-slate-200"
+                  title={isPreviewCollapsed ? "미리보기 화면 펼치기" : "미리보기 접기"}
                 >
-                  {isPlayingSceneSync ? (
+                  {isPreviewCollapsed ? (
                     <>
-                      <Square className="w-3.5 h-3.5 fill-current text-rose-200" />
-                      <span>미리듣기 정지</span>
+                      <ChevronDown className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>펼치기</span>
                     </>
                   ) : (
                     <>
-                      <Play className="w-3.5 h-3.5 fill-current text-amber-300" />
-                      <span>{isLoadingSceneAudio ? '분석 중...' : '싱크 미리듣기'}</span>
+                      <ChevronUp className="w-3.5 h-3.5 text-slate-500" />
+                      <span>접기</span>
                     </>
                   )}
                 </button>
               </div>
-            )}
+            </div>
 
-            {/* Scene Selector for Live Preview */}
-            {!isRendering && previewViewMode === 'live' && scenes.length > 1 && (
-              <div className="flex items-center space-x-1 overflow-x-auto max-w-full pb-1 mb-2 text-[11px] font-bold">
-                <span className="text-slate-500 shrink-0 text-[10px] font-extrabold mr-1">미리보기 씬:</span>
-                {scenes.map((_, sIdx) => (
-                  <button
-                    key={sIdx}
-                    type="button"
-                    onClick={() => setPreviewSceneIndex(sIdx)}
-                    className={`px-2.5 py-0.5 rounded-lg border transition shrink-0 cursor-pointer ${
-                      previewSceneIndex === sIdx
-                        ? 'bg-indigo-600 text-white border-indigo-600 font-extrabold shadow-2xs'
-                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
-                    }`}
-                  >
-                    {sIdx + 1}번 씬
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Platform UI Safe Zone Guide Toolbar */}
-            {!isRendering && (
-              <PlatformGuideSelector
-                currentPlatform={platformGuide}
-                onChangePlatform={setPlatformGuide}
-                className="mb-2.5 w-full max-w-[340px]"
-              />
-            )}
-
-            {/* Quick Add Custom Subtitle Button above preview */}
-            {!isRendering && previewViewMode === 'live' && (
-              <div className="mb-2 w-full max-w-[310px] flex items-center justify-between gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => handleAddCustomTextOverlay()}
-                  className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-violet-600 via-indigo-600 to-indigo-700 hover:from-violet-700 hover:to-indigo-800 text-white font-black text-xs shadow-md shadow-indigo-500/25 flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>+ 내 마음대로 자막 추가</span>
-                </button>
-                {selectedSubtitleId && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedSubtitleId(null);
-                      setActiveDragSubtitle(null);
-                    }}
-                    className="px-2.5 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs transition cursor-pointer shrink-0"
-                    title="선택 해제"
-                  >
-                    선택 해제
-                  </button>
+            {!isPreviewCollapsed && (
+              <>
+                {/* Scene Selector for Live Preview */}
+                {!isRendering && previewViewMode === 'live' && scenes.length > 1 && (
+                  <div className="flex items-center space-x-1 overflow-x-auto max-w-full pb-1 mb-2 text-[11px] font-bold">
+                    <span className="text-slate-500 shrink-0 text-[10px] font-extrabold mr-1">씬 선택:</span>
+                    {scenes.map((_, sIdx) => (
+                      <button
+                        key={sIdx}
+                        type="button"
+                        onClick={() => setPreviewSceneIndex(sIdx)}
+                        className={`px-2 py-0.5 rounded-lg border transition shrink-0 cursor-pointer ${
+                          previewSceneIndex === sIdx
+                            ? 'bg-indigo-600 text-white border-indigo-600 font-extrabold shadow-2xs'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        {sIdx + 1}씬
+                      </button>
+                    ))}
+                  </div>
                 )}
-              </div>
-            )}
 
-            <div className="w-[230px] xs:w-[260px] sm:w-[310px] aspect-[9/16] bg-slate-950 rounded-3xl overflow-hidden shadow-2xl border-4 border-slate-900 relative flex items-center justify-center">
+                {/* Platform UI Safe Zone Guide Toolbar */}
+                {!isRendering && (
+                  <PlatformGuideSelector
+                    currentPlatform={platformGuide}
+                    onChangePlatform={setPlatformGuide}
+                    className="mb-2 w-full max-w-[340px]"
+                  />
+                )}
+
+                {/* Quick Add Custom Subtitle Button above preview */}
+                {!isRendering && previewViewMode === 'live' && (
+                  <div className="mb-2 w-full max-w-[310px] flex items-center justify-between gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleAddCustomTextOverlay()}
+                      className="flex-1 py-1.5 px-3 rounded-xl bg-gradient-to-r from-violet-600 via-indigo-600 to-indigo-700 hover:from-violet-700 hover:to-indigo-800 text-white font-black text-xs shadow-md shadow-indigo-500/25 flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>+ 내 마음대로 자막 추가</span>
+                    </button>
+                    {selectedSubtitleId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedSubtitleId(null);
+                          setActiveDragSubtitle(null);
+                        }}
+                        className="px-2.5 py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs transition cursor-pointer shrink-0"
+                        title="선택 해제"
+                      >
+                        선택 해제
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                <div className="w-[160px] xs:w-[185px] sm:w-[240px] md:w-[310px] aspect-[9/16] bg-slate-950 rounded-3xl overflow-hidden shadow-2xl border-4 border-slate-900 relative flex items-center justify-center shrink-0">
               <canvas
                 ref={canvasRef}
                 onPointerDown={(e) => {
@@ -7567,22 +7577,11 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
             {/* Quick Actions below canvas */}
             {!isRendering && (
-              <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    handlePlayVoiceSample(selectedVoice, voiceSpeedMultiplier);
-                  }}
-                  className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 font-bold text-xs flex items-center space-x-1.5 transition border border-slate-200 shadow-2xs cursor-pointer"
-                >
-                  <Volume2 className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>{previewSceneIndex + 1}번 씬 음성 미리듣기</span>
-                </button>
-
+              <div className="mt-2.5 flex flex-wrap items-center justify-center gap-2">
                 <button
                   type="button"
                   onClick={handleApplyRecommendedSettings}
-                  className="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 font-black text-xs flex items-center space-x-1.5 transition border border-amber-200 shadow-2xs cursor-pointer"
+                  className="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 font-black text-xs flex items-center space-x-1.5 transition border border-amber-200 shadow-2xs cursor-pointer active:scale-95"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-amber-600" />
                   <span>쇼츠 바이럴 추천 세팅 적용</span>
@@ -7599,10 +7598,12 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
               <span>•</span>
               <span>성우: {selectedVoice.name} ({voiceSpeedMultiplier.toFixed(1)}x)</span>
             </p>
-          </div>
-        </div>
+          </>
+        )}
       </div>
-  );
+    </div>
+  </div>
+);
 
   const renderSnsShareModal = () => {
     if (!isSnsShareModalOpen) return null;

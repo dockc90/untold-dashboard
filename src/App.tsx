@@ -766,8 +766,8 @@ export default function App() {
         </div>
       )}
 
-      {/* Main View Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-6 pb-20 md:pb-8 flex flex-col min-w-0 max-w-full">
+      {/* Main View Area (Mobile-First Safe Area & Spacing to Prevent Any Clipping) */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-6 pb-32 sm:pb-36 md:pb-12 pb-safe flex flex-col min-w-0 max-w-full">
         {currentTab === 'studio' && (
           <div className="flex-1 flex flex-col min-h-0 w-full">
             {studioStep === 'trends' ? (
@@ -980,22 +980,22 @@ export default function App() {
             ) : studioStep === 'editor' ? (
               <div className="flex-1 flex flex-col min-h-0 space-y-3 sm:space-y-4 w-full max-w-full min-w-0 overflow-hidden">
                 {/* Step 2 Header Navigation Bar (Responsive on Mobile & Desktop) */}
-                <div className="bg-white rounded-2xl border border-slate-200 p-2 sm:p-4 shadow-2xs flex flex-col gap-2 w-full max-w-full min-w-0 overflow-hidden">
-                  <div className="flex items-center justify-between gap-1.5 min-w-0 w-full max-w-full">
+                <div className="bg-white rounded-2xl border border-slate-200 p-2.5 sm:p-3.5 shadow-2xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 w-full max-w-full min-w-0 overflow-hidden">
+                  <div className="flex items-center justify-between sm:justify-start gap-2 min-w-0">
                     <button
                       type="button"
                       onClick={() => {
                         setStudioStep('trends');
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                       }}
-                      className="flex items-center space-x-1 px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-black text-xs transition border border-slate-200 cursor-pointer shadow-2xs shrink-0"
+                      className="flex items-center space-x-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-black text-xs transition border border-slate-200 cursor-pointer shadow-2xs shrink-0"
                     >
                       <ArrowLeft className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
                       <span className="hidden xs:inline">인물 재선택</span>
                       <span className="xs:hidden">인물 변경</span>
                     </button>
 
-                    <div className="flex items-center space-x-1 min-w-0 overflow-hidden shrink">
+                    <div className="flex items-center space-x-1.5 min-w-0 overflow-hidden">
                       <span className="text-[11px] sm:text-xs font-black text-indigo-700 bg-indigo-50 px-2 py-1 rounded-xl border border-indigo-200 truncate">
                         {selectedFigure ? selectedFigure.name : '인물 미선택'}
                       </span>
@@ -1006,25 +1006,10 @@ export default function App() {
                         </span>
                       )}
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (currentProject) {
-                          setRenderingProject(currentProject);
-                          setStudioStep('renderer');
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }
-                      }}
-                      className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-rose-500 via-indigo-600 to-indigo-700 hover:from-rose-600 hover:to-indigo-800 text-white font-black text-[11px] sm:text-xs shadow-xs shrink-0 flex items-center space-x-1 cursor-pointer"
-                    >
-                      <span>영상 제작</span>
-                      <span>➔</span>
-                    </button>
                   </div>
 
-                  {/* Step Progress Indicators (Optimized for Mobile & Desktop) */}
-                  <div className="flex items-center justify-between sm:justify-start space-x-1.5 sm:space-x-2 text-[11px] sm:text-xs font-bold text-slate-500 bg-slate-50 sm:bg-transparent p-1.5 sm:p-0 rounded-xl sm:rounded-none border border-slate-200 sm:border-0 w-full max-w-full overflow-hidden">
+                  {/* Step Progress Indicators (Consolidated Actionable Pipeline) */}
+                  <div className="flex items-center justify-between sm:justify-end space-x-1.5 sm:space-x-2 text-[11px] sm:text-xs font-bold text-slate-500 bg-slate-50 sm:bg-transparent p-1 sm:p-0 rounded-xl sm:rounded-none border border-slate-200 sm:border-0 w-full sm:w-auto overflow-hidden">
                     <button
                       type="button"
                       onClick={() => {
@@ -1039,7 +1024,7 @@ export default function App() {
                     <span className="text-slate-300 shrink-0">➔</span>
                     <span className="text-indigo-600 font-black bg-indigo-50 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg border border-indigo-200 shrink-0">
                       <span className="sm:hidden">2. 대본</span>
-                      <span className="hidden sm:inline">2단계: 쇼츠 대본 스튜디오</span>
+                      <span className="hidden sm:inline">2단계: 대본 스튜디오</span>
                     </span>
                     <span className="text-slate-300 shrink-0">➔</span>
                     <button
@@ -1051,10 +1036,10 @@ export default function App() {
                           window.scrollTo({ top: 0, behavior: 'smooth' });
                         }
                       }}
-                      className="text-slate-500 hover:text-indigo-600 transition cursor-pointer shrink-0"
+                      className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-gradient-to-r from-rose-500 via-indigo-600 to-indigo-700 hover:from-rose-600 hover:to-indigo-800 text-white font-black transition cursor-pointer shrink-0 shadow-xs flex items-center gap-1 active:scale-95"
                     >
-                      <span className="sm:hidden">3. 영상 제작</span>
-                      <span className="hidden sm:inline">3단계: 쇼츠 영상 제작</span>
+                      <span>3. 영상 제작</span>
+                      <span>➔</span>
                     </button>
                   </div>
                 </div>
@@ -1146,8 +1131,8 @@ export default function App() {
         )}
       </main>
 
-      {/* Creator-Centric Footer pinned cleanly to the bottom */}
-      <footer className="border-t border-slate-200/90 bg-white/95 backdrop-blur-md py-4 px-4 sm:px-6 lg:px-8 text-xs text-slate-500 mt-auto shrink-0 w-full z-20">
+      {/* Creator-Centric Footer (Desktop only: Hidden on Mobile to prevent clipping & bottom bar overlap) */}
+      <footer className="hidden md:block border-t border-slate-200/90 bg-white/95 backdrop-blur-md py-4 px-4 sm:px-6 lg:px-8 text-xs text-slate-500 mt-auto shrink-0 w-full z-20">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2 text-slate-600">
             <span className="font-extrabold text-slate-900 tracking-tight">AutoShorts AI 2.0</span>
@@ -1158,42 +1143,12 @@ export default function App() {
             </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 text-slate-600">
-            <button
-              onClick={() => setCurrentTab('studio')}
-              className={`hover:text-indigo-600 transition font-medium ${
-                currentTab === 'studio' ? 'text-indigo-600 font-bold' : ''
-              }`}
-            >
-              쇼츠 제작
-            </button>
-            <span className="text-slate-300">·</span>
-            <button
-              onClick={() => setCurrentTab('carousel')}
-              className={`hover:text-rose-600 transition font-medium ${
-                currentTab === 'carousel' ? 'text-rose-600 font-bold' : ''
-              }`}
-            >
-              캐러셀
-            </button>
-            <span className="text-slate-300">·</span>
-            <button
-              onClick={() => setCurrentTab('viral')}
-              className={`hover:text-amber-600 transition font-medium ${
-                currentTab === 'viral' ? 'text-amber-600 font-bold' : ''
-              }`}
-            >
-              썸네일
-            </button>
-            <span className="text-slate-300">·</span>
-            <button
-              onClick={() => setCurrentTab('saved')}
-              className={`hover:text-slate-900 transition font-medium ${
-                currentTab === 'saved' ? 'text-slate-900 font-bold' : ''
-              }`}
-            >
-              보관함
-            </button>
+          <div className="flex items-center gap-3 text-slate-500 text-[11px]">
+            <span>100% 브라우저 실시간 렌더링</span>
+            <span>•</span>
+            <span>일레븐랩스 AI 음성 & 자막 싱크</span>
+            <span>•</span>
+            <span className="font-semibold text-slate-700">Untold Studio</span>
           </div>
         </div>
       </footer>

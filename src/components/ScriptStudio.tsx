@@ -1487,7 +1487,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
 
       {/* Bottom Export & Video Renderer Toolbar (Sticky on Mobile & Desktop) */}
       {currentProject && (
-        <div className="sticky bottom-14 md:bottom-0 z-30 p-2 sm:p-3 bg-white/95 backdrop-blur-md border-t border-slate-200/90 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
+        <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] md:bottom-0 z-30 p-2 sm:p-3 bg-white/95 backdrop-blur-md border-t border-slate-200/90 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
           <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
             {/* Primary Video Render Button */}
             <button
