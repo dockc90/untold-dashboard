@@ -128,62 +128,6 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab, saved
             </button>
           </div>
         </div>
-
-        {/* Mobile Horizontal Scrollable Tab Bar (Only visible on mobile < md) */}
-        <div className="relative md:hidden w-full min-w-0 max-w-full">
-          <div className="overflow-x-auto scrollbar-none py-2 border-t border-slate-100 touch-pan-x overscroll-x-contain">
-            <div className="flex items-center space-x-1.5 w-max min-w-full px-1 pr-6">
-          <button
-            onClick={() => setCurrentTab('studio')}
-            className={`flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition cursor-pointer ${
-              currentTab === 'studio'
-                ? 'bg-indigo-600 text-white shadow-xs'
-                : 'bg-slate-100 text-slate-700'
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>쇼츠 제작</span>
-          </button>
-
-          <button
-            onClick={() => setCurrentTab('carousel')}
-            className={`flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition cursor-pointer ${
-              currentTab === 'carousel'
-                ? 'bg-gradient-to-r from-rose-500 to-amber-500 text-white shadow-xs'
-                : 'bg-rose-50 text-rose-700 border border-rose-200'
-            }`}
-          >
-            <Layers className="w-3.5 h-3.5 text-rose-500" />
-            <span>캐러셀</span>
-          </button>
-
-          <button
-            onClick={() => setCurrentTab('viral')}
-            className={`flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition cursor-pointer ${
-              currentTab === 'viral'
-                ? 'bg-amber-600 text-white shadow-xs'
-                : 'bg-slate-100 text-slate-700'
-            }`}
-          >
-            <Flame className="w-3.5 h-3.5 text-amber-500" />
-            <span>썸네일</span>
-          </button>
-
-          <button
-            onClick={() => setCurrentTab('saved')}
-            className={`flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition cursor-pointer ${
-              currentTab === 'saved'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'bg-slate-100 text-slate-700'
-            }`}
-          >
-            <FolderHeart className="w-3.5 h-3.5 text-rose-400" />
-            <span>보관함 ({savedCount})</span>
-          </button>
-            </div>
-          </div>
-          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent" />
-        </div>
       </div>
     </header>
   );

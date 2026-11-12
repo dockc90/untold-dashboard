@@ -30,6 +30,7 @@ html, body {
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
   touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 #root {
@@ -37,8 +38,27 @@ html, body {
   max-width: 100%;
   overflow-x: hidden;
   min-height: 100vh;
+  min-height: -webkit-fill-available;
   display: flex;
   flex-direction: column;
+}
+
+/* Mobile Safe Area Inset Helpers */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.mb-safe {
+  margin-bottom: env(safe-area-inset-bottom, 16px);
+}
+
+/* Ensure mobile input readability & prevent iOS zoom on focus */
+@media (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
 }
 
 /* Enable smooth momentum scrolling on touch devices */

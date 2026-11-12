@@ -279,54 +279,54 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
           </div>
         )}
 
-        {/* 1. Source Channels Tabs (전체, 유튜브, 네이버, 인스타그램) */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1.5 bg-slate-200/70 rounded-2xl border border-slate-200 text-xs font-bold">
+        {/* 1. Source Channels Tabs (1-row compact design for mobile) */}
+        <div className="grid grid-cols-4 gap-1 p-1 sm:p-1.5 bg-slate-200/70 rounded-2xl border border-slate-200 text-xs font-bold">
           <button
             onClick={() => setSourceChannel('all')}
-            className={`py-2 px-2.5 rounded-xl transition flex items-center justify-center space-x-1.5 ${
+            className={`py-2 px-1 sm:px-2.5 rounded-xl transition flex items-center justify-center space-x-1 cursor-pointer touch-manipulation active:scale-95 ${
               sourceChannel === 'all'
-                ? 'bg-white text-slate-900 shadow-2xs'
+                ? 'bg-white text-slate-900 shadow-2xs font-black'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <Globe className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-            <span className="whitespace-nowrap">전체</span>
+            <span className="truncate">전체</span>
           </button>
 
           <button
             onClick={() => setSourceChannel('youtube')}
-            className={`py-2 px-2.5 rounded-xl transition flex items-center justify-center space-x-1.5 ${
+            className={`py-2 px-1 sm:px-2.5 rounded-xl transition flex items-center justify-center space-x-1 cursor-pointer touch-manipulation active:scale-95 ${
               sourceChannel === 'youtube'
-                ? 'bg-rose-500 text-white shadow-2xs'
+                ? 'bg-rose-500 text-white shadow-2xs font-black'
                 : 'text-slate-600 hover:text-rose-600'
             }`}
           >
             <Youtube className="w-3.5 h-3.5 fill-current shrink-0" />
-            <span className="whitespace-nowrap">유튜브</span>
+            <span className="truncate">유튜브</span>
           </button>
 
           <button
             onClick={() => setSourceChannel('naver')}
-            className={`py-2 px-2.5 rounded-xl transition flex items-center justify-center space-x-1.5 ${
+            className={`py-2 px-1 sm:px-2.5 rounded-xl transition flex items-center justify-center space-x-1 cursor-pointer touch-manipulation active:scale-95 ${
               sourceChannel === 'naver'
-                ? 'bg-emerald-600 text-white shadow-2xs'
+                ? 'bg-emerald-600 text-white shadow-2xs font-black'
                 : 'text-slate-600 hover:text-emerald-600'
             }`}
           >
-            <span className="font-black text-[10px] text-emerald-400 bg-emerald-950 px-1 rounded shrink-0">N</span>
-            <span className="whitespace-nowrap">네이버</span>
+            <span className="font-black text-[9px] text-emerald-400 bg-emerald-950 px-1 rounded shrink-0">N</span>
+            <span className="truncate">네이버</span>
           </button>
 
           <button
             onClick={() => setSourceChannel('instagram')}
-            className={`py-2 px-2.5 rounded-xl transition flex items-center justify-center space-x-1.5 ${
+            className={`py-2 px-1 sm:px-2.5 rounded-xl transition flex items-center justify-center space-x-1 cursor-pointer touch-manipulation active:scale-95 ${
               sourceChannel === 'instagram'
-                ? 'bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 text-white shadow-2xs'
+                ? 'bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 text-white shadow-2xs font-black'
                 : 'text-slate-600 hover:text-purple-600'
             }`}
           >
             <Instagram className="w-3.5 h-3.5 shrink-0" />
-            <span className="whitespace-nowrap">인스타그램</span>
+            <span className="truncate">인스타</span>
           </button>
         </div>
 
@@ -532,19 +532,19 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
                     </div>
                   </div>
 
-                  {/* Action Buttons: 쇼츠 제작 & 캐러셀 제작 */}
-                  <div className="grid grid-cols-2 gap-2 mt-auto">
+                  {/* Action Buttons: 쇼츠 제작 & 캐러셀 제작 (Mobile-First 44px Touch Targets) */}
+                  <div className="grid grid-cols-2 gap-2 mt-auto pt-1">
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         onSelectFigure(fig);
                       }}
-                      className="py-2.5 px-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-sm flex items-center justify-center space-x-1 transition cursor-pointer"
+                      className="min-h-[44px] py-2.5 px-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-black text-xs shadow-xs flex items-center justify-center space-x-1.5 transition cursor-pointer touch-manipulation"
                       title="쇼츠 대본 및 영상 제작"
                     >
-                      <Film className="w-3.5 h-3.5 shrink-0" />
-                      <span className="truncate">쇼츠 제작</span>
+                      <Film className="w-4 h-4 shrink-0" />
+                      <span className="truncate font-black">쇼츠 제작</span>
                     </button>
 
                     <button
@@ -557,11 +557,11 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
                           onSelectFigure(fig);
                         }
                       }}
-                      className="py-2.5 px-2 rounded-xl bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-600 hover:to-amber-600 text-white font-black text-xs shadow-sm flex items-center justify-center space-x-1 transition cursor-pointer"
+                      className="min-h-[44px] py-2.5 px-2 rounded-xl bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-600 hover:to-amber-600 active:scale-95 text-white font-black text-xs shadow-xs flex items-center justify-center space-x-1.5 transition cursor-pointer touch-manipulation"
                       title="카드뉴스 캐러셀 제작"
                     >
-                      <Layers className="w-3.5 h-3.5 shrink-0" />
-                      <span className="truncate">캐러셀 제작</span>
+                      <Layers className="w-4 h-4 shrink-0" />
+                      <span className="truncate font-black">캐러셀 제작</span>
                     </button>
                   </div>
                 </div>

@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Header, AppTab } from './components/Header';
+import { MobileBottomNav } from './components/MobileBottomNav';
 import { TrendRadar, normalizeChannel } from './components/TrendRadar';
 import { ScriptStudio } from './components/ScriptStudio';
 import { SavedProjectsView } from './components/SavedProjectsView';
@@ -766,29 +767,29 @@ export default function App() {
       )}
 
       {/* Main View Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-6 flex flex-col min-w-0 max-w-full">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-6 pb-20 md:pb-8 flex flex-col min-w-0 max-w-full">
         {currentTab === 'studio' && (
           <div className="flex-1 flex flex-col min-h-0 w-full">
             {studioStep === 'trends' ? (
-              <div className="flex-1 flex flex-col min-h-0 space-y-4 w-full">
-                {/* Step 1 Top Guidance Banner */}
-                <div className="bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 text-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-sm border border-indigo-700/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 w-full">
-                  <div className="space-y-1.5 w-full sm:w-auto">
-                    <div className="flex items-center space-x-2">
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-black bg-rose-500 text-white shadow-2xs">
+              <div className="flex-1 flex flex-col min-h-0 space-y-3 sm:space-y-4 w-full">
+                {/* Step 1 Top Guidance Banner (Mobile-Optimized Compact Design) */}
+                <div className="bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 text-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs border border-indigo-700/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 sm:gap-4 w-full">
+                  <div className="space-y-1 w-full sm:w-auto">
+                    <div className="flex items-center space-x-1.5">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white shadow-2xs">
                         1단계
                       </span>
-                      <span className="text-[11px] sm:text-xs font-bold text-indigo-200">빅데이터 화제의 인물 실시간 레이더</span>
+                      <span className="text-[11px] sm:text-xs font-bold text-indigo-200">화제의 인물 실시간 레이더</span>
                     </div>
-                    <h2 className="text-base sm:text-xl font-black tracking-tight leading-snug">
-                      쇼츠 또는 인스타 캐러셀로 제작할 인물을 선택하면 전용 스튜디오로 이동합니다
+                    <h2 className="text-sm sm:text-lg font-black tracking-tight leading-snug">
+                      인물을 터치하면 3초 후킹 대본 & 쇼츠 영상이 즉시 생성됩니다
                     </h2>
-                    <p className="text-[11px] sm:text-xs text-indigo-200/90 font-medium">
-                      유튜브 쇼츠 100만 뷰 이상 급상승, 네이버 실시간 검색, 인스타 릴스 바이럴 지표 기반 인물을 클릭하세요.
+                    <p className="text-[10px] sm:text-xs text-indigo-200/90 font-medium hidden xs:block">
+                      네이버·유튜브·인스타 100만 뷰 바이럴 인물 클릭 ➔ 전용 스튜디오 이동
                     </p>
                   </div>
 
-                  <div className="flex items-center justify-center space-x-2 bg-white/10 backdrop-blur-md px-3.5 py-2 rounded-xl sm:rounded-2xl border border-white/15 text-[11px] sm:text-xs font-bold text-amber-300 w-full sm:w-auto shrink-0">
+                  <div className="hidden sm:flex items-center justify-center space-x-2 bg-white/10 backdrop-blur-md px-3.5 py-2 rounded-xl border border-white/15 text-xs font-bold text-amber-300 shrink-0">
                     <span>인물 카드 선택</span>
                     <span>➔</span>
                     <span className="text-white">쇼츠 또는 캐러셀 제작</span>
@@ -1214,9 +1215,23 @@ export default function App() {
       )}
       {/* Mobile Double-back Exit Toast */}
       {exitToastMessage && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[999] px-4 py-2.5 bg-slate-900/95 text-white text-xs font-bold rounded-2xl shadow-2xl backdrop-blur-md border border-slate-700 animate-fade-in flex items-center gap-2 pointer-events-none">
+        <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-[999] px-4 py-2.5 bg-slate-900/95 text-white text-xs font-bold rounded-2xl shadow-2xl backdrop-blur-md border border-slate-700 animate-fade-in flex items-center gap-2 pointer-events-none">
           <span>{exitToastMessage}</span>
         </div>
+      )}
+
+      {/* Mobile First Native Bottom Navigation Bar (Thumb-friendly) */}
+      {!isVideoRendererOpen && (
+        <MobileBottomNav
+          currentTab={currentTab}
+          setCurrentTab={(tab) => {
+            setCurrentTab(tab);
+            if (tab === 'studio' && studioStep === 'renderer') {
+              setStudioStep('editor');
+            }
+          }}
+          savedCount={savedProjects.length}
+        />
       )}
     </div>
   );

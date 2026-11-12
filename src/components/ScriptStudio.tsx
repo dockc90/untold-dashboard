@@ -1485,22 +1485,23 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
         )}
       </div>
 
-      {/* Bottom Export & Video Renderer Toolbar */}
+      {/* Bottom Export & Video Renderer Toolbar (Sticky on Mobile & Desktop) */}
       {currentProject && (
-        <div className="p-2.5 sm:p-3 bg-white border-t border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 shadow-xs">
-          <div className="flex flex-wrap sm:flex-nowrap items-center gap-1.5 sm:gap-2">
+        <div className="sticky bottom-14 md:bottom-0 z-30 p-2 sm:p-3 bg-white/95 backdrop-blur-md border-t border-slate-200/90 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
+          <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
             {/* Primary Video Render Button */}
             <button
               onClick={() => onOpenVideoRenderer(getUpdatedProject())}
-              className="flex-1 sm:flex-initial flex items-center justify-center space-x-1.5 px-4 py-2 bg-gradient-to-r from-rose-500 via-indigo-600 to-indigo-700 hover:from-rose-600 hover:to-indigo-800 text-white font-black text-xs rounded-xl transition shadow-md shadow-indigo-500/20 active:scale-95 cursor-pointer"
+              className="flex-1 sm:flex-initial min-h-[44px] flex items-center justify-center space-x-1.5 px-4 py-2.5 bg-gradient-to-r from-rose-500 via-indigo-600 to-indigo-700 hover:from-rose-600 hover:to-indigo-800 text-white font-black text-xs sm:text-sm rounded-xl transition shadow-md shadow-indigo-500/20 active:scale-95 cursor-pointer touch-manipulation"
             >
               <Video className="w-4 h-4" />
-              <span>영상 제작 (3단계)</span>
+              <span>쇼츠 영상 제작 (3단계) ➔</span>
             </button>
 
             <button
               onClick={() => handleCopy(generateCapCutVrewFormat(), 'capcut-bar')}
-              className="flex items-center space-x-1 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition cursor-pointer"
+              className="min-h-[44px] flex items-center justify-center space-x-1 px-3 py-2 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-800 font-bold text-xs rounded-xl transition cursor-pointer touch-manipulation shrink-0"
+              title="캡컷/Vrew용 자막 형식 복사"
             >
               {copiedKey === 'capcut-bar' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
               <span>대본 복사</span>
@@ -1508,10 +1509,11 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
 
             <button
               onClick={handleDownloadTxt}
-              className="flex items-center space-x-1 px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition"
+              className="min-h-[44px] flex items-center justify-center space-x-1 px-2.5 py-2 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-800 font-bold text-xs rounded-xl transition cursor-pointer touch-manipulation shrink-0"
+              title="대본 TXT 파일 다운로드"
             >
               <Download className="w-3.5 h-3.5" />
-              <span>TXT 저장</span>
+              <span className="hidden xs:inline">TXT</span>
             </button>
           </div>
 

@@ -4175,21 +4175,18 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   };
 
   const modalHeaderContent = (
-    <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 px-3 sm:px-7 py-2.5 sm:py-3.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 shrink-0">
-      <div className="flex items-center space-x-2.5 min-w-0">
+    <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 px-3 sm:px-7 py-2.5 sm:py-3.5 flex items-center justify-between gap-2 shrink-0">
+      <div className="flex items-center space-x-2 sm:space-x-2.5 min-w-0">
         <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-rose-500 via-amber-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 shrink-0">
           <Film className="w-4 h-4 sm:w-5 sm:h-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <h3 className="text-sm sm:text-lg font-black text-slate-900 truncate">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <h3 className="text-xs sm:text-base font-black text-slate-900 truncate">
               {project.figureName} 쇼츠 제작
             </h3>
-            <span className="text-[10px] sm:text-[11px] font-black px-1.5 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-200 shrink-0">
+            <span className="text-[9px] sm:text-[11px] font-black px-1.5 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-200 shrink-0">
               9:16
-            </span>
-            <span className="text-[10px] sm:text-[11px] font-black px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 shrink-0">
-              {photoAspectRatio === '1:1' ? '1:1 카드' : photoAspectRatio === '9:16' ? '풀채움' : photoAspectRatio}
             </span>
           </div>
           <p className="hidden sm:block text-xs text-slate-500 font-medium truncate">
@@ -4358,10 +4355,10 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
             </button>
           </div>
 
-          {/* Modal Body: Left Controls, Right Preview */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+          {/* Modal Body: Left Controls, Right Preview (Mobile-First Order: Preview First on Mobile) */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-6">
             {/* Left Column: Settings Sections (6 cols) */}
-            <div className="md:col-span-6 space-y-4">
+            <div className="md:col-span-6 space-y-4 order-2 md:order-1">
 
 
               {/* SECTION 0: Photo Aspect Ratio & Framing */}
@@ -6977,8 +6974,8 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
             </div>
           </div>
 
-          {/* Right Column: 9:16 Video Player Preview / Canvas (6 cols) */}
-          <div className="md:col-span-6 flex flex-col items-center justify-center">
+          {/* Right Column: 9:16 Video Player Preview / Canvas (6 cols, Order 1 on Mobile for instant visual feedback) */}
+          <div className="md:col-span-6 flex flex-col items-center justify-center order-1 md:order-2">
             {/* Preview Mode Switcher (When video exists) */}
             {videoBlobUrl && !isRendering && (
               <div className="mb-2 flex items-center bg-slate-200/80 p-1 rounded-2xl border border-slate-300 text-xs font-bold shadow-2xs">
@@ -7098,7 +7095,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
               </div>
             )}
 
-            <div className="w-[280px] sm:w-[310px] aspect-[9/16] bg-slate-950 rounded-3xl overflow-hidden shadow-2xl border-4 border-slate-900 relative flex items-center justify-center">
+            <div className="w-[230px] xs:w-[260px] sm:w-[310px] aspect-[9/16] bg-slate-950 rounded-3xl overflow-hidden shadow-2xl border-4 border-slate-900 relative flex items-center justify-center">
               <canvas
                 ref={canvasRef}
                 onPointerDown={(e) => {
@@ -7763,10 +7760,11 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
             <button
               type="button"
               onClick={onBackToEditor || onClose}
-              className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-black text-xs transition border border-slate-200 cursor-pointer shadow-2xs"
+              className="flex items-center space-x-1 px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-black text-xs transition border border-slate-200 cursor-pointer shadow-2xs"
             >
-              <ArrowLeft className="w-4 h-4 text-indigo-600" />
-              <span>← 2단계 대본 스튜디오로 돌아가기</span>
+              <ArrowLeft className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+              <span className="xs:hidden">대본 복귀</span>
+              <span className="hidden xs:inline">← 2단계 대본 스튜디오</span>
             </button>
 
             {onBackToTrends && (
@@ -7781,33 +7779,36 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
             <div className="h-5 w-px bg-slate-200 hidden sm:block" />
 
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-1.5 min-w-0">
               <span className="text-xs font-bold text-slate-400 hidden sm:inline">대상 인물:</span>
-              <span className="text-xs font-black text-slate-900 bg-indigo-50 text-indigo-700 px-3 py-1 rounded-xl border border-indigo-200">
+              <span className="text-xs font-black text-slate-900 bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-xl border border-indigo-200 truncate">
                 {project.figureName}
               </span>
             </div>
           </div>
 
-          <div className="flex items-center space-x-2 text-xs font-bold text-slate-500">
+          <div className="flex items-center space-x-1 sm:space-x-2 text-[11px] sm:text-xs font-bold text-slate-500 overflow-x-auto scrollbar-none py-0.5">
             <button
               type="button"
               onClick={onBackToTrends || onClose}
-              className="text-slate-400 hover:text-indigo-600 transition cursor-pointer"
+              className="text-slate-400 hover:text-indigo-600 transition cursor-pointer shrink-0"
             >
-              1단계: 인물 선택
+              <span className="sm:hidden">1.인물</span>
+              <span className="hidden sm:inline">1단계: 인물 선택</span>
             </button>
-            <span>➔</span>
+            <span className="text-slate-300 shrink-0">➔</span>
             <button
               type="button"
               onClick={onBackToEditor || onClose}
-              className="text-slate-400 hover:text-indigo-600 transition cursor-pointer"
+              className="text-slate-400 hover:text-indigo-600 transition cursor-pointer shrink-0"
             >
-              2단계: 대본 스튜디오
+              <span className="sm:hidden">2.대본</span>
+              <span className="hidden sm:inline">2단계: 대본 스튜디오</span>
             </button>
-            <span>➔</span>
-            <span className="text-rose-600 font-black bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200">
-              3단계: 쇼츠 영상 렌더링 & 변환
+            <span className="text-slate-300 shrink-0">➔</span>
+            <span className="text-rose-600 font-black bg-rose-50 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg border border-rose-200 shrink-0">
+              <span className="sm:hidden">3.영상 제작</span>
+              <span className="hidden sm:inline">3단계: 쇼츠 영상 렌더링 & 변환</span>
             </span>
           </div>
         </div>
