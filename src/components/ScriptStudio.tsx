@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { 
   Sparkles, 
   Copy, 
@@ -26,11 +26,13 @@ import {
   Scissors
 } from 'lucide-react';
 import { TrendingFigure, ShortsProject, TargetPersona, VideoMoodTone, SceneItem, MotionEffectType } from '../types';
-import { ScenePhotoCollageModal } from './ScenePhotoCollageModal';
-import { SceneVideoEditorModal } from './SceneVideoEditorModal';
 import { ErrorBoundary } from './ErrorBoundary';
 import { getSceneFallbackImage } from '../utils/sceneImages';
 import { saveDraftToServer } from '../lib/supabase';
+
+// Code-split heavy editor sub-modals (Multi-photo collage & CapCut-style video trimmer)
+const ScenePhotoCollageModal = lazy(() => import('./ScenePhotoCollageModal').then(m => ({ default: m.ScenePhotoCollageModal })));
+const SceneVideoEditorModal = lazy(() => import('./SceneVideoEditorModal').then(m => ({ default: m.SceneVideoEditorModal })));
 
 interface ScriptStudioProps {
   selectedFigure: TrendingFigure | null;
@@ -1548,15 +1550,24 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
           fallbackTitle="사진 편집 스튜디오 일시적 오류 복구"
           onReset={() => setCollageModalSceneIdx(null)}
         >
-          <ScenePhotoCollageModal
-            isOpen={true}
-            onClose={handleCloseCollageModal}
-            sceneNumber={editableScenes[collageModalSceneIdx].sceneNumber}
-            timeRange={editableScenes[collageModalSceneIdx].timeRange}
-            narrationSnippet={(editableScenes[collageModalSceneIdx]?.narration || '').slice(0, 50)}
-            existingImageUrl={editableScenes[collageModalSceneIdx].uploadedImageUrl}
-            onApplyImage={handleApplyCollageImage}
-          />
+          <Suspense fallback={
+            <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center">
+              <div className="bg-white px-5 py-4 rounded-2xl shadow-xl flex items-center space-x-3 text-xs font-bold text-slate-700">
+                <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                <span>사진 편집기 로딩 중...</span>
+              </div>
+            </div>
+          }>
+            <ScenePhotoCollageModal
+              isOpen={true}
+              onClose={handleCloseCollageModal}
+              sceneNumber={editableScenes[collageModalSceneIdx].sceneNumber}
+              timeRange={editableScenes[collageModalSceneIdx].timeRange}
+              narrationSnippet={(editableScenes[collageModalSceneIdx]?.narration || '').slice(0, 50)}
+              existingImageUrl={editableScenes[collageModalSceneIdx].uploadedImageUrl}
+              onApplyImage={handleApplyCollageImage}
+            />
+          </Suspense>
         </ErrorBoundary>
       )}
 
@@ -1566,32 +1577,41 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
           fallbackTitle="동영상 편집기 일시적 오류 복구"
           onReset={() => setVideoEditorSceneIdx(null)}
         >
-          <SceneVideoEditorModal
-            isOpen={true}
-            onClose={handleCloseVideoEditor}
-            sceneNumber={editableScenes[videoEditorSceneIdx].sceneNumber}
-            timeRange={editableScenes[videoEditorSceneIdx].timeRange}
-            narrationSnippet={(editableScenes[videoEditorSceneIdx]?.narration || '').slice(0, 50)}
-            videoUrl={editableScenes[videoEditorSceneIdx].uploadedVideoUrl || ''}
-            initialStartTime={editableScenes[videoEditorSceneIdx].videoStartTime}
-            initialEndTime={editableScenes[videoEditorSceneIdx].videoEndTime}
-            initialPlaybackRate={editableScenes[videoEditorSceneIdx].videoPlaybackRate}
-            initialVolume={editableScenes[videoEditorSceneIdx].videoVolume}
-            initialMuted={editableScenes[videoEditorSceneIdx].videoMuted}
-            initialFit={editableScenes[videoEditorSceneIdx].videoFit}
-            initialCrop={editableScenes[videoEditorSceneIdx].videoCrop}
-            onApplyVideo={handleApplyVideoConfig}
-            onChangeVideoFile={(file) => {
-              const newUrl = URL.createObjectURL(file);
-              const updated = [...editableScenes];
-              updated[videoEditorSceneIdx] = {
-                ...updated[videoEditorSceneIdx],
-                mediaType: 'video',
-                uploadedVideoUrl: newUrl,
-              };
-              setEditableScenes(updated);
-            }}
-          />
+          <Suspense fallback={
+            <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center">
+              <div className="bg-white px-5 py-4 rounded-2xl shadow-xl flex items-center space-x-3 text-xs font-bold text-slate-700">
+                <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                <span>동영상 편집기 로딩 중...</span>
+              </div>
+            </div>
+          }>
+            <SceneVideoEditorModal
+              isOpen={true}
+              onClose={handleCloseVideoEditor}
+              sceneNumber={editableScenes[videoEditorSceneIdx].sceneNumber}
+              timeRange={editableScenes[videoEditorSceneIdx].timeRange}
+              narrationSnippet={(editableScenes[videoEditorSceneIdx]?.narration || '').slice(0, 50)}
+              videoUrl={editableScenes[videoEditorSceneIdx].uploadedVideoUrl || ''}
+              initialStartTime={editableScenes[videoEditorSceneIdx].videoStartTime}
+              initialEndTime={editableScenes[videoEditorSceneIdx].videoEndTime}
+              initialPlaybackRate={editableScenes[videoEditorSceneIdx].videoPlaybackRate}
+              initialVolume={editableScenes[videoEditorSceneIdx].videoVolume}
+              initialMuted={editableScenes[videoEditorSceneIdx].videoMuted}
+              initialFit={editableScenes[videoEditorSceneIdx].videoFit}
+              initialCrop={editableScenes[videoEditorSceneIdx].videoCrop}
+              onApplyVideo={handleApplyVideoConfig}
+              onChangeVideoFile={(file) => {
+                const newUrl = URL.createObjectURL(file);
+                const updated = [...editableScenes];
+                updated[videoEditorSceneIdx] = {
+                  ...updated[videoEditorSceneIdx],
+                  mediaType: 'video',
+                  uploadedVideoUrl: newUrl,
+                };
+                setEditableScenes(updated);
+              }}
+            />
+          </Suspense>
         </ErrorBoundary>
       )}
     </div>
