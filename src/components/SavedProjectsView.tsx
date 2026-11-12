@@ -72,10 +72,23 @@ export const SavedProjectsView: React.FC<SavedProjectsViewProps> = ({
     return typeof window !== 'undefined' ? localStorage.getItem('untold_paired_sync_code') : null;
   });
 
-  const handleCopy = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
+  const handleCopy = async (text: string, id: string) => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (e) {
+      console.warn('Clipboard copy error:', e);
+    }
   };
 
   const handleRefresh = async () => {

@@ -227,6 +227,9 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
       uploadedVideoUrl: undefined,
     };
     setEditableScenes(updated);
+    if (currentProject) {
+      onUpdateProject?.({ ...currentProject, scenes: updated });
+    }
   };
 
   // Local editable project state
@@ -246,10 +249,23 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
     }
   }, [currentProject]);
 
-  const handleCopy = (text: string, key: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedKey(key);
-    setTimeout(() => setCopiedKey(null), 2000);
+  const handleCopy = async (text: string, key: string) => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey(null), 2000);
+    } catch (e) {
+      console.warn('Clipboard copy error:', e);
+    }
   };
 
   const handleHookSelect = (index: number) => {
@@ -492,8 +508,16 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
 
   const handleRemoveSceneImage = (index: number) => {
     const updated = [...editableScenes];
-    updated[index] = { ...updated[index], uploadedImageUrl: undefined };
+    updated[index] = { 
+      ...updated[index], 
+      uploadedImageUrl: undefined, 
+      userCropUrl: undefined, 
+      imageUrl: undefined 
+    };
     setEditableScenes(updated);
+    if (currentProject) {
+      onUpdateProject?.({ ...currentProject, scenes: updated });
+    }
   };
 
   // Batch motion applicator helpers
