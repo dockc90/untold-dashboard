@@ -1,5 +1,7 @@
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
+import nodemailer from 'nodemailer';
 import { GoogleGenAI } from '@google/genai';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import {
@@ -17,6 +19,16 @@ export interface NewsletterSubscriber {
   isActive: boolean;
   lastSentKst?: string | null;
   createdAt: string;
+}
+
+export interface MailDeliveryConfig {
+  resendKey?: string;
+  brevoKey?: string;
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpUser?: string;
+  smtpPass?: string;
+  fromEmail?: string;
 }
 
 export interface NewsletterBriefItem {
@@ -46,15 +58,21 @@ export interface NewsletterIssue {
 
 export interface NewsletterStatus {
   emailConfigured: boolean;
-  emailProvider: 'resend' | 'brevo' | 'none';
+  emailProvider: 'resend' | 'brevo' | 'smtp' | 'none';
+  configuredFromHint?: string;
   supabaseConfigured: boolean;
   cronUtc: string;
   cronKst: string;
   subscriberCount: number;
 }
 
-const TMP_SUBS_FILE = path.join('/tmp', 'untold_newsletter_subscribers.json');
-const TMP_ISSUE_FILE = path.join('/tmp', 'untold_newsletter_issue.json');
+const TMP_DIR = os.tmpdir ? os.tmpdir() : '/tmp';
+const TMP_SUBS_FILE = path.join(TMP_DIR, 'untold_newsletter_subscribers.json');
+const TMP_ISSUE_FILE = path.join(TMP_DIR, 'untold_newsletter_issue.json');
+const TMP_CONFIG_FILE = path.join(TMP_DIR, 'untold_newsletter_config.json');
+
+const SYS_SUBS_ROW_ID = '__sys_newsletter_subscribers';
+const SYS_CFG_ROW_ID = '__sys_newsletter_config';
 
 const g = globalThis as any;
 if (!g.__untoldNewsletterSubs) {
@@ -62,6 +80,9 @@ if (!g.__untoldNewsletterSubs) {
 }
 if (!g.__untoldNewsletterIssues) {
   g.__untoldNewsletterIssues = new Map<string, NewsletterIssue>();
+}
+if (g.__untoldNewsletterConfig === undefined) {
+  g.__untoldNewsletterConfig = null as MailDeliveryConfig | null;
 }
 
 const memSubs: Map<string, NewsletterSubscriber> = g.__untoldNewsletterSubs;
@@ -101,7 +122,7 @@ function loadDiskSubs() {
       }
     }
   } catch {
-    // ignore /tmp access errors
+    // ignore
   }
 }
 
@@ -109,7 +130,7 @@ function saveDiskSubs() {
   try {
     fs.writeFileSync(TMP_SUBS_FILE, JSON.stringify(Array.from(memSubs.values())), 'utf8');
   } catch {
-    // ignore /tmp write errors
+    // ignore
   }
 }
 
@@ -138,6 +159,31 @@ function saveDiskIssue(issue: NewsletterIssue) {
   }
 }
 
+function loadDiskConfig(): MailDeliveryConfig | null {
+  if (g.__untoldNewsletterConfig) return g.__untoldNewsletterConfig;
+  try {
+    if (fs.existsSync(TMP_CONFIG_FILE)) {
+      const cfg = JSON.parse(fs.readFileSync(TMP_CONFIG_FILE, 'utf8'));
+      if (cfg && typeof cfg === 'object') {
+        g.__untoldNewsletterConfig = cfg;
+        return cfg;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function saveDiskConfig(cfg: MailDeliveryConfig) {
+  g.__untoldNewsletterConfig = cfg;
+  try {
+    fs.writeFileSync(TMP_CONFIG_FILE, JSON.stringify(cfg), 'utf8');
+  } catch {
+    // ignore
+  }
+}
+
 loadDiskSubs();
 
 export function normalizeEmail(raw: string): string {
@@ -146,6 +192,109 @@ export function normalizeEmail(raw: string): string {
 
 export function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+}
+
+function sanitizeMailConfig(raw?: MailDeliveryConfig | null): MailDeliveryConfig {
+  const cfg = raw || {};
+  return {
+    ...(cfg.resendKey?.trim() ? { resendKey: cfg.resendKey.trim() } : {}),
+    ...(cfg.brevoKey?.trim() ? { brevoKey: cfg.brevoKey.trim() } : {}),
+    ...(cfg.smtpHost?.trim() ? { smtpHost: cfg.smtpHost.trim() } : {}),
+    ...(cfg.smtpPort ? { smtpPort: Number(cfg.smtpPort) } : {}),
+    ...(cfg.smtpUser?.trim() ? { smtpUser: cfg.smtpUser.trim() } : {}),
+    ...(cfg.smtpPass?.trim() ? { smtpPass: cfg.smtpPass.trim() } : {}),
+    ...(cfg.fromEmail?.trim() ? { fromEmail: cfg.fromEmail.trim() } : {}),
+  };
+}
+
+export async function getEffectiveMailConfig(override?: MailDeliveryConfig | null): Promise<MailDeliveryConfig> {
+  const envCfg: MailDeliveryConfig = {
+    resendKey: process.env.RESEND_API_KEY?.trim() || undefined,
+    brevoKey: process.env.BREVO_API_KEY?.trim() || undefined,
+    smtpHost: process.env.SMTP_HOST?.trim() || undefined,
+    smtpPort: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined,
+    smtpUser: (process.env.SMTP_USER || process.env.GMAIL_USER)?.trim() || undefined,
+    smtpPass: (process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD)?.trim() || undefined,
+    fromEmail: process.env.NEWSLETTER_FROM_EMAIL?.trim() || undefined,
+  };
+
+  let savedCfg = loadDiskConfig() || {};
+  const sb = getSupabaseAdminClient();
+  if (sb && !savedCfg.resendKey && !savedCfg.brevoKey && !savedCfg.smtpUser) {
+    try {
+      const { data } = await sb
+        .from('untold_projects')
+        .select('data')
+        .eq('id', SYS_CFG_ROW_ID)
+        .maybeSingle();
+      if (data?.data?.config) {
+        savedCfg = sanitizeMailConfig(data.data.config);
+        saveDiskConfig(savedCfg);
+      }
+    } catch {
+      // ignore if untold_projects unavailable
+    }
+  }
+
+  const ov = sanitizeMailConfig(override);
+  return {
+    resendKey: ov.resendKey || envCfg.resendKey || savedCfg.resendKey,
+    brevoKey: ov.brevoKey || envCfg.brevoKey || savedCfg.brevoKey,
+    smtpHost: ov.smtpHost || envCfg.smtpHost || savedCfg.smtpHost,
+    smtpPort: ov.smtpPort || envCfg.smtpPort || savedCfg.smtpPort,
+    smtpUser: ov.smtpUser || envCfg.smtpUser || savedCfg.smtpUser,
+    smtpPass: ov.smtpPass || envCfg.smtpPass || savedCfg.smtpPass,
+    fromEmail: ov.fromEmail || envCfg.fromEmail || savedCfg.fromEmail,
+  };
+}
+
+export async function saveMailDeliveryConfig(cfg: MailDeliveryConfig): Promise<NewsletterStatus> {
+  const prev = await getEffectiveMailConfig();
+  const next = sanitizeMailConfig({
+    ...prev,
+    ...sanitizeMailConfig(cfg),
+  });
+  saveDiskConfig(next);
+
+  const sb = getSupabaseAdminClient();
+  if (sb) {
+    try {
+      await sb.from('untold_projects').upsert(
+        {
+          id: SYS_CFG_ROW_ID,
+          figure_name: '__system_newsletter_config__',
+          category: 'social',
+          full_script: '',
+          data: { __system: true, config: next },
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'id' }
+      );
+    } catch {
+      // ignore if table unavailable
+    }
+  }
+  return getNewsletterStatus();
+}
+
+async function syncSubsToFallbackDb() {
+  const sb = getSupabaseAdminClient();
+  if (!sb) return;
+  try {
+    await sb.from('untold_projects').upsert(
+      {
+        id: SYS_SUBS_ROW_ID,
+        figure_name: '__system_newsletter_subscribers__',
+        category: 'social',
+        full_script: '',
+        data: { __system: true, subscribers: Array.from(memSubs.values()) },
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'id' }
+    );
+  } catch {
+    // ignore
+  }
 }
 
 export async function listActiveSubscribers(): Promise<NewsletterSubscriber[]> {
@@ -170,22 +319,53 @@ export async function listActiveSubscribers(): Promise<NewsletterSubscriber[]> {
         }));
       }
     } catch {
-      // fall through to local store
+      // fall through
+    }
+
+    try {
+      const { data: sysRow } = await sb
+        .from('untold_projects')
+        .select('data')
+        .eq('id', SYS_SUBS_ROW_ID)
+        .maybeSingle();
+      const dbSubs = sysRow?.data?.subscribers;
+      if (Array.isArray(dbSubs)) {
+        dbSubs.forEach((s: NewsletterSubscriber) => {
+          if (s?.email) memSubs.set(normalizeEmail(s.email), s);
+        });
+        saveDiskSubs();
+      }
+    } catch {
+      // fall through
     }
   }
   return Array.from(memSubs.values()).filter((s) => s.isActive);
 }
 
 export async function getNewsletterStatus(): Promise<NewsletterStatus> {
-  const emailProvider: 'resend' | 'brevo' | 'none' = process.env.RESEND_API_KEY?.trim()
+  const cfg = await getEffectiveMailConfig();
+  const emailProvider: 'resend' | 'brevo' | 'smtp' | 'none' = cfg.resendKey
     ? 'resend'
-    : process.env.BREVO_API_KEY?.trim()
+    : cfg.brevoKey
     ? 'brevo'
+    : cfg.smtpUser && cfg.smtpPass
+    ? 'smtp'
     : 'none';
   const subs = await listActiveSubscribers();
+
+  let configuredFromHint: string | undefined;
+  if (emailProvider === 'smtp' && cfg.smtpUser) {
+    configuredFromHint = cfg.smtpUser;
+  } else if (emailProvider === 'resend') {
+    configuredFromHint = cfg.fromEmail || 'Resend API 연동됨';
+  } else if (emailProvider === 'brevo') {
+    configuredFromHint = cfg.fromEmail || 'Brevo API 연동됨';
+  }
+
   return {
     emailConfigured: emailProvider !== 'none',
     emailProvider,
+    configuredFromHint,
     supabaseConfigured: Boolean(getSupabaseAdminClient()),
     cronUtc: '0 22 * * *',
     cronKst: '매일 오전 07:00 (KST)',
@@ -202,7 +382,7 @@ export async function subscribeNewsletter(
     throw new Error('올바른 이메일 주소를 입력해 주세요.');
   }
 
-  loadDiskSubs();
+  await listActiveSubscribers().catch(() => {});
   const existing = memSubs.get(email);
   const nowIso = new Date().toISOString();
   const sub: NewsletterSubscriber = {
@@ -220,16 +400,17 @@ export async function subscribeNewsletter(
 
   const sb = getSupabaseAdminClient();
   let alreadySubscribed = Boolean(existing?.isActive);
+  let savedToDedicatedTable = false;
   if (sb) {
     try {
-      const { data: prevRow } = await sb
+      const { data: prevRow, error: selErr } = await sb
         .from('newsletter_subscribers')
         .select('id, is_active')
         .eq('email', email)
         .maybeSingle();
-      if (prevRow?.is_active) alreadySubscribed = true;
+      if (!selErr && prevRow?.is_active) alreadySubscribed = true;
 
-      const { data: upserted } = await sb
+      const { data: upserted, error: upErr } = await sb
         .from('newsletter_subscribers')
         .upsert(
           {
@@ -243,9 +424,15 @@ export async function subscribeNewsletter(
         )
         .select()
         .maybeSingle();
-      if (upserted?.id) sub.id = String(upserted.id);
+      if (!upErr) {
+        savedToDedicatedTable = true;
+        if (upserted?.id) sub.id = String(upserted.id);
+      }
     } catch {
-      // keep /tmp fallback active if table hasn't been created yet
+      // fall through
+    }
+    if (!savedToDedicatedTable) {
+      await syncSubsToFallbackDb();
     }
   }
 
@@ -258,7 +445,7 @@ export async function unsubscribeNewsletter(rawEmail: string): Promise<{ ok: boo
   if (!isValidEmail(email)) {
     throw new Error('올바른 이메일 주소가 아닙니다.');
   }
-  loadDiskSubs();
+  await listActiveSubscribers().catch(() => {});
   const existing = memSubs.get(email);
   if (existing) {
     existing.isActive = false;
@@ -275,6 +462,7 @@ export async function unsubscribeNewsletter(rawEmail: string): Promise<{ ok: boo
     } catch {
       // ignore
     }
+    await syncSubsToFallbackDb();
   }
   return { ok: true, email };
 }
@@ -288,13 +476,18 @@ async function markSubscriberSent(email: string, dateKst: string) {
   }
   const sb = getSupabaseAdminClient();
   if (sb) {
+    let saved = false;
     try {
-      await sb
+      const { error } = await sb
         .from('newsletter_subscribers')
         .update({ last_sent_kst: dateKst, updated_at: new Date().toISOString() })
         .eq('email', email);
+      if (!error) saved = true;
     } catch {
       // ignore
+    }
+    if (!saved) {
+      await syncSubsToFallbackDb();
     }
   }
 }
@@ -449,7 +642,7 @@ Google Search와 위 실시간 뉴스/검색어 신호를 결합하여 아래 JS
         }
       }
     } catch {
-      // fall through to RSS fallback
+      // fall through
     }
   }
 
@@ -627,21 +820,36 @@ export function renderNewsletterEmailText(issue: NewsletterIssue): string {
   return lines.join('\n');
 }
 
+function inferSmtpFromEmail(email: string, hostOverride?: string, portOverride?: number) {
+  if (hostOverride) {
+    const port = portOverride || 587;
+    return { host: hostOverride, port, secure: port === 465 };
+  }
+  const lower = email.toLowerCase();
+  if (lower.endsWith('@naver.com')) {
+    return { host: 'smtp.naver.com', port: 587, secure: false };
+  }
+  if (lower.endsWith('@daum.net') || lower.endsWith('@hanmail.net') || lower.endsWith('@kakao.com')) {
+    return { host: 'smtp.daum.net', port: 465, secure: true };
+  }
+  return { host: 'smtp.gmail.com', port: 465, secure: true };
+}
+
 export async function sendNewsletterEmail(
   to: string,
-  issue: NewsletterIssue
-): Promise<{ ok: boolean; configured: boolean; provider: 'resend' | 'brevo' | 'none'; error?: string }> {
-  const resendKey = process.env.RESEND_API_KEY?.trim();
-  const brevoKey = process.env.BREVO_API_KEY?.trim();
+  issue: NewsletterIssue,
+  overrideConfig?: MailDeliveryConfig | null
+): Promise<{ ok: boolean; configured: boolean; provider: 'resend' | 'brevo' | 'smtp' | 'none'; error?: string }> {
+  const cfg = await getEffectiveMailConfig(overrideConfig);
   const html = renderNewsletterEmailHtml(issue, to);
   const text = renderNewsletterEmailText(issue);
 
-  if (resendKey) {
-    const from = process.env.NEWSLETTER_FROM_EMAIL?.trim() || 'Untold 모닝 브리핑 <onboarding@resend.dev>';
+  if (cfg.resendKey) {
+    const from = cfg.fromEmail || 'Untold 모닝 브리핑 <onboarding@resend.dev>';
     const r = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${resendKey}`,
+        Authorization: `Bearer ${cfg.resendKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -654,17 +862,25 @@ export async function sendNewsletterEmail(
     });
     if (!r.ok) {
       const errBody = await r.text().catch(() => '');
-      return { ok: false, configured: true, provider: 'resend', error: `Resend 오류 (${r.status}): ${errBody.slice(0, 180)}` };
+      const hint = /only send testing emails to your own email/i.test(errBody)
+        ? ' (Resend 기본 주소는 Resend 가입 본인 메일로만 발송됩니다. 다른 메일로 받으려면 네이버/구글 SMTP 탭을 이용하세요.)'
+        : '';
+      return {
+        ok: false,
+        configured: true,
+        provider: 'resend',
+        error: `Resend 오류 (${r.status})${hint}: ${errBody.slice(0, 160)}`,
+      };
     }
     return { ok: true, configured: true, provider: 'resend' };
   }
 
-  if (brevoKey) {
-    const senderEmail = process.env.NEWSLETTER_FROM_EMAIL?.trim() || 'noreply@untold-dashboard.vercel.app';
+  if (cfg.brevoKey) {
+    const senderEmail = cfg.fromEmail || 'noreply@untold-dashboard.vercel.app';
     const r = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: {
-        'api-key': brevoKey,
+        'api-key': cfg.brevoKey,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -677,16 +893,50 @@ export async function sendNewsletterEmail(
     });
     if (!r.ok) {
       const errBody = await r.text().catch(() => '');
-      return { ok: false, configured: true, provider: 'brevo', error: `Brevo 오류 (${r.status}): ${errBody.slice(0, 180)}` };
+      return { ok: false, configured: true, provider: 'brevo', error: `Brevo 오류 (${r.status}): ${errBody.slice(0, 160)}` };
     }
     return { ok: true, configured: true, provider: 'brevo' };
+  }
+
+  if (cfg.smtpUser && cfg.smtpPass) {
+    const smtp = inferSmtpFromEmail(cfg.smtpUser, cfg.smtpHost, cfg.smtpPort);
+    try {
+      const transporter = nodemailer.createTransport({
+        host: smtp.host,
+        port: smtp.port,
+        secure: smtp.secure,
+        auth: {
+          user: cfg.smtpUser,
+          pass: cfg.smtpPass,
+        },
+      });
+      await transporter.sendMail({
+        from: `Untold 모닝 브리핑 <${cfg.smtpUser}>`,
+        to,
+        subject: issue.subject,
+        text,
+        html,
+      });
+      return { ok: true, configured: true, provider: 'smtp' };
+    } catch (err: any) {
+      const msg = String(err?.message || err);
+      const hint = /auth|535|invalid|login|username/i.test(msg)
+        ? ' (이메일 주소 또는 앱 비밀번호·네이버 POP3/SMTP 허용 설정을 확인해 주세요.)'
+        : '';
+      return {
+        ok: false,
+        configured: true,
+        provider: 'smtp',
+        error: `SMTP 발송 실패${hint}: ${msg.slice(0, 160)}`,
+      };
+    }
   }
 
   return {
     ok: false,
     configured: false,
     provider: 'none',
-    error: '서버에 RESEND_API_KEY 또는 BREVO_API_KEY가 아직 설정되지 않았습니다.',
+    error: '메일 발송 수단이 아직 연결되지 않았습니다. 아래에서 네이버/구글 메일 또는 Resend 키를 입력해 주세요.',
   };
 }
 
@@ -713,7 +963,7 @@ export async function runDailyNewsletterCron(opt?: { forceResendSameDay?: boolea
       skipped: subs.length,
       failed: 0,
       deliveryConfigured: false,
-      message: `오늘(${issue.dateKst}) 07:00 브리핑은 생성되었으나, RESEND_API_KEY 미설정으로 이메일 발송은 대기 상태입니다.`,
+      message: `오늘(${issue.dateKst}) 07:00 브리핑은 생성되었으나, 메일 발송 연동(SMTP 또는 Resend)이 아직 설정되지 않아 대기 중입니다.`,
     };
   }
 

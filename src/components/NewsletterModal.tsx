@@ -13,6 +13,8 @@ import {
   AlertCircle,
   CheckCircle2,
   Compass,
+  Settings2,
+  ExternalLink,
 } from 'lucide-react';
 import type { CategoryType, TrendingFigure } from '../types';
 import { getActiveGeminiKey } from '../services/sinsooApi';
@@ -44,7 +46,8 @@ interface NewsletterIssue {
 
 interface NewsletterStatus {
   emailConfigured: boolean;
-  emailProvider: 'resend' | 'brevo' | 'none';
+  emailProvider: 'resend' | 'brevo' | 'smtp' | 'none';
+  configuredFromHint?: string;
   supabaseConfigured: boolean;
   cronUtc: string;
   cronKst: string;
@@ -118,6 +121,13 @@ export const NewsletterModal: React.FC<NewsletterModalProps> = ({
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
+  // Mail relay setup state (SMTP Naver/Gmail or Resend)
+  const [showRelayConfig, setShowRelayConfig] = useState(false);
+  const [relayMode, setRelayMode] = useState<'smtp' | 'resend'>('smtp');
+  const [smtpUser, setSmtpUser] = useState('');
+  const [smtpPass, setSmtpPass] = useState('');
+  const [resendKey, setResendKey] = useState('');
+
   const loadPreview = async (force = false) => {
     setIsLoadingPreview(true);
     try {
@@ -176,7 +186,7 @@ export const NewsletterModal: React.FC<NewsletterModalProps> = ({
       if (json.status) setStatus(json.status);
       const deliveryHint = json.status?.emailConfigured
         ? '매일 오전 7시(KST) 이메일로 자동 발송됩니다.'
-        : '구독 목록에 등록되었습니다. 실제 메일 자동 발송을 켜려면 Vercel 환경변수에 RESEND_API_KEY를 추가해 주세요.';
+        : '구독 목록에 등록되었습니다. 실제 자동 메일 발송을 위해 아래 [발송 연동]에 네이버/구글 메일 또는 Resend 키를 1회 등록해 주세요.';
       setNotice({
         ok: true,
         text: `${json.subscriber.email} 등록 완료! ${deliveryHint}`,
@@ -188,8 +198,9 @@ export const NewsletterModal: React.FC<NewsletterModalProps> = ({
     }
   };
 
-  const handleSendTest = async () => {
-    if (!email.trim()) {
+  const handleSendTest = async (withInlineConfig = false) => {
+    const targetEmail = email.trim();
+    if (!targetEmail) {
       setNotice({ ok: false, text: '먼저 받아볼 이메일 주소를 입력해 주세요.' });
       return;
     }
@@ -197,20 +208,42 @@ export const NewsletterModal: React.FC<NewsletterModalProps> = ({
     setNotice(null);
     try {
       const geminiKey = getActiveGeminiKey();
+      const payload: Record<string, any> = {
+        email: targetEmail,
+        name: name.trim() || undefined,
+        geminiKey,
+        saveConfig: true,
+      };
+      if (withInlineConfig || resendKey.trim() || (smtpUser.trim() && smtpPass.trim())) {
+        if (relayMode === 'resend' && resendKey.trim()) {
+          payload.resendKey = resendKey.trim();
+        } else if (relayMode === 'smtp' && smtpPass.trim()) {
+          payload.smtpUser = (smtpUser.trim() || targetEmail);
+          payload.smtpPass = smtpPass.trim();
+        }
+      }
+
       const res = await fetch('/api/newsletter/send-test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), name: name.trim() || undefined, geminiKey }),
+        body: JSON.stringify(payload),
       });
       const json = await res.json();
+      if (json?.status) setStatus(json.status);
       if (json?.issue) setIssue(json.issue);
       if (json?.textBrief) setTextBrief(json.textBrief);
+
       if (json?.ok) {
+        setShowRelayConfig(false);
         setNotice({ ok: true, text: json.message || '테스트 메일을 발송했습니다!' });
       } else {
+        if (!json?.configured) {
+          setShowRelayConfig(true);
+          if (!smtpUser && targetEmail) setSmtpUser(targetEmail);
+        }
         setNotice({
           ok: false,
-          text: json?.message || json?.error || '서버 메일 키(RESEND_API_KEY)가 아직 연결되지 않았습니다.',
+          text: json?.message || json?.error || '발송 연동을 1회 설정하면 즉시 메일이 발송됩니다.',
         });
       }
     } catch (err: any) {
@@ -219,6 +252,13 @@ export const NewsletterModal: React.FC<NewsletterModalProps> = ({
       setIsSendingTest(false);
     }
   };
+
+  const mailtoHref =
+    issue && textBrief
+      ? `mailto:${encodeURIComponent(email.trim())}?subject=${encodeURIComponent(issue.subject)}&body=${encodeURIComponent(
+          textBrief.slice(0, 1500)
+        )}`
+      : '#';
 
   return (
     <div className="fixed inset-0 z-50 bg-black/45 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
@@ -270,8 +310,8 @@ export const NewsletterModal: React.FC<NewsletterModalProps> = ({
                       }`}
                     >
                       {status.emailConfigured
-                        ? `메일 서버(${status.emailProvider.toUpperCase()}) 연결됨`
-                        : '메일 발송키(RESEND_API_KEY) 미설정 · 브리핑 미리보기 활성'}
+                        ? `발송 연동됨 (${status.emailProvider.toUpperCase()}${status.configuredFromHint ? ` · ${status.configuredFromHint}` : ''})`
+                        : '메일 발송 미연동 · 아래에서 1회 설정'}
                     </span>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#F1F1EF] text-[#37352F] border border-[#E3E2DE]">
                       구독자 {status.subscriberCount}명
@@ -280,7 +320,32 @@ export const NewsletterModal: React.FC<NewsletterModalProps> = ({
                 )}
               </div>
 
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!smtpUser && email.trim()) setSmtpUser(email.trim());
+                    setShowRelayConfig((v) => !v);
+                  }}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[11px] font-semibold cursor-pointer transition ${
+                    showRelayConfig
+                      ? 'bg-[#23272A] text-white border-[#23272A]'
+                      : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border-indigo-200'
+                  }`}
+                >
+                  <Settings2 className="w-3 h-3" />
+                  <span>발송 연동 설정</span>
+                </button>
+                {issue && textBrief && (
+                  <a
+                    href={mailtoHref}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#F1F1EF] hover:bg-[#E9E9E7] border border-[#E3E2DE] text-[11px] font-semibold text-[#37352F] transition"
+                    title="기본 메일 앱으로 오늘 브리핑 열기"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    <span>메일앱 열기</span>
+                  </a>
+                )}
                 {textBrief && (
                   <button
                     type="button"
@@ -288,7 +353,7 @@ export const NewsletterModal: React.FC<NewsletterModalProps> = ({
                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#F1F1EF] hover:bg-[#E9E9E7] border border-[#E3E2DE] text-[11px] font-semibold text-[#37352F] cursor-pointer transition"
                   >
                     {copiedKey === 'full-brief' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                    <span>{copiedKey === 'full-brief' ? '전문 복사됨' : '브리핑 전문 복사'}</span>
+                    <span>{copiedKey === 'full-brief' ? '전문 복사됨' : '전문 복사'}</span>
                   </button>
                 )}
                 <button
@@ -309,7 +374,7 @@ export const NewsletterModal: React.FC<NewsletterModalProps> = ({
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="아침 7시에 받을 이메일 (예: creator@gmail.com)"
+                placeholder="아침 7시에 받을 이메일 (예: dockc90@naver.com)"
                 className="sm:col-span-5 bg-[#FAF9F7] border border-[#E3E2DE] rounded-xl px-3 py-2 text-xs text-[#191919] placeholder-[#9B9A97] focus:outline-none focus:border-[#23272A]"
               />
               <input
@@ -329,7 +394,7 @@ export const NewsletterModal: React.FC<NewsletterModalProps> = ({
               </button>
               <button
                 type="button"
-                onClick={handleSendTest}
+                onClick={() => handleSendTest(false)}
                 disabled={isSendingTest || !email.trim()}
                 className="sm:col-span-2 inline-flex items-center justify-center gap-1 px-3 py-2 rounded-xl bg-[#F1F1EF] hover:bg-[#E9E9E7] border border-[#E3E2DE] text-[#37352F] text-xs font-semibold transition cursor-pointer disabled:opacity-50"
                 title="지금 즉시 내 이메일로 샘플 발송 테스트"
@@ -338,6 +403,101 @@ export const NewsletterModal: React.FC<NewsletterModalProps> = ({
                 <span>{isSendingTest ? '발송 중...' : '테스트 발송'}</span>
               </button>
             </form>
+
+            {/* Collapsible Inline Email Relay Config */}
+            {showRelayConfig && (
+              <div className="p-3.5 rounded-xl bg-[#FAF9F7] border border-indigo-200/80 space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <span className="text-xs font-bold text-[#191919]">
+                    메일 자동 발송 연동 (1회 등록 시 매일 오전 7시 크론에서도 자동 발송)
+                  </span>
+                  <div className="inline-flex bg-[#F1F1EF] p-0.5 rounded-lg border border-[#E3E2DE] text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() => setRelayMode('smtp')}
+                      className={`px-2.5 py-1 rounded-md cursor-pointer transition ${
+                        relayMode === 'smtp' ? 'bg-white text-[#191919] font-bold shadow-2xs' : 'text-[#787774]'
+                      }`}
+                    >
+                      네이버·구글 메일 (SMTP)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRelayMode('resend')}
+                      className={`px-2.5 py-1 rounded-md cursor-pointer transition ${
+                        relayMode === 'resend' ? 'bg-white text-[#191919] font-bold shadow-2xs' : 'text-[#787774]'
+                      }`}
+                    >
+                      Resend 키 (re_...)
+                    </button>
+                  </div>
+                </div>
+
+                {relayMode === 'smtp' ? (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                      <input
+                        type="email"
+                        value={smtpUser}
+                        onChange={(e) => setSmtpUser(e.target.value)}
+                        placeholder="발신 메일 (예: dockc90@naver.com 또는 gmail.com)"
+                        className="sm:col-span-5 bg-white border border-[#E3E2DE] rounded-xl px-3 py-2 text-xs text-[#191919]"
+                      />
+                      <input
+                        type="password"
+                        value={smtpPass}
+                        onChange={(e) => setSmtpPass(e.target.value)}
+                        placeholder="앱 비밀번호 또는 네이버 메일 비밀번호"
+                        className="sm:col-span-4 bg-white border border-[#E3E2DE] rounded-xl px-3 py-2 text-xs text-[#191919]"
+                      />
+                      <button
+                        type="button"
+                        disabled={isSendingTest || !smtpPass.trim()}
+                        onClick={() => handleSendTest(true)}
+                        className="sm:col-span-3 py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold cursor-pointer disabled:opacity-50 transition"
+                      >
+                        {isSendingTest ? '연동 중...' : '연동 저장 & 테스트 발송'}
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-[#787774] leading-relaxed">
+                      • <strong>네이버 메일</strong>: 네이버 메일 좌측 하단 [환경설정 → POP3/IMAP 설정 → POP3/SMTP 사용함] 저장 후 입력 (2단계 인증 시 앱 비밀번호 생성)<br />
+                      • <strong>Gmail</strong>: Google 계정 → 보안 → 2단계 인증 → [앱 비밀번호] 16자리 입력
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                      <input
+                        type="password"
+                        value={resendKey}
+                        onChange={(e) => setResendKey(e.target.value)}
+                        placeholder="Resend API Key (re_xxxxxxxxxxxxxxxx)"
+                        className="sm:col-span-9 bg-white border border-[#E3E2DE] rounded-xl px-3 py-2 text-xs text-[#191919]"
+                      />
+                      <button
+                        type="button"
+                        disabled={isSendingTest || !resendKey.trim()}
+                        onClick={() => handleSendTest(true)}
+                        className="sm:col-span-3 py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold cursor-pointer disabled:opacity-50 transition"
+                      >
+                        {isSendingTest ? '발송 중...' : '연동 저장 & 테스트 발송'}
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-[#787774]">
+                      <a
+                        href="https://resend.com/api-keys"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-indigo-700 font-semibold hover:underline"
+                      >
+                        resend.com/api-keys ↗
+                      </a>
+                      에서 무료 키 발급 (하루 100통 무료, 기본 주소는 Resend 가입 본인 메일로 테스트 가능)
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {notice && (
               <div

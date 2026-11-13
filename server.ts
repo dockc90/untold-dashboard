@@ -14,9 +14,11 @@ import {
   normalizeEmail,
   renderNewsletterEmailText,
   runDailyNewsletterCron,
+  saveMailDeliveryConfig,
   sendNewsletterEmail,
   subscribeNewsletter,
   unsubscribeNewsletter,
+  type MailDeliveryConfig,
 } from './nextjs-project/lib/newsletterService.ts';
 
 dotenv.config();
@@ -192,22 +194,46 @@ app.delete('/api/newsletter/subscribe', async (req, res) => {
   }
 });
 
+app.post('/api/newsletter/config', async (req, res) => {
+  try {
+    const status = await saveMailDeliveryConfig(req.body || {});
+    return res.json({ ok: true, status });
+  } catch (err: any) {
+    return res.status(400).json({ ok: false, error: err?.message || '메일 설정 저장 실패' });
+  }
+});
+
 app.post('/api/newsletter/send-test', async (req, res) => {
   try {
     const email = normalizeEmail(req.body?.email || '');
     if (!isValidEmail(email)) {
       return res.status(400).json({ ok: false, error: '올바른 이메일 주소를 입력해 주세요.' });
     }
+    const inlineConfig: MailDeliveryConfig = {
+      ...(req.body?.resendKey ? { resendKey: String(req.body.resendKey) } : {}),
+      ...(req.body?.brevoKey ? { brevoKey: String(req.body.brevoKey) } : {}),
+      ...(req.body?.smtpHost ? { smtpHost: String(req.body.smtpHost) } : {}),
+      ...(req.body?.smtpPort ? { smtpPort: Number(req.body.smtpPort) } : {}),
+      ...(req.body?.smtpUser ? { smtpUser: String(req.body.smtpUser) } : {}),
+      ...(req.body?.smtpPass ? { smtpPass: String(req.body.smtpPass) } : {}),
+      ...(req.body?.fromEmail ? { fromEmail: String(req.body.fromEmail) } : {}),
+    };
+    const hasInline = Object.keys(inlineConfig).length > 0;
+    if (hasInline && req.body?.saveConfig !== false) {
+      await saveMailDeliveryConfig(inlineConfig).catch(() => null);
+    }
     await subscribeNewsletter(email, req.body?.name).catch(() => null);
     const issue = await buildDailyMorningIssue({
       forceRefresh: Boolean(req.body?.forceRefresh),
       geminiKey: req.body?.geminiKey,
     });
-    const sendRes = await sendNewsletterEmail(email, issue);
+    const sendRes = await sendNewsletterEmail(email, issue, hasInline ? inlineConfig : null);
+    const status = await getNewsletterStatus();
     return res.json({
       ok: sendRes.ok,
       configured: sendRes.configured,
       provider: sendRes.provider,
+      status,
       message: sendRes.ok ? `${email}로 샘플 메일을 발송했습니다.` : sendRes.error,
       issue,
       textBrief: renderNewsletterEmailText(issue),
@@ -1359,7 +1385,7 @@ app.get('/api/projects', async (req, res) => {
 
         if (untoldData && untoldData.length > 0) {
           untoldData.forEach((row: any) => {
-            if (row.data && row.data.id) projectMap.set(row.data.id, row.data);
+            if (row.data && !row.data.__system && row.data.id) projectMap.set(row.data.id, row.data);
           });
         }
       } catch (e) {}

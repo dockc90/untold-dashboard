@@ -145,7 +145,7 @@ export async function GET(req: Request) {
 
         if (!jsonErr && jsonProjects && jsonProjects.length > 0) {
           for (const row of jsonProjects) {
-            if (row.data && row.data.id) {
+            if (row.data && !row.data.__system && row.data.id) {
               projectMap.set(row.data.id, row.data);
             }
           }
