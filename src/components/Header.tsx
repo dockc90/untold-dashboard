@@ -12,7 +12,6 @@ import {
   getActiveGeminiKey,
   getActiveYoutubeKey,
   getActiveElevenLabsKey,
-  loadSinsooSettings,
 } from '../services/sinsooApi';
 
 export type AppTab = 'studio' | 'carousel' | 'viral' | 'saved';
@@ -36,17 +35,13 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [hasGemini, setHasGemini] = useState(() => Boolean(getActiveGeminiKey()));
   const [hasYt, setHasYt] = useState(() => Boolean(getActiveYoutubeKey()));
-  const [hasEleven, setHasEleven] = useState(() => {
-    const s = loadSinsooSettings();
-    return Boolean(getActiveElevenLabsKey() || (s.ttsProvider || 'elevenlabs') === 'elevenlabs');
-  });
+  const [hasEleven, setHasEleven] = useState(() => Boolean(getActiveElevenLabsKey()));
 
   useEffect(() => {
     const syncKeys = () => {
-      const s = loadSinsooSettings();
       setHasGemini(Boolean(getActiveGeminiKey()));
       setHasYt(Boolean(getActiveYoutubeKey()));
-      setHasEleven(Boolean(getActiveElevenLabsKey() || (s.ttsProvider || 'elevenlabs') === 'elevenlabs'));
+      setHasEleven(Boolean(getActiveElevenLabsKey()));
     };
     window.addEventListener('autoshorts:sinsoo-settings-changed', syncKeys);
     return () => window.removeEventListener('autoshorts:sinsoo-settings-changed', syncKeys);

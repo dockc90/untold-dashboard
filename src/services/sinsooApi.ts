@@ -49,7 +49,7 @@ export const DEFAULT_SINSOO_SETTINGS: SinsooSettings = {
   geminiKey: '',
   ytKey: '',
   elevenLabsKey: '',
-  ttsProvider: 'elevenlabs',
+  ttsProvider: 'gemini',
   elevenLabsModel: 'eleven_v4',
   elevenLabsVoiceId: 'JBFqnCBsd6RMkjVDRZzb',
   model: 'gemini-flash-latest',
@@ -215,6 +215,9 @@ export function loadSinsooSettings(): SinsooSettings {
       merged.models.every((m) => /^gemini-2\./.test(m))
     ) {
       merged.models = Array.from(new Set([...DEFAULT_SINSOO_SETTINGS.models, ...merged.models]));
+    }
+    if (!merged.elevenLabsKey?.trim() && merged.ttsProvider === 'elevenlabs') {
+      merged.ttsProvider = 'gemini';
     }
     return merged;
   } catch {
@@ -1194,9 +1197,16 @@ export async function synthesizeElevenLabsTts(opt: ElevenLabsTtsOptions): Promis
   const style = typeof opt.style === 'number' ? opt.style : 0.15;
   const useSpeakerBoost = opt.speakerBoost !== false;
   const userKey = (opt.apiKey ?? settings.elevenLabsKey ?? '').trim();
+  if (!userKey) {
+    throw new SinsooApiError(
+      'elevenlabs',
+      401,
+      'ElevenLabs API 키가 입력되지 않았습니다. [API 설정 → API 키 · 모델]에서 본인의 ElevenLabs 키(sk_...)를 입력해 주세요.'
+    );
+  }
   const signal = withTimeout(opt.signal, 45000);
 
-  // 1) Try workspace/Vercel /api/tts first (automatically uses ELEVENLABS_API_KEY in server .env)
+  // 1) Try workspace/Vercel /api/tts proxy with client-supplied xi-api-key header
   let serverFallbackReason = '';
   try {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -1229,7 +1239,7 @@ export async function synthesizeElevenLabsTts(opt: ElevenLabsTtsOptions): Promis
       }
     }
     if (res.ok && engineHeader === 'System-Fallback') {
-      serverFallbackReason = '서버 ELEVENLABS_API_KEY가 비어 있거나 할당량 초과로 폴백(System-Fallback) 되었습니다.';
+      serverFallbackReason = '입력한 ElevenLabs API 키가 거부되거나 한도 초과로 폴백되었습니다.';
     } else if (!res.ok) {
       serverFallbackReason = `서버 /api/tts 응답 오류 (${res.status})`;
     }

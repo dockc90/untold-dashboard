@@ -29,7 +29,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     if (searchParams.get('check') === '1') {
       return NextResponse.json({
-        configured: Boolean(process.env.ELEVENLABS_API_KEY || request.headers.get('xi-api-key')),
+        configured: Boolean(request.headers.get('xi-api-key')),
       });
     }
     const rawText = searchParams.get('text') || '';
@@ -46,8 +46,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Text is required' }, { status: 400 });
     }
 
-    // 1. ElevenLabs API (Priority 1 with eleven_v4 default)
-    const elevenApiKey = process.env.ELEVENLABS_API_KEY || request.headers.get('xi-api-key') || '';
+    // 1. ElevenLabs API (Requires client-supplied xi-api-key header; no shared server key)
+    const elevenApiKey = request.headers.get('xi-api-key') || '';
     if (elevenApiKey) {
       try {
         const endpoint = withTimestamps ? '/with-timestamps' : '';
@@ -156,8 +156,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Text is required' }, { status: 400 });
     }
 
-    // 1. ElevenLabs API (Priority 1 with eleven_v4 default)
-    const elevenApiKey = process.env.ELEVENLABS_API_KEY || request.headers.get('xi-api-key') || '';
+    // 1. ElevenLabs API (Requires client-supplied xi-api-key header; no shared server key)
+    const elevenApiKey = request.headers.get('xi-api-key') || '';
     if (elevenApiKey) {
       try {
         const endpoint = withTimestamps ? '/with-timestamps' : '';

@@ -90,7 +90,12 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
   };
 
   const handleSaveOnly = () => {
-    const cleaned = { ...form, geminiKey: form.geminiKey.trim(), ytKey: form.ytKey.trim() };
+    const cleaned = {
+      ...form,
+      geminiKey: form.geminiKey.trim(),
+      ytKey: form.ytKey.trim(),
+      elevenLabsKey: (form.elevenLabsKey || '').trim(),
+    };
     persist(cleaned);
     setSaveToast(
       cleaned.geminiKey
@@ -220,21 +225,23 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
   };
 
   const handleTestElevenLabs = async () => {
-    persist(form);
+    const cleanKey = (form.elevenLabsKey || '').trim();
+    persist({ ...form, elevenLabsKey: cleanKey });
+    if (!cleanKey) {
+      setElevenStatus({ ok: false, text: 'ElevenLabs API 키(sk_...)를 먼저 입력하세요.' });
+      return;
+    }
     setTestingEleven(true);
-    setElevenStatus({ text: 'ElevenLabs 유료 구독 API 연동 확인 중 (/api/tts)…' });
+    setElevenStatus({ text: 'ElevenLabs API 키 확인 및 샘플 음성 생성 중…' });
     try {
       const res = await testElevenLabsTts({
-        apiKey: form.elevenLabsKey?.trim() || undefined,
+        apiKey: cleanKey,
         voiceId: form.elevenLabsVoiceId,
         modelId: form.elevenLabsModel,
       });
-      if (res.source === 'server') {
-        setElevenServerConnected(true);
-      }
       setElevenStatus({
         ok: true,
-        text: `연동 성공 ✓ (${res.model} · ${res.source === 'server' ? '서버 .env 유료 키 사용' : '입력 키 직접 연결'} · ${(res.bytes / 1024).toFixed(1)}KB)`,
+        text: `연동 성공 ✓ (${res.model} · ${(res.bytes / 1024).toFixed(1)}KB). TTS 모델 & 16인 성우가 오픈되었습니다.`,
       });
     } catch (err) {
       setElevenStatus({ ok: false, text: explainSinsooError(err) });
@@ -582,9 +589,9 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <h3 className="text-sm font-bold text-[#191919] flex items-center gap-1.5">
                     <Crown className="w-4 h-4 text-amber-500" />
-                    ElevenLabs 유료 TTS 연동
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                      서버 .env 자동 연동
+                    ElevenLabs API 키
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#F1F1EF] text-[#787774] border border-[#E3E2DE]">
+                      선택 (유료 성우)
                     </span>
                   </h3>
                   <a
@@ -593,24 +600,24 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
                     rel="noreferrer"
                     className="text-[11px] text-indigo-600 hover:underline flex items-center gap-0.5"
                   >
-                    ElevenLabs 대시보드 <ExternalLink className="w-3 h-3" />
+                    ElevenLabs 키 발급 <ExternalLink className="w-3 h-3" />
                   </a>
                 </div>
                 <p className="text-xs text-[#787774] leading-relaxed">
-                  서버(.env / Vercel)에 등록된 유료 <code className="bg-[#F1F1EF] px-1 py-0.5 rounded text-[11px]">ELEVENLABS_API_KEY</code>를 <code className="bg-[#F1F1EF] px-1 py-0.5 rounded text-[11px]">/api/tts</code>로 바로 사용합니다. 개인 키로 덮어쓰려면 아래 입력란에만 추가하세요.
+                  본인의 ElevenLabs API 키를 연결하면 <b>TTS 모델</b> 선택과 <b>ElevenLabs 유료 16인 성우</b>가 활성화됩니다. 입력한 키는 서버에 저장되지 않고 현재 브라우저에만 보관됩니다.
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 items-end">
                   <div className="md:col-span-2">
                     <span className="block text-[11px] font-medium text-[#787774] mb-1">
-                      개인 ElevenLabs 키 덮어쓰기 (선택 · 비워두면 서버 유료 키 사용)
+                      ElevenLabs API 키 입력 (sk_...)
                     </span>
                     <div className="flex items-center gap-1.5 bg-[#FBFBFA] border border-[#E3E2DE] rounded-xl px-3 py-2 focus-within:border-[#37352F]">
                       <input
                         type={showEleven ? 'text' : 'password'}
                         value={form.elevenLabsKey || ''}
                         onChange={(e) => setForm({ ...form, elevenLabsKey: e.target.value })}
-                        placeholder="비워두면 서버 ELEVENLABS_API_KEY 자동 사용 (sk_...)"
+                        placeholder="sk_... 키 입력 (입력 시 ElevenLabs TTS 모델 · 16인 성우 오픈)"
                         autoComplete="off"
                         className="w-full bg-transparent text-xs outline-none text-[#191919]"
                       />
@@ -725,7 +732,7 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
                     <div className="text-xs text-[#787774] flex items-center gap-2">
                       <Lock className="w-4 h-4 text-amber-600 shrink-0" />
                       <span>
-                        ElevenLabs 유료 16인 성우는 <b>API 키 · 모델</b> 탭에서 ElevenLabs API 키를 연결(또는 서버 <code>.env</code> 연동 확인)해야 오픈됩니다.
+                        ElevenLabs 유료 16인 성우는 <b>API 키 · 모델</b> 탭에서 본인의 ElevenLabs API 키(sk_...)를 연결해야 오픈됩니다.
                       </span>
                     </div>
                     <button

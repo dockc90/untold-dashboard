@@ -1097,7 +1097,7 @@ app.all('/api/tts', async (req, res) => {
   try {
     if (req.method === 'GET' && req.query.check === '1') {
       return res.json({
-        configured: Boolean(process.env.ELEVENLABS_API_KEY || req.headers['xi-api-key']),
+        configured: Boolean(req.headers['xi-api-key']),
       });
     }
     const rawText = (req.method === 'POST' ? req.body?.text : req.query.text) || '';
@@ -1115,8 +1115,8 @@ app.all('/api/tts', async (req, res) => {
       return res.status(400).json({ error: 'Text is required' });
     }
 
-    // 1. ElevenLabs API (Priority 1 with eleven_v4 default)
-    const elevenApiKey = process.env.ELEVENLABS_API_KEY || (req.headers['xi-api-key'] as string);
+    // 1. ElevenLabs API (Requires user-supplied xi-api-key header; no shared server key)
+    const elevenApiKey = (req.headers['xi-api-key'] as string) || '';
     if (elevenApiKey) {
       try {
         const endpoint = withTimestamps ? '/with-timestamps' : '';

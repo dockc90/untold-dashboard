@@ -452,7 +452,8 @@ export const VideoRepurposeStudio: React.FC<VideoRepurposeStudioProps> = ({
             subBg: 'box',
             intro: {
               mode: 'tts',
-              ttsEngine: sGlobal.ttsProvider || 'elevenlabs',
+              ttsEngine:
+                sGlobal.elevenLabsKey?.trim() && sGlobal.ttsProvider === 'elevenlabs' ? 'elevenlabs' : 'gemini',
               elevenVoiceId: sGlobal.elevenLabsVoiceId || VOICE_OPTIONS[0].id,
               text: String(c.intro || '').trim(),
               voice: sGlobal.voice || 'Kore',
@@ -741,7 +742,8 @@ JSON: {"options":["문장1","문장2","문장3"]}`,
 
   const generateIntroTtsForCandidate = async (c: RepurposeCandidate) => {
     if (!c.intro.text.trim()) throw new Error('도입 내레이션 문장을 먼저 입력해 주세요.');
-    const engine = c.intro.ttsEngine || settings.ttsProvider || 'elevenlabs';
+    const hasEleven = Boolean(settings.elevenLabsKey?.trim());
+    const engine = (c.intro.ttsEngine || settings.ttsProvider) === 'elevenlabs' && hasEleven ? 'elevenlabs' : 'gemini';
     let blob: Blob;
     let ext = 'wav';
     let mime = 'audio/wav';
@@ -788,7 +790,8 @@ JSON: {"options":["문장1","문장2","문장3"]}`,
   };
 
   const handleGenerateSingleIntroTts = async (c: RepurposeCandidate) => {
-    const engine = c.intro.ttsEngine || settings.ttsProvider || 'elevenlabs';
+    const engine = c.intro.ttsEngine || settings.ttsProvider || 'gemini';
+    if (engine === 'elevenlabs' && !settings.elevenLabsKey?.trim()) return onOpenSettings();
     if (engine === 'gemini' && !getActiveGeminiKey()) return onOpenSettings();
     setTtsBusy(true);
     setAnalysisError('');
@@ -804,7 +807,9 @@ JSON: {"options":["문장1","문장2","문장3"]}`,
   const handleGenerateAllIntroTts = async () => {
     const targets = picks.filter((c) => c.intro.mode === 'tts' && c.intro.text.trim());
     if (!targets.length) return;
-    const needsGemini = targets.some((c) => (c.intro.ttsEngine || settings.ttsProvider || 'elevenlabs') === 'gemini');
+    const needsEleven = targets.some((c) => (c.intro.ttsEngine || settings.ttsProvider || 'gemini') === 'elevenlabs');
+    const needsGemini = targets.some((c) => (c.intro.ttsEngine || settings.ttsProvider || 'gemini') === 'gemini');
+    if (needsEleven && !settings.elevenLabsKey?.trim()) return onOpenSettings();
     if (needsGemini && !getActiveGeminiKey()) return onOpenSettings();
     setTtsBusy(true);
     setAnalysisError('');
@@ -1983,31 +1988,47 @@ JSON으로만 출력:
                             <span className="font-semibold text-[#191919]">AI 음성 엔진</span>
                             <div className="inline-flex bg-[#F1F1EF] p-0.5 rounded-xl border border-[#E3E2DE] text-[11px] gap-1">
                               {(['elevenlabs', 'gemini'] as const).map((eng) => {
-                                const activeEngine = activeCand.intro.ttsEngine || settings.ttsProvider || 'elevenlabs';
+                                const hasEleven = Boolean(settings.elevenLabsKey?.trim());
+                                const activeEngine =
+                                  (activeCand.intro.ttsEngine || settings.ttsProvider) === 'elevenlabs' && hasEleven
+                                    ? 'elevenlabs'
+                                    : 'gemini';
+                                const locked = eng === 'elevenlabs' && !hasEleven;
                                 return (
                                   <button
                                     key={eng}
                                     type="button"
-                                    onClick={() =>
+                                    onClick={() => {
+                                      if (locked) {
+                                        onOpenSettings();
+                                        return;
+                                      }
                                       updateCandidate(activeCand.id, (p) => ({
                                         ...p,
                                         intro: { ...p.intro, ttsEngine: eng },
-                                      }))
-                                    }
+                                      }));
+                                    }}
                                     className={`px-2.5 py-1 rounded-lg font-medium transition cursor-pointer ${
-                                      activeEngine === eng
+                                      locked
+                                        ? 'text-[#9B9A97] hover:text-[#37352F]'
+                                        : activeEngine === eng
                                         ? 'bg-white text-[#191919] shadow-2xs font-bold'
                                         : 'text-[#787774] hover:text-[#191919]'
                                     }`}
+                                    title={locked ? 'API 설정에서 ElevenLabs 키를 연결하면 활성화됩니다' : undefined}
                                   >
-                                    {eng === 'elevenlabs' ? '👑 일레븐랩스 (유료 16인)' : '✨ Gemini TTS (30종)'}
+                                    {eng === 'elevenlabs'
+                                      ? hasEleven
+                                        ? '👑 일레븐랩스 (유료 16인)'
+                                        : '🔒 일레븐랩스 (키 필요)'
+                                      : '✨ Gemini TTS (30종)'}
                                   </button>
                                 );
                               })}
                             </div>
                           </div>
 
-                          {(activeCand.intro.ttsEngine || settings.ttsProvider || 'elevenlabs') === 'elevenlabs' ? (
+                          {(activeCand.intro.ttsEngine || settings.ttsProvider) === 'elevenlabs' && Boolean(settings.elevenLabsKey?.trim()) ? (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                               <label className="block">
                                 일레븐랩스 성우 (16인 · {settings.elevenLabsModel || 'eleven_v4'})
@@ -2030,7 +2051,7 @@ JSON으로만 출력:
                               </label>
                               <div className="flex items-end">
                                 <p className="text-[11px] text-[#787774] bg-white px-2.5 py-1.5 rounded-lg border border-[#E3E2DE] w-full">
-                                  서버 유료 구독(<code className="text-[10px]">.env</code>) 자동 연동 · MP3 고음질 생성
+                                  입력한 ElevenLabs API 키 연결됨 · MP3 고음질 생성
                                 </p>
                               </div>
                             </div>
