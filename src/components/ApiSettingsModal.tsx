@@ -680,26 +680,26 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
 
           {tab === 'voice' && (
             <div className="space-y-4">
-              {/* Default TTS Engine & ElevenLabs 16 Voices */}
+              {/* Unified TTS Engine & Voice Config Card (ElevenLabs + Gemini) */}
               <div className="bg-white p-4 rounded-xl border border-[#E9E9E7] space-y-3">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div>
                     <h3 className="text-sm font-bold text-[#191919] flex items-center gap-1.5 flex-wrap">
                       <Crown className="w-4 h-4 text-amber-500" />
-                      <span>기본 AI 음성 엔진 & ElevenLabs 유료 16인 성우</span>
+                      <span>기본 AI 음성(TTS) 엔진 · 성우 설정 (ElevenLabs · Gemini)</span>
                       {hasElevenConnected ? (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">
-                          ✓ {hasElevenUserKey ? '개인 API 키 연결됨 (유료 오픈)' : '서버 .env 유료 키 자동 연결됨 (유료 오픈)'}
+                          ✓ {hasElevenUserKey ? 'ElevenLabs 개인 키 연결됨' : 'ElevenLabs 연결됨'}
                         </span>
                       ) : (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#F1F1EF] text-[#787774] border border-[#E3E2DE] font-semibold inline-flex items-center gap-1">
                           <Lock className="w-2.5 h-2.5" />
-                          API 키 미연결 (연동 시 오픈)
+                          ElevenLabs 키 미연결
                         </span>
                       )}
                     </h3>
                     <p className="text-xs text-[#787774] mt-0.5">
-                      기존 영상 재가공(3~5초 도입 내레이션)과 씬별 오디오 생성에 우선 사용할 TTS 엔진을 선택하세요.
+                      기존 영상 재가공(3~5초 도입 내레이션) 및 씬별 AI 음성 합성에 우선 사용할 엔진과 성우를 선택하세요.
                     </p>
                   </div>
                   <div className="inline-flex bg-[#F1F1EF] p-0.5 rounded-xl border border-[#E3E2DE] text-xs gap-1">
@@ -710,12 +710,12 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
                       className={`px-3 py-1 rounded-lg font-medium transition ${
                         !hasElevenConnected
                           ? 'opacity-50 cursor-not-allowed text-[#9B9A97]'
-                          : (form.ttsProvider || 'elevenlabs') === 'elevenlabs'
+                          : (form.ttsProvider || 'gemini') === 'elevenlabs'
                           ? 'bg-white text-[#191919] shadow-2xs font-semibold cursor-pointer'
                           : 'text-[#787774] cursor-pointer'
                       }`}
                     >
-                      {hasElevenConnected ? '👑 ElevenLabs (유료)' : '🔒 ElevenLabs (키 필요)'}
+                      {hasElevenConnected ? '👑 ElevenLabs (유료 16인)' : '🔒 ElevenLabs (키 필요)'}
                     </button>
                     <button
                       type="button"
@@ -726,12 +726,12 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
                           : 'text-[#787774]'
                       }`}
                     >
-                      ✨ Gemini (무료 30종)
+                      ✨ Gemini TTS (30종)
                     </button>
                   </div>
                 </div>
 
-                {!hasElevenConnected ? (
+                {!hasElevenConnected && (
                   <div className="p-3 rounded-xl bg-[#FBFBFA] border border-[#E3E2DE] flex items-center justify-between gap-3 flex-wrap">
                     <div className="text-xs text-[#787774] flex items-center gap-2">
                       <Lock className="w-4 h-4 text-amber-600 shrink-0" />
@@ -747,8 +747,10 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
                       API 키 연결하러 가기 →
                     </button>
                   </div>
-                ) : (
-                  <>
+                )}
+
+                {hasElevenConnected && (form.ttsProvider || 'gemini') === 'elevenlabs' ? (
+                  <div className="space-y-3 pt-1">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <label className="block text-xs font-medium text-[#37352F]">
                         ElevenLabs 기본 성우 (16인)
@@ -780,7 +782,7 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
                       </label>
                     </div>
 
-                    <div className="flex items-center gap-3 flex-wrap pt-1">
+                    <div className="flex items-center gap-3 flex-wrap">
                       <button
                         type="button"
                         onClick={handleElevenVoicePreview}
@@ -792,54 +794,88 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
                       </button>
                       {elevenVoiceNote && <span className="text-xs text-[#787774]">{elevenVoiceNote}</span>}
                     </div>
-                  </>
+                  </div>
+                ) : (
+                  <div className="space-y-3 pt-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <label className="block text-xs font-medium text-[#37352F]">
+                        Gemini 성우 음색 (한국어 지원 30종)
+                        <select
+                          value={form.voice}
+                          onChange={(e) => setForm({ ...form, voice: e.target.value })}
+                          className="mt-1 w-full px-2.5 py-2 rounded-lg border border-[#E3E2DE] bg-white text-xs"
+                        >
+                          {voices.map((v) => (
+                            <option key={v.id} value={v.id}>
+                              {v.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="block text-xs font-medium text-[#37352F]">
+                        말투 / 연기 지시 (Style)
+                        <input
+                          type="text"
+                          value={form.ttsStyle}
+                          onChange={(e) => setForm({ ...form, ttsStyle: e.target.value })}
+                          placeholder="예: 차분하고 또렷한 다큐멘터리 내레이션"
+                          className="mt-1 w-full px-2.5 py-2 rounded-lg border border-[#E3E2DE] bg-white text-xs"
+                        />
+                      </label>
+                    </div>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={handleVoicePreview}
+                        disabled={testingVoice}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#F1F1EF] hover:bg-[#E9E9E7] text-[#191919] border border-[#E3E2DE] text-xs font-semibold transition cursor-pointer"
+                      >
+                        {testingVoice ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Volume2 className="w-3.5 h-3.5 text-indigo-600" />}
+                        <span>Gemini 음성 테스트 재생</span>
+                      </button>
+                      {voiceNote && <span className="text-xs text-[#787774]">{voiceNote}</span>}
+                    </div>
+                  </div>
                 )}
               </div>
 
-              <div className="bg-white p-4 rounded-xl border border-[#E9E9E7] space-y-3">
-                <h3 className="text-sm font-bold text-[#191919]">Gemini TTS 음성 (한국어 지원 30종)</h3>
-                <p className="text-xs text-[#787774]">
-                  기존 영상 재가공의 3~5초 도입 내레이션과 배치 TTS 대본 합성에 기본 적용됩니다.
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label className="block text-xs font-medium text-[#37352F]">
-                    음성 선택
-                    <select
-                      value={form.voice}
-                      onChange={(e) => setForm({ ...form, voice: e.target.value })}
-                      className="mt-1 w-full px-2.5 py-2 rounded-lg border border-[#E3E2DE] bg-white text-xs"
-                    >
-                      {voices.map((v) => (
-                        <option key={v.id} value={v.id}>
-                          {v.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="block text-xs font-medium text-[#37352F]">
-                    말투 / 연기 지시 (Style)
-                    <input
-                      type="text"
-                      value={form.ttsStyle}
-                      onChange={(e) => setForm({ ...form, ttsStyle: e.target.value })}
-                      placeholder="예: 차분하고 또렷한 다큐멘터리 내레이션"
-                      className="mt-1 w-full px-2.5 py-2 rounded-lg border border-[#E3E2DE] bg-white text-xs"
-                    />
-                  </label>
+              {hasElevenConnected && (form.ttsProvider || 'gemini') === 'elevenlabs' && (
+                <div className="bg-[#FBFBFA] p-4 rounded-xl border border-[#E3E2DE] space-y-2.5">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <h4 className="text-xs font-bold text-[#37352F]">
+                      ✨ 보조 엔진 설정: Gemini TTS (30종 · 배치 WAV 분할용)
+                    </h4>
+                    <span className="text-[11px] text-[#787774]">
+                      Gemini 배치 TTS 분할 기능이나 일레븐랩스 미사용 시 참고용 기본 음색
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label className="block text-xs text-[#37352F]">
+                      Gemini 보조 음색
+                      <select
+                        value={form.voice}
+                        onChange={(e) => setForm({ ...form, voice: e.target.value })}
+                        className="mt-1 w-full px-2.5 py-1.5 rounded-lg border border-[#E3E2DE] bg-white text-xs"
+                      >
+                        {voices.map((v) => (
+                          <option key={v.id} value={v.id}>
+                            {v.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block text-xs text-[#37352F]">
+                      Gemini 말투 지시 (Style)
+                      <input
+                        type="text"
+                        value={form.ttsStyle}
+                        onChange={(e) => setForm({ ...form, ttsStyle: e.target.value })}
+                        className="mt-1 w-full px-2.5 py-1.5 rounded-lg border border-[#E3E2DE] bg-white text-xs"
+                      />
+                    </label>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3 flex-wrap pt-1">
-                  <button
-                    type="button"
-                    onClick={handleVoicePreview}
-                    disabled={testingVoice}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#F1F1EF] hover:bg-[#E9E9E7] text-[#191919] border border-[#E3E2DE] text-xs font-semibold transition cursor-pointer"
-                  >
-                    {testingVoice ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Volume2 className="w-3.5 h-3.5 text-indigo-600" />}
-                    <span>선택 음성 테스트 재생</span>
-                  </button>
-                  {voiceNote && <span className="text-xs text-[#787774]">{voiceNote}</span>}
-                </div>
-              </div>
+              )}
 
               <div className="bg-white p-4 rounded-xl border border-[#E9E9E7] space-y-3">
                 <h3 className="text-sm font-bold text-[#191919]">영상 출력 & 재가공 기본값</h3>
@@ -942,9 +978,9 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
               </div>
 
               <div className="bg-white p-4 rounded-xl border border-[#E9E9E7] space-y-2">
-                <h3 className="text-sm font-bold text-[#191919]">2. 무료 TTS 한도 절약 팁 (Batch TTS & WSOLA)</h3>
+                <h3 className="text-sm font-bold text-[#191919]">2. AI 음성 엔진 안내 (ElevenLabs 유료 16인 & Gemini 30종)</h3>
                 <p className="text-[#55534E]">
-                  무료 Gemini 키는 TTS 요청이 모델당 하루 약 10회로 제한됩니다. AutoShorts에 이식된 <b>배치 TTS 분할 엔진</b>은 여러 장면 대본을 <code>&lt;long pause&gt;</code> 마커로 묶어 <b>단 1회 호출</b>로 생성한 뒤 무음 구간을 동적 계획법(DP)으로 정밀 절단하여 쿼터를 90% 이상 절약합니다.
+                  <b>ElevenLabs 키</b>를 연결하면 유료 16인 성우(<code>eleven_v4</code> 등)로 MP3 고음질 내레이션을 무제한 생성할 수 있고, 무료 <b>Gemini 30종 배치 TTS</b>는 여러 장면 대본을 <code>&lt;long pause&gt;</code> 마커로 묶어 단 1회 호출로 분할 생성해 일일 한도를 절약합니다.
                 </p>
               </div>
 
