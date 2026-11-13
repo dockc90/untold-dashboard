@@ -282,6 +282,23 @@ export function buildSignalFallbackFigures(
     const cat = requestedCategory !== 'all' ? requestedCategory : mapSourceToCategory(h.source);
     const quoteOrSubject = cleanBody.match(/^['‘“"]?([^,·…:]{2,18})/)?.[1]?.trim() || h.source;
 
+    const categoryRelatedDefaults: Record<string, string[]> = {
+      economy: ['젠슨 황 (Jensen Huang)', '이재용 삼성전자 회장', '이재현 (CJ그룹 회장)'],
+      sports: ['손흥민', '페이커 (이상혁)', '이강인'],
+      actor: ['변우석', '마동석', '김지원'],
+      entertainment: ['지드래곤 (G-DRAGON)', '안성재 셰프', '카리나 (aespa)'],
+      global: ['일론 머스크 (Elon Musk)', '로제 (BLACKPINK)', '오타니 쇼헤이'],
+      social: ['백종원', '충주맨 (김선태)', '이국종 교수'],
+      viral: ['충주맨 (김선태)', '남대문 스카프 아저씨', '침착맨 (이말년)'],
+      upcoming: ['손흥민', '젠슨 황 (Jensen Huang)', '지드래곤 (G-DRAGON)'],
+    };
+    const defaultPeers = (categoryRelatedDefaults[cat] || categoryRelatedDefaults.economy).filter(
+      (n) => !n.includes(quoteOrSubject) && !quoteOrSubject.includes(n)
+    ).slice(0, 3);
+    const trendingReason = isUpcoming
+      ? `[예정·선점 이슈] ${mediaName ? `${mediaName} 보도 — ` : ''}${cleanBody.slice(0, 48)}`
+      : `[실시간 ${timeLabel} 급상승] ${mediaName ? `${mediaName} 주목 — ` : ''}${cleanBody.slice(0, 48)}`;
+
     out.push({
       id: `fig-rss-${now}-${idx}`,
       name: quoteOrSubject,
@@ -289,6 +306,8 @@ export function buildSignalFallbackFigures(
       category: cat,
       viralityScore: Math.max(88, 99 - idx),
       timeframe,
+      trendingReason,
+      relatedFigures: defaultPeers,
       buzzSummary: `[${timeLabel}${mediaName ? ` · ${mediaName}` : ''}] ${cleanBody}`,
       controversyOrIssue: isUpcoming
         ? `내일(${bundle.tomorrowKst})·예정 일정 선점 키워드로 급부상 중입니다.`

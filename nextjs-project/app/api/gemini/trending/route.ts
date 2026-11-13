@@ -31,6 +31,8 @@ export async function POST(request: Request) {
       category: 'viral',
       viralityScore: 100,
       timeframe,
+      trendingReason: '유튜브·릴스 합산 6,500만 뷰 돌파 및 외국인 관광객 남대문 성지순례 숏폼 역주행',
+      relatedFigures: ['광장시장 찹쌀꽈배기 사장님', '명동 회오리감자 장인', '백종원'],
       buzzSummary: '30년 경력 노점상의 스카프 매기 영상이 유튜브·릴스 합산 6,500만 뷰, 글로벌 패러디 45만 건을 돌파하며 남대문시장 외국인 필수 코스로 등극했습니다.',
       controversyOrIssue: '스카프 한 장으로 10가지 스타일을 10초 만에 만들어내는 신의 손기술, "사모님 이거 하나면 파리 패션위크 갑니다"라는 중독성 강한 멘트',
       suggestedAngle: '단순한 노점상이 아니라 30년의 내공으로 완성된 길거리 쇼맨십의 정점, 진정한 세일즈의 마법사',
@@ -50,6 +52,8 @@ export async function POST(request: Request) {
       category: 'viral',
       viralityScore: 98,
       timeframe,
+      trendingReason: '지자체 유튜브 구독자 신화·9급에서 6급 특진 서사 및 공공기관 홍보 패러다임 전환 화제',
+      relatedFigures: ['안성재 셰프', '침착맨', '조규일 진주시장'],
       buzzSummary: '예산 0원·B급 감성 숏폼으로 충주시 인구(약 21만 명)의 3배를 넘는 구독자와 누적 1.5억 뷰를 기록하며 9급에서 6급 초고속 특진 신화를 썼습니다.',
       controversyOrIssue: '보수적인 공직 사회의 편견과 반대를 뚫고 특진까지 이뤄낸 파격적인 홍보 성공 신화',
       suggestedAngle: '틀을 깨면 세상이 바뀐다, 9급 공무원에서 대한민국 최고의 기획자가 된 충주맨의 반란',
@@ -90,6 +94,8 @@ export async function POST(request: Request) {
       category: 'global',
       viralityScore: 99,
       timeframe,
+      trendingReason: '스페이스X 로켓 부스터 회수 성공 및 테슬라 자율주행·AI 혁신 이슈 급부상',
+      relatedFigures: ['젠슨 황 (Jensen Huang)', '샘 올트먼', '정몽구·정의선'],
       buzzSummary: '스페이스X 로켓 부스터 젓가락 포획 성공과 테슬라 자율주행 이슈로 쇼츠 9,500만 뷰를 기록하며, 2008년 파산 직전 3연속 발사 실패 비화가 재조명되고 있습니다.',
       controversyOrIssue: '2008년 크리스마스 이브 파산 직전까지 몰렸던 극한의 공포와 주변의 조롱을 극복한 집념',
       suggestedAngle: '모두가 미쳤다고 비웃었지만 결국 인류의 미래를 바꾼 불굴의 멘탈',
@@ -109,6 +115,8 @@ export async function POST(request: Request) {
       category: 'global',
       viralityScore: 99,
       timeframe,
+      trendingReason: 'APT. 릴스 음원 120만 건·유튜브 1.8억 뷰 돌파 및 한국 문화 글로벌 챌린지 신기록',
+      relatedFigures: ['브루노 마스', '제니', '지드래곤'],
       buzzSummary: '브루노 마스와 협업한 〈APT.〉가 릴스 음원 120만 건·유튜브 1.8억 뷰 이상을 돌파하며 한국 술자리 게임이 글로벌 챌린지 1위에 올랐습니다.',
       controversyOrIssue: '전통적인 K팝 공식을 깨고 가장 한국적인 놀이를 가장 힙한 팝 음악으로 재창조한 감각',
       suggestedAngle: '한국 술자리 게임 하나로 전 세계를 춤추게 만든 소녀의 번뜩이는 감각',
@@ -128,6 +136,8 @@ export async function POST(request: Request) {
       category: 'sports',
       viralityScore: 99,
       timeframe,
+      trendingReason: '롤드컵 5회 우승 신화 및 연봉 거절 한국 잔류·기부 미담 쇼츠 4,500만 뷰 돌파',
+      relatedFigures: ['손흥민', '구마유시', '정지훈(쵸비)'],
       buzzSummary: '7년의 우승 공백과 2023년 심각한 손목 부상을 딛고 롤드컵 통산 5회 우승·결승 MVP를 달성하며 유튜브 하이라이트 4,500만 뷰를 돌파했습니다.',
       controversyOrIssue: '손목 통증으로 키보드를 치지 못했던 순간에도 팀원들을 믿고 다시 정상에 선 헌신',
       suggestedAngle: '"모든 길은 저를 통합니다." 10년 넘게 정상에서 자신을 증명한 거인의 품격',
@@ -147,6 +157,8 @@ export async function POST(request: Request) {
       category: 'sports',
       viralityScore: 98,
       timeframe,
+      trendingReason: '캡틴 리더십과 유소년 10년 기본기 훈련 일화 쇼츠 3,200만 뷰 역주행',
+      relatedFigures: ['이강인', '양민혁', '박지성'],
       buzzSummary: '세계 최고 리그에서 증명한 월드클래스 실력과 겸손함, 손웅정 감독의 혹독한 기본기 훈련 일화',
       controversyOrIssue: '매일 볼 리프팅 4시간, 눈에 실핏줄이 터질 때까지 기본기만 반복했던 유년기',
       suggestedAngle: '천재가 아니라 피와 땀으로 완성된 영웅의 눈물겨운 여정',
@@ -165,6 +177,8 @@ export async function POST(request: Request) {
       category: 'entertainment',
       viralityScore: 98,
       timeframe,
+      trendingReason: '흑백요리사 신드롬 및 파인다이닝 철학·이라크 파병 반전 과거 재조명',
+      relatedFigures: ['백종원', '에드워드 리', '최현석'],
       buzzSummary: '흑백요리사 신드롬의 주인공, 미군 정비병 전역 후 자동차 정비공을 꿈꾸다 요리에 빠져든 반전 실화',
       controversyOrIssue: '어려웠던 이민 생활과 혹독한 주방 밑바닥에서 피눈물 흘리며 버텨낸 15년의 치열한 집념',
       suggestedAngle: '이라크 전장의 총 대신 주방 칼을 잡고 세계 최정상에 오른 기적의 인간 승리',
@@ -183,6 +197,8 @@ export async function POST(request: Request) {
       category: 'entertainment',
       viralityScore: 99,
       timeframe,
+      trendingReason: '신곡 음원 차트 올킬 및 유퀴즈 출연·글로벌 패션 아이콘 화제성 1위',
+      relatedFigures: ['태양', '로제 (BLACKPINK)', '유재석'],
       buzzSummary: '신곡 POWER로 음원 차트 올킬 및 유퀴즈 출연으로 폭발적인 대중적 환호와 패션 트렌드 독점',
       controversyOrIssue: '억울했던 루머와 공백기를 예술과 음악으로 완벽하게 제압한 진짜 아티스트의 품격',
       suggestedAngle: '세상이 나를 흔들어도 나는 음악으로 답한다, 지드래곤의 불멸의 영향력',
@@ -201,6 +217,8 @@ export async function POST(request: Request) {
       category: 'sports',
       viralityScore: 100,
       timeframe,
+      trendingReason: 'MLB 최초 50-50 신기록 및 만다라트 계획표·쓰레기 줍기 인성 미담 화제',
+      relatedFigures: ['이정후', '김혜성', '손흥민'],
       buzzSummary: '메이저리그 148년 역사상 최초로 50-50을 달성하고 월드시리즈 우승 트로피를 들어올린 야구 천재',
       controversyOrIssue: '고교 시절 쓰레기 줍기까지 운의 영역으로 계획했던 만다라트 계획표와 철저한 자기관리',
       suggestedAngle: '불가능을 목표로 삼았기에 역사가 되었다, 오타니의 위대한 멘탈리티',
@@ -240,6 +258,8 @@ export async function POST(request: Request) {
       category: 'entertainment',
       viralityScore: 98,
       timeframe,
+      trendingReason: '음원 장기 집권 및 릴스 110만 챌린지·팀워크 리더십 미담 급상승',
+      relatedFigures: ['윈터', '장원영', '로제 (BLACKPINK)'],
       buzzSummary: '독보적인 콘셉트와 라이브 실력으로 걸그룹 음원 차트 장기 집권 및 챌린지 열풍 주도',
       controversyOrIssue: '비주얼뿐만 아니라 밤낮없는 연습으로 다져진 보컬과 댄스 실력의 재평가',
       suggestedAngle: '완벽한 외모 뒤에 숨겨진 치열한 노력과 그룹을 이끄는 단단한 리더십',
@@ -258,6 +278,8 @@ export async function POST(request: Request) {
       category: 'actor',
       viralityScore: 96,
       timeframe,
+      trendingReason: '선재 신드롬 이후 차기작·글로벌 화보 화제 및 무명 10년 버팀 미담 재조명',
+      relatedFigures: ['김혜윤', '박보검', '송건희'],
       buzzSummary: '선재 신드롬 이전 10년의 긴 무명 생활과 폭언을 견뎌내며 버틴 눈물의 감동 실화',
       controversyOrIssue: '배우 하지 말라는 주변의 만류 속에서도 단역을 전전하며 끝까지 포기하지 않은 집념',
       suggestedAngle: '포기하고 싶을 때 거울을 보며 버틴 10년의 인내와 폭풍 눈물',
@@ -276,6 +298,8 @@ export async function POST(request: Request) {
       category: 'global',
       viralityScore: 100,
       timeframe,
+      trendingReason: '글로벌 3억 구독자·누적 500억 뷰 달성 및 수익 100% 재투자 철학 화제',
+      relatedFigures: ['일론 머스크 (Elon Musk)', '크리스티아누 호날두', '마크 로버'],
       buzzSummary: '전 세계 유튜브 구독자 1위! 벌어들인 수익의 100%를 다시 다음 영상에 재투자하는 미친 스케일',
       controversyOrIssue: '학창 시절 친구들과 작은 방에 모여 1,000개의 썸네일과 인트로를 초단위로 뜯어보며 연구한 일화',
       suggestedAngle: '천재 크리에이터는 없다, 오직 미치도록 집요한 분석과 실행만이 있을 뿐이다',
@@ -294,6 +318,8 @@ export async function POST(request: Request) {
       category: 'social',
       viralityScore: 97,
       timeframe,
+      trendingReason: '전통시장·지역축제 살리기 상생 행보 및 IMF 17억 빚 극복 미담 화제',
+      relatedFigures: ['안성재 셰프', '이재현 (CJ그룹 회장)', '이연복 셰프'],
       buzzSummary: '지역 축제 바가지 요금 근절과 전통시장 재생 프로젝트로 전 국민적 신뢰와 박수를 받는 외식업계 거물',
       controversyOrIssue: '과거 IMF 시절 17억 빚더미에 앉아 유서까지 썼던 극한의 위기를 극복한 인생 실화',
       suggestedAngle: '바닥을 쳐본 사람만이 진정한 장사의 본질을 안다, 백종원의 눈물겨운 빚더미 탈출기',
@@ -333,6 +359,8 @@ export async function POST(request: Request) {
       category: 'sports',
       viralityScore: 96,
       timeframe,
+      trendingReason: 'PSG 핵심 맹활약 및 스페인 유학 시절 홀로 버틴 성장 서사 쇼츠 2,900만 뷰',
+      relatedFigures: ['손흥민', '김민재', '음바페'],
       buzzSummary: '날카로운 킬패스와 택배 크로스로 프랑스 리그앙과 챔피언스리그를 뒤흔드는 에이스 활약',
       controversyOrIssue: '날아라 슛돌이 시절부터 스페인 발렌시아 유학까지 언어 장벽과 인종차별을 뚫고 버틴 유년기',
       suggestedAngle: '어린 나이에 홀로 떠난 스페인 유학길, 눈물로 축구화를 묶었던 소년의 당찬 반란',
@@ -351,6 +379,8 @@ export async function POST(request: Request) {
       category: 'actor',
       viralityScore: 97,
       timeframe,
+      trendingReason: '천만 관객 4회 대기록·할리우드 제작 도전 및 무명 시절 투혼 미담 재조명',
+      relatedFigures: ['손석구', '이준혁', '류승룡'],
       buzzSummary: '범죄도시 시리즈로 한국 영화 역사상 최다 관객 동원 기록! 마크 콜먼 개인 트레이너 출신의 묵직한 액션',
       controversyOrIssue: '계단에서 추락해 척추와 어깨가 부러지는 대수술을 겪고도 진통제를 맞으며 촬영한 투혼',
       suggestedAngle: '온몸이 쇠조각투성이지만 액션을 멈출 수 없다, 불사조 마동석의 진짜 액션 인생',
@@ -380,12 +410,12 @@ export async function POST(request: Request) {
   const tomorrowStr = liveSignals?.tomorrowKst || new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
   const categoryInstruction =
     category === 'upcoming'
-      ? `🔭 [내일 예고·선점 모드] 오늘(${todayStr}) 밤부터 내일(${tomorrowStr})·이번 주 사이 공개/개봉/컴백/경기/선발대결/판결/발표/개막 등이 예정되어 있어 **지금 미리 쇼츠·캐러셀을 올리면 내일 검색량 폭발을 선점할 수 있는 인물** 12~14명을 선정하세요. 모든 항목의 category는 'upcoming', isUpcoming은 true로 지정하고 scheduledDate에 "내일(M/D)" 또는 예정 일정을 적으세요.`
+      ? `🔭 [내일 예고·선점 모드] 오늘(${todayStr}) 밤부터 내일(${tomorrowStr})·이번 주 사이 공개/개봉/컴백/경기/선발대결/판결/발표/개막 등이 예정되어 있어 **지금 미리 쇼츠·캐러셀을 올리면 내일 검색량 폭발을 선점할 수 있는 인물** 12~14명을 선정하세요. 모든 항목의 category는 'upcoming', isUpcoming을 true로 지정하고 scheduledDate에 "내일(M/D)" 또는 예정 일정을 적으며, 모든 인물에 trendingReason과 relatedFigures 2~3명을 필수 포함하세요.`
       : category === 'economy'
       ? `💼 [국내외 기업인·부자 전문 경제/기업 소재 발굴 모드] 반드시 국내외 주요 기업인·창업가·부자·구단주 12~14명(category: "economy")을 선별하되, **비난/악인전/범죄/루머는 배제하고 홍보팀 마인드로 다룰 수 있는 긍정 미담·소박한 인간미·통 큰 결단·주가 급등/어록/방한 이슈** 중심으로 선정하세요. 모든 항목에 반드시 (1) "trendingReason": 최근 화제가 된 이유(예: 주가 급등, 화제의 어록, 방한, 신기록 등), (2) "relatedFigures": 같이 올리면 동반 떡상하는 파생 인물 2~3명 배열(예: 젠슨 황 이슈 시 ["이재용 삼성전자 회장", "깐부치킨 대표", "최태원 SK그룹 회장"])을 세트로 묶어 채우세요!`
       : category === 'all'
-      ? `전 카테고리 균형: SNS 바이럴·밈(viral), 연예·가수(entertainment), 배우·드라마(actor), 스포츠(sports), 경제·기업(economy), 사회·이슈(social), 글로벌·셀럽(global) 7개 분야에서 각각 2~3명씩 골고루 선별하고, 특히 economy/기업인 인물에는 trendingReason(최근 화제 이유)과 relatedFigures(동반 떡상 파생 인물 2~3명)를 반드시 세트로 포함하세요.`
-      : `요청된 카테고리('${category}')에 100% 집중하여 오늘 실제로 화제인 인물들을 선별하고, 모든 인물의 category 필드는 반드시 '${category}'로 지정하세요.`;
+      ? `전 카테고리 균형: SNS 바이럴·밈(viral), 연예·가수(entertainment), 배우·드라마(actor), 스포츠(sports), 경제·기업(economy), 사회·이슈(social), 글로벌·셀럽(global) 7개 분야에서 각각 2~3명씩 골고루 선별하고, **분야를 막론하고 모든 인물 전원**에게 trendingReason(최근 화제 이유)과 relatedFigures(동반 떡상 파생 인물 2~3명)를 반드시 세트로 포함하세요.`
+      : `요청된 카테고리('${category}')에 100% 집중하여 오늘 실제로 화제인 인물들을 선별하고, 모든 인물의 category 필드는 '${category}'로 지정하며, **모든 인물에 trendingReason과 relatedFigures 2~3명**을 필수 포함하세요.`;
 
   const timeframeLabel =
     timeframe === '24h' ? '최근 24시간' : timeframe === '48h' ? '최근 48시간' : '최근 7일간';
@@ -400,9 +430,9 @@ ${signalsSection}
 [필수 지시]
 1. 위 실시간 뉴스·급상승 검색어에 등장한 화제의 인물들을 최우선으로 반영하고, 추가로 Google Search 도구로 오늘(${todayStr}) 및 ${timeframeLabel} 동안 네이버 실시간 뉴스·유튜브 쇼츠·인스타 릴스에서 새롭게 급부상한 인물(또는 내일 예고·선점 이슈)까지 총 ${targetCount}을 선정하세요.
 2. ${categoryInstruction}
-3. **경제·기업(economy) 및 인물 발굴 세트 규칙**:
-   - 단순 인물명만 나열하지 말고 반드시 **"최근 화제가 된 이유(주가 급등, 어록, 방한, 통 큰 결단 등)"(trendingReason)**와 **"같이 올리면 동반 떡상하는 파생 인물 2~3명"(relatedFigures, 예: 젠슨 황 이슈 시 이재용·깐부치킨 대표)**을 세트로 묶어서 추천하세요.
-   - 기업인·부자는 홍보팀이 자랑스러워할 **긍정 서사(미담·소탈함·역경극복·스포츠 구단주/비즈니스 결단)** 관점으로 앵글을 잡으세요(미검증 악성 루머·비난 배제).
+3. **전 인물 공통 [화제 이유 & 동반 떡상 세트] 필수 규칙**:
+   - 분야를 불문하고 **모든 인물(전원)**에게 단순 인물명만 나열하지 말고 반드시 **"최근 화제가 된 이유(주가 급등, 어록, 방한, 화제작, 신기록 등)"(trendingReason)**와 **"같이 올리면 동반 떡상하는 파생 인물 2~3명"(relatedFigures, 예: 젠슨 황 -> 이재용·깐부치킨 대표, 손흥민 -> 이강인·양민혁 등)**을 세트로 묶어서 추천하세요.
+   - 기업인·부자를 포함한 모든 인물은 홍보팀이 자랑스러워할 **긍정 서사(미담·소탈함·역경극복·스포츠 구단주/비즈니스 결단)** 관점으로 앵글을 잡으세요(미검증 악성 루머·비난 배제).
 4. primaryChannel 필드는 반드시 'youtube', 'naver', 'instagram', 'multi' 중 하나의 소문자 영문 값으로 지정하세요.
 5. buzzSummary에는 **"왜 지금 화제인지 + 확인된 날짜(월·일 또는 연도)·구체적 숫자"** 팩트 1~2문장을 작성하세요.
 6. hookLine에는 **출생연도 소개 없이 충격적 숫자나 반전 질문으로 첫 0~3초에 꽂는 오프닝 훅 1줄(20~38자)**을 작성하세요.

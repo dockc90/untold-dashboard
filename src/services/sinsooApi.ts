@@ -2323,8 +2323,8 @@ export async function fetchLiveTrendingFigures(opt: {
       : opt.category === 'economy'
       ? `💼 [국내외 기업인·부자 전문 경제/기업 소재 발굴 모드] 반드시 국내외 주요 기업인·창업가·부자·구단주 ${limit}명(category: "economy")을 선별하세요. 비난·악인전·범죄·미검증 루머는 배제하고, 철저히 홍보팀 마인드로 다룰 수 있는 긍정 미담·위기 극복·소박한 반전매력·통 큰 결단·주가 급등·어록·방한 이슈만 다루세요. 모든 항목에 반드시 (1) "trendingReason": 최근 화제가 된 이유(주가 급등, 어록, 방한 등), (2) "relatedFigures": 같이 올리면 동반 떡상하는 파생 인물 2~3명 배열(예: 젠슨 황 이슈 시 ["이재용 삼성전자 회장", "깐부치킨 대표", "최태원 SK그룹 회장"])을 세트로 묶어 채우세요!`
       : opt.category === 'all'
-      ? `7개 분야 균형 배분 (viral·entertainment·actor·sports·economy·social·global 각 분야 최소 2~3명씩 골고루) + 특히 economy/기업인 인물에는 trendingReason(최근 화제 이유)과 relatedFigures(동반 떡상 파생 인물 2~3명)를 반드시 세트로 포함하세요.`
-      : `요청 카테고리 '${opt.category}' 전용 (모든 인물의 category 필드를 '${opt.category}'로 지정)`;
+      ? `7개 분야 균형 배분 (viral·entertainment·actor·sports·economy·social·global 각 분야 최소 2~3명씩 골고루) + 분야를 막론하고 모든 인물 전원에 trendingReason(최근 화제 이유)과 relatedFigures(동반 떡상 파생 인물 2~3명)를 반드시 세트로 포함하세요.`
+      : `요청 카테고리 '${opt.category}' 전용 (모든 인물의 category 필드를 '${opt.category}'로 지정하고, 모든 인물에 trendingReason과 relatedFigures 2~3명을 필수 포함)`;
 
   const liveSignalsSection = liveBrief
     ? `\n[★ 방금 수집된 실시간 구글 급상승 검색어 & 분야별 최신 뉴스 헤드라인]\n${liveBrief}\n`
@@ -2336,9 +2336,9 @@ ${liveSignalsSection}
 [필수 작업]
 1. 위 실시간 뉴스·급상승 검색어에 포착된 인물들을 최우선으로 반영하고, 추가로 Google Search 도구로 오늘(${todayKst}) 및 ${timeframeLabel} 동안 ${channelLabel}에서 새롭게 급부상한 화제의 인물(또는 내일 예고·선점 이슈)까지 총 ${limit}명을 선정하세요.
 2. 카테고리 조건: ${categoryLabel}
-3. **경제·기업(economy) 및 인물 발굴 세트 규칙**:
-   - 단순 인물명만 주지 말고 반드시 **"최근 화제가 된 이유(주가 급등, 어록, 방한, 통 큰 결단 등)"(trendingReason)**와 **"같이 올리면 동반 떡상하는 파생 인물 2~3명"(relatedFigures, 예: 젠슨 황 이슈 시 이재용·깐부치킨 대표)**을 세트로 묶어서 추천하세요.
-   - 기업인·부자는 홍보팀이 자랑스러워할 **긍정 서사(미담·소탈함·역경극복·스포츠 구단주/비즈니스 결단)** 중심으로 앵글을 잡으세요.
+3. **전 인물 공통 [화제 이유 & 동반 떡상 세트] 필수 규칙**:
+   - 분야를 막론하고 **모든 인물(전원)**에게 단순 인물명만 주지 말고 반드시 **"최근 화제가 된 이유(주가 급등, 어록, 방한, 화제작, 신기록 등)"(trendingReason)**와 **"같이 올리면 동반 떡상하는 파생 인물 2~3명"(relatedFigures, 예: 젠슨 황 -> 이재용·깐부치킨 대표, 손흥민 -> 이강인·양민혁 등)**을 세트로 묶어서 추천하세요.
+   - 기업인·부자를 포함한 모든 인물은 홍보팀이 자랑스러워할 **긍정 서사(미담·소탈함·역경극복·통 큰 결단)** 중심으로 앵글을 잡으세요.
 4. 확인되지 않은 날짜나 숫자를 절대 지어내지 말고, 검색·뉴스로 확인된 실제 날짜·숫자만 쓰세요.
 
 아래 형식의 JSON 배열로만 출력하세요(설명·마크다운 금지):

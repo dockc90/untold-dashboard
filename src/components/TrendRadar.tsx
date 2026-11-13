@@ -20,7 +20,6 @@ import {
   Copy,
   Check,
   ExternalLink,
-  Briefcase,
   Users
 } from 'lucide-react';
 import { TrendingFigure, CategoryType, TimeFilter, SourceChannel, YoutubeBreakoutMetric } from '../types';
@@ -88,6 +87,79 @@ const CATEGORY_GRADIENTS: Record<CategoryType, string> = {
   global: 'from-fuchsia-600 to-pink-500',
   social: 'from-emerald-600 to-teal-700',
 };
+
+const KNOWN_COMPANION_PEERS: { keyword: string; peers: string[] }[] = [
+  { keyword: '젠슨 황', peers: ['이재용 삼성전자 회장', '깐부치킨 대표', '최태원 SK그룹 회장'] },
+  { keyword: '이재용', peers: ['젠슨 황 (Jensen Huang)', '정의선 현대차 회장', '최태원 SK그룹 회장'] },
+  { keyword: '이재현', peers: ['이부진 호텔신라 사장', '정의선 현대차 회장', '정용진 신세계 회장'] },
+  { keyword: '정용진', peers: ['정태영 현대카드 부회장', '이재용 삼성전자 회장', '이강인'] },
+  { keyword: '일론 머스크', peers: ['젠슨 황 (Jensen Huang)', '샘 올트먼', '정의선 현대차 회장'] },
+  { keyword: '손흥민', peers: ['이강인', '양민혁', '박지성'] },
+  { keyword: '이강인', peers: ['손흥민', '김민재', '황희찬'] },
+  { keyword: '김민재', peers: ['손흥민', '이강인', '황인범'] },
+  { keyword: '페이커', peers: ['구마유시', '손흥민', '오타니 쇼헤이'] },
+  { keyword: '오타니', peers: ['이정후', '김혜성', '손흥민'] },
+  { keyword: '변우석', peers: ['김혜윤', '박보검', '송건희'] },
+  { keyword: '지드래곤', peers: ['로제 (BLACKPINK)', '태양', '유재석'] },
+  { keyword: '로제', peers: ['브루노 마스', '지드래곤 (G-DRAGON)', '제니'] },
+  { keyword: '안성재', peers: ['백종원', '에드워드 리', '최현석'] },
+  { keyword: '백종원', peers: ['안성재 셰프', '이연복 셰프', '정용진 신세계 회장'] },
+  { keyword: '충주맨', peers: ['안성재 셰프', '침착맨 (이말년)', '백종원'] },
+  { keyword: '침착맨', peers: ['주호민', '기안84', '궤도'] },
+  { keyword: '카리나', peers: ['윈터', '장원영', '안유진'] },
+  { keyword: '아이유', peers: ['박보검', '변우석', '유재석'] },
+  { keyword: '마동석', peers: ['손석구', '이준혁', '류승룡'] },
+  { keyword: '유재석', peers: ['강호동', '조세호', '지드래곤 (G-DRAGON)'] },
+  { keyword: '이정후', peers: ['오타니 쇼헤이', '김혜성', '류현진'] },
+];
+
+const CATEGORY_COMPANION_DEFAULTS: Record<CategoryType, string[]> = {
+  all: ['유재석', '손흥민', '젠슨 황 (Jensen Huang)'],
+  upcoming: ['손흥민', '지드래곤 (G-DRAGON)', '젠슨 황 (Jensen Huang)'],
+  viral: ['충주맨 (김선태)', '침착맨 (이말년)', '안성재 셰프'],
+  entertainment: ['지드래곤 (G-DRAGON)', '안성재 셰프', '유재석'],
+  actor: ['변우석', '마동석', '박보검'],
+  sports: ['손흥민', '이강인', '페이커 (이상혁)'],
+  economy: ['이재용 삼성전자 회장', '젠슨 황 (Jensen Huang)', '이재현 (CJ그룹 회장)'],
+  global: ['일론 머스크', '로제 (BLACKPINK)', '오타니 쇼헤이'],
+  social: ['백종원', '충주맨 (김선태)', '유재석'],
+};
+
+function getCardTrendBundle(fig: TrendingFigure, allFigures: TrendingFigure[]) {
+  const rawReason = fig.trendingReason?.trim();
+  const derivedReason =
+    rawReason ||
+    fig.buzzSummary?.trim() ||
+    fig.title?.trim() ||
+    `${fig.name} 관련 최신 검색·숏폼 화제성 급상승`;
+  const trendingReason = derivedReason.length > 72 ? `${derivedReason.slice(0, 72)}...` : derivedReason;
+
+  if (fig.relatedFigures && fig.relatedFigures.length > 0) {
+    return { trendingReason, relatedFigures: fig.relatedFigures.slice(0, 3) };
+  }
+
+  const matched = KNOWN_COMPANION_PEERS.find((entry) => fig.name.includes(entry.keyword));
+  if (matched) {
+    const filtered = matched.peers.filter((p) => !p.includes(fig.name) && !fig.name.includes(p.split(' ')[0]));
+    if (filtered.length > 0) {
+      return { trendingReason, relatedFigures: filtered.slice(0, 3) };
+    }
+  }
+
+  const sameCatNames = allFigures
+    .filter((other) => other.id !== fig.id && other.category === fig.category)
+    .map((other) => other.name)
+    .slice(0, 3);
+  if (sameCatNames.length >= 2) {
+    return { trendingReason, relatedFigures: sameCatNames };
+  }
+
+  const fallbackPeers = (CATEGORY_COMPANION_DEFAULTS[fig.category] || CATEGORY_COMPANION_DEFAULTS.all)
+    .filter((name) => !name.includes(fig.name) && !fig.name.includes(name.split(' ')[0]))
+    .slice(0, 3);
+
+  return { trendingReason, relatedFigures: fallbackPeers };
+}
 
 // 엑박(Broken Image) 완벽 방지 아바타 컴포넌트
 export const FigureAvatar: React.FC<{ name: string; category: CategoryType; imageUrl?: string }> = ({
@@ -215,24 +287,6 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
     }
   };
 
-  const handleEconomyDiscoveryClick = async () => {
-    setCategoryFilter('economy');
-    if (isLoading) return;
-    setRefreshToast('💼 국내외 기업인·부자 화제 이유 + 동반 떡상 파생 인물 세트를 발굴 중...');
-    try {
-      fetchedSlicesRef.current.set(`${timeFilter}:economy:${sourceChannel}`, Date.now());
-      await onRefreshTrends(timeFilter, 'economy', sourceChannel);
-      const now = new Date();
-      const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-      setLastUpdatedTime(timeStr);
-      setRefreshToast('✨ [경제/기업 소재 발굴] 화제 이유 & 동반 떡상 파생 인물 세트가 준비되었습니다!');
-      setTimeout(() => setRefreshToast(null), 4500);
-    } catch (err: any) {
-      setRefreshToast(`⚠️ ${err?.message || '경제/기업 소재 발굴에 실패했습니다. API 설정을 확인해 주세요.'}`);
-      setTimeout(() => setRefreshToast(null), 4500);
-    }
-  };
-
   // Filter figures
   const filteredFigures = figures.filter((fig) => {
     const norm = normalizeChannel(fig.primaryChannel);
@@ -321,22 +375,6 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
                 <span className="sm:hidden">07시</span>
               </button>
             )}
-
-            <button
-              type="button"
-              onClick={handleEconomyDiscoveryClick}
-              disabled={isLoading}
-              className={`flex items-center space-x-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition shadow-2xs cursor-pointer disabled:opacity-50 active:scale-95 border ${
-                categoryFilter === 'economy'
-                  ? 'bg-slate-800 text-white border-slate-800'
-                  : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200/80'
-              }`}
-              title="국내외 기업인·부자 소재 + 최근 화제 이유 + 동반 떡상 파생 인물 세트 발굴"
-            >
-              <Briefcase className="w-3.5 h-3.5 shrink-0" />
-              <span className="hidden sm:inline">경제/기업 소재 발굴</span>
-              <span className="sm:hidden">기업발굴</span>
-            </button>
 
             <button
               type="button"
@@ -763,40 +801,45 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
                         {fig.buzzSummary}
                       </p>
 
-                      {/* Economy / Trending Reason + Co-trending Companion Figures Bundle */}
-                      {(fig.trendingReason || (fig.relatedFigures && fig.relatedFigures.length > 0)) && (
-                        <div className="mb-2.5 p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
-                          {fig.trendingReason && (
+                      {/* Universal Trending Reason + Co-trending Companion Figures Bundle */}
+                      {(() => {
+                        const { trendingReason, relatedFigures } = getCardTrendBundle(fig, figures);
+                        return (
+                          <div className="mb-2.5 p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
                             <p className="text-[11px] text-slate-800 font-semibold leading-snug">
-                              🔥 화제 이유: <span className="font-medium text-slate-700">{fig.trendingReason}</span>
+                              🔥 화제 이유: <span className="font-medium text-slate-700">{trendingReason}</span>
                             </p>
-                          )}
-                          {fig.relatedFigures && fig.relatedFigures.length > 0 && (
-                            <div className="flex items-center flex-wrap gap-1">
-                              <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-indigo-700 mr-0.5 shrink-0">
-                                <Users className="w-3 h-3" />
-                                동반 떡상 세트:
-                              </span>
-                              {fig.relatedFigures.map((rel) => (
-                                <button
-                                  key={`${fig.id}-rel-${rel}`}
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setCustomName(rel);
-                                    setCustomCategory('economy');
-                                    setIsCustomModalOpen(true);
-                                  }}
-                                  className="text-[10px] px-1.5 py-0.5 rounded-md bg-white hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 font-semibold transition cursor-pointer"
-                                  title={`클릭하여 '${rel}' 바로 쇼츠 소재 분석하기`}
-                                >
-                                  + {rel}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
+                            {relatedFigures.length > 0 && (
+                              <div className="flex items-center flex-wrap gap-1">
+                                <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-indigo-700 mr-0.5 shrink-0">
+                                  <Users className="w-3 h-3" />
+                                  동반 떡상 세트:
+                                </span>
+                                {relatedFigures.map((rel) => (
+                                  <button
+                                    key={`${fig.id}-rel-${rel}`}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setCustomName(rel);
+                                      setCustomCategory(
+                                        fig.category === 'all' || fig.category === 'upcoming'
+                                          ? 'economy'
+                                          : fig.category
+                                      );
+                                      setIsCustomModalOpen(true);
+                                    }}
+                                    className="text-[10px] px-1.5 py-0.5 rounded-md bg-white hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 font-semibold transition cursor-pointer"
+                                    title={`클릭하여 '${rel}' 바로 쇼츠 소재 분석하기`}
+                                  >
+                                    + {rel}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       {/* Hook Line & Suggested Angle */}
                       <div className="p-2.5 rounded-xl bg-[#F1F1EF] border border-[#E3E2DE] mb-2.5 space-y-1">

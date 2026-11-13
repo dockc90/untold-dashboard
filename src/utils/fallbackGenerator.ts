@@ -66,30 +66,56 @@ export function generateClientFallbackScript(
       ];
     } else {
       fallbackHooks = [
-        { type: 'question', label: '사건형 후킹', text: kw ? `'${kw}' 뒤에 숨겨진 ${figureName}의 충격 실화.` : `${figureName}이 가장 처절하게 눈물 삼켰던 그날 밤.` },
-        { type: 'provocative', label: '반전형 후킹', text: `통장 잔고 0원에서 어떻게 업계 1등이 됐을까?` },
-        { type: 'emotional', label: '질문형 후킹', text: `모두가 안 된다고 비웃었던 단 한 번의 승부수.` }
+        { type: 'question', label: '사건형 후킹', text: kw ? `'${kw}' 뒤에 숨겨진 ${figureName}의 위기 극복 실화.` : `직원 급여조차 주기 막막했던 밤, ${figureName} 님이 선택한 한 수.` },
+        { type: 'provocative', label: '반전형 후킹', text: `모두가 불가능하다던 시장에서 끝내 1등이 된 이유.` },
+        { type: 'emotional', label: '질문형 후킹', text: `단 한 사람의 진심이 어떻게 거대한 기업을 살렸을까?` }
       ];
       fallbackTitles = [
-        `통장 잔고 0원에서 대한민국 1등이 된 ${figureName}의 충격 실화 #shorts`,
-        `100번 거절당하고 피눈물 흘렸던 ${figureName}의 반전 인생 #감동실화`,
-        `모두가 끝났다고 비웃었을 때 ${figureName}이 보여준 기적 #인생역전`
+        `통장 잔고 위기에서 업계 1등이 된 ${figureName}의 반전 실화 #shorts`,
+        `모두가 안 된다고 할 때 ${figureName} 님이 보여준 통 큰 결단 #감동실화`,
+        `작은 진심 하나로 세상을 바꾼 ${figureName}의 인생 역전 #기업인스토리`
       ];
       fallback60Scenes = [
-        { sceneNumber: 1, timeRange: '00:00 - 00:05', narration: `화려한 지금의 모습과 달리, ${figureName} 님은 10년간 단칸방에서 하루 삼각김밥 하나로 버텼습니다.`, visualGuide: '초라하지만 결연한 눈빛의 과거 흑백 사진', imageSearchKeyword: `${figureName} 과거 무명시절`, visualEffect: '슬로우 줌인', bgmSuggestion: '애잔한 피아노 선율' },
-        { sceneNumber: 2, timeRange: '00:05 - 00:10', narration: '"너는 재능이 없다, 다른 길 찾아라"는 차가운 폭언을 매일같이 들어야 했습니다.', visualGuide: '차가운 문을 닫고 나서는 쓸쓸한 뒷모습', imageSearchKeyword: `${figureName} 오디션 탈락`, visualEffect: '좌측 패닝' },
-        { sceneNumber: 3, timeRange: '00:10 - 00:15', narration: kw ? `하지만 그는 상처받아 숨는 대신, '${kw}'이라는 본질 하나만 붙잡고 거울 앞에서 울었습니다.` : '하지만 그는 상처받아 숨는 대신, 단점을 1,000번씩 고치며 거울 앞에서 피눈물을 훔쳤습니다.', visualGuide: '어두운 방에서 눈물을 닦으며 자세를 고쳐잡는 장면', imageSearchKeyword: `${figureName} 연습실 눈물`, visualEffect: '2단 스피드 줌' },
-        { sceneNumber: 4, timeRange: '00:15 - 00:20', narration: '발목이 꺾이고 목이 쉬어 피가 나도, 그의 연습실 불빛은 새벽 4시까지 꺼지지 않았습니다.', visualGuide: '깊은 밤 홀로 켜진 조명과 땀에 젖은 실루엣', imageSearchKeyword: `${figureName} 새벽 연습 열정`, visualEffect: '천천히 줌인' },
-        { sceneNumber: 5, timeRange: '00:20 - 00:25', narration: '통장 잔고 0원, 월세가 밀려 쫓겨날 위기 속에서 마침내 인생 마지막 기회가 찾아왔습니다.', visualGuide: '떨리는 손으로 문을 열고 무대로 나서는 순간', imageSearchKeyword: `${figureName} 첫 무대 오디션`, visualEffect: '슬로우 줌아웃' },
-        { sceneNumber: 6, timeRange: '00:25 - 00:30', narration: '모두가 냉소를 보낼 때, 그는 10년간 흘린 피와 땀을 그 단 3분에 전부 쏟아부었습니다.', visualGuide: '공기를 얼어붙게 만든 압도적인 몰입과 절규', imageSearchKeyword: `${figureName} 레전드 무대`, visualEffect: '다이내믹 줌인' },
-        { sceneNumber: 7, timeRange: '00:30 - 00:35', narration: '단 10초 만에 심사위원들의 표정은 경악으로 바뀌었고, 장내는 정적에 휩싸였습니다.', visualGuide: '놀라움에 입을 다물지 못하는 관객과 관계자들', imageSearchKeyword: `${figureName} 화제의 무대 반응`, visualEffect: '화이트 플래시' },
-        { sceneNumber: 8, timeRange: '00:35 - 00:40', narration: '그날 이후, 그를 조롱했던 모든 사람들은 앞다투어 그에게 고개를 숙였습니다.', visualGuide: '쏟아지는 섭외 기사와 인터뷰 헤드라인', imageSearchKeyword: `${figureName} 라이징 스타 기사`, visualEffect: '우측 패닝' },
-        { sceneNumber: 9, timeRange: '00:40 - 00:45', narration: '100번의 거절은 그를 무너뜨린 것이 아니라, 아무도 넘볼 수 없는 괴물로 단련시켰습니다.', visualGuide: '정상에서 당당하게 마이크를 쥔 압도적 카리스마', imageSearchKeyword: `${figureName} 전성기 카리스마`, visualEffect: '슬로우 줌인' },
-        { sceneNumber: 10, timeRange: '00:45 - 00:50', narration: '"세상이 당신을 버렸다고 느낄 때 포기하지 마세요. 그것은 가장 위대한 반전의 전조입니다."', visualGuide: '따뜻한 눈빛으로 시청자를 위로하는 인터뷰 클립', imageSearchKeyword: `${figureName} 인터뷰 명언`, visualEffect: '천천히 줌인' },
-        { sceneNumber: 11, timeRange: '00:50 - 00:55', narration: '통장 잔고 0원에서 정상에 오르기까지, 피눈물로 써 내려간 그의 감동적인 승부수.', visualGuide: '환호하는 수만 명의 팬들과 빛나는 조명', imageSearchKeyword: `${figureName} 시상식 대상`, visualEffect: '와이드 줌아웃' },
-        { sceneNumber: 12, timeRange: '00:55 - 01:00', narration: '오늘 쓰러질 것 같은 당신에게, 이 실화가 끝까지 버텨낼 힘이 되길 진심으로 응원합니다.', visualGuide: '따뜻한 미소와 구독/좋아요 유도 엔딩 카드', imageSearchKeyword: `${figureName} 환한 미소 프로필`, visualEffect: '엔딩 페이드 아웃', bgmSuggestion: '벅차오르는 피아노 피날레' }
+        { sceneNumber: 1, timeRange: '00:00 - 00:05', narration: `화려한 정상에 서 있는 지금과 달리, ${figureName} 님의 시작은 한 평 남짓한 작은 사무실이었습니다.`, visualGuide: '초기 작은 사무실과 결연한 눈빛의 과거 아카이브 사진', imageSearchKeyword: `${figureName} 과거 초기 시절`, visualEffect: '슬로우 줌인', bgmSuggestion: '애잔한 피아노 선율' },
+        { sceneNumber: 2, timeRange: '00:05 - 00:10', narration: `"현실을 모른다, 절대 성공할 수 없다"는 차가운 거절을 백 번 넘게 들어야 했습니다.`, visualGuide: '거절당한 기획안과 늦은 밤 꺼지지 않는 사무실 불빛', imageSearchKeyword: `${figureName} 창업 초기 위기`, visualEffect: '좌측 패닝' },
+        { sceneNumber: 3, timeRange: '00:10 - 00:15', narration: kw ? `하지만 그는 포기하는 대신, '${kw}'이라는 본질 하나만 붙잡고 밤새 현장을 뛰었습니다.` : '하지만 그는 포기하는 대신, 현장의 목소리를 하나라도 더 듣기 위해 직접 발로 뛰었습니다.', visualGuide: '현장에서 메모하며 해결책을 고민하는 진지한 모습', imageSearchKeyword: `${figureName} 현장 소통`, visualEffect: '2단 스피드 줌' },
+        { sceneNumber: 4, timeRange: '00:15 - 00:20', narration: '자금이 바닥나고 적자가 눈덩이처럼 불어나며 누구나 떠나갈 때도 그의 원칙은 흔들리지 않았습니다.', visualGuide: '어두운 회의실에서 끝까지 책임을 다짐하는 실루엣', imageSearchKeyword: `${figureName} 경영 위기 극복`, visualEffect: '천천히 줌인' },
+        { sceneNumber: 5, timeRange: '00:20 - 00:25', narration: '오히려 그는 손해를 보더라도 사람과의 약속과 품질만큼은 절대 타협하지 않겠다고 선언했습니다.', visualGuide: '신뢰를 지켜낸 계약서와 진심이 담긴 악수', imageSearchKeyword: `${figureName} 경영 철학 원칙`, visualEffect: '슬로우 줌아웃' },
+        { sceneNumber: 6, timeRange: '00:25 - 00:30', narration: '당장의 수익보다 사람을 먼저 본 그 결단에, 외면하던 고객과 파트너들의 마음이 움직이기 시작했습니다.', visualGuide: '진심이 전해지며 점차 밝아지는 현장의 표정들', imageSearchKeyword: `${figureName} 진정성 미담`, visualEffect: '다이내믹 줌인' },
+        { sceneNumber: 7, timeRange: '00:30 - 00:35', narration: '단 하나의 상품, 단 한 명의 고객을 지키려던 집념이 결국 업계의 판도를 뒤집어 놓았습니다.', visualGuide: '가파르게 상승하는 신뢰 지표와 뜨거운 반응', imageSearchKeyword: `${figureName} 성공 전환점`, visualEffect: '화이트 플래시' },
+        { sceneNumber: 8, timeRange: '00:35 - 00:40', narration: '그날 이후, 불가능이라던 사람들의 비웃음은 순식간에 뜨거운 존경으로 바뀌었습니다.', visualGuide: '쏟아지는 언론 호평과 감동 기사 헤드라인', imageSearchKeyword: `${figureName} 언론 호평 기사`, visualEffect: '우측 패닝' },
+        { sceneNumber: 9, timeRange: '00:40 - 00:45', narration: '수십 번의 위기는 그를 무너뜨린 것이 아니라, 누구도 흉내 낼 수 없는 단단한 리더로 만들었습니다.', visualGuide: '정상에서 따뜻한 미소로 인사하는 당당한 모습', imageSearchKeyword: `${figureName} 리더십 강연`, visualEffect: '슬로우 줌인' },
+        { sceneNumber: 10, timeRange: '00:45 - 00:50', narration: '"사업의 가치는 숫자가 아니라, 우리가 얼마나 많은 사람의 일상을 지켰는지로 남습니다."', visualGuide: '진심 어린 철학을 전하는 인터뷰 클립', imageSearchKeyword: `${figureName} 인터뷰 명언`, visualEffect: '천천히 줌인' },
+        { sceneNumber: 11, timeRange: '00:50 - 00:55', narration: '가장 어두운 순간에도 사람과 신의를 택했던 ${figureName} 님의 통 큰 발자취.', visualGuide: '함께 웃는 임직원들과 빛나는 기업의 비전', imageSearchKeyword: `${figureName} 사회공헌 미담`, visualEffect: '와이드 줌아웃' },
+        { sceneNumber: 12, timeRange: '00:55 - 01:00', narration: '오늘 묵묵히 버텨내는 당신의 진심 역시, 머지않아 세상을 바꾸는 기적이 되길 응원합니다.', visualGuide: '따뜻한 미소와 좋아요/구독 유도 엔딩 카드', imageSearchKeyword: `${figureName} 환한 미소 프로필`, visualEffect: '엔딩 페이드 아웃', bgmSuggestion: '벅차오르는 피아노 피날레' }
       ];
     }
+  } else if (effectiveAngle === 'humble_twist') {
+    // 🍢 소박한 반전 매력형
+    fallbackHooks = [
+      { type: 'question', label: '반전형 후킹', text: kw ? `수조 원대 자산가 ${figureName} 님이 '${kw}' 앞에서 보인 소박한 행동.` : `수조 원대 거부가 길거리 식당에서 보인 뜻밖의 행동.` },
+      { type: 'provocative', label: '인간미 후킹', text: `수행비서도 없이 단골 국밥집에 줄 서서 기다린 이유.` },
+      { type: 'emotional', label: '질문형 후킹', text: `돈과 권력을 다 가진 거장이 끝까지 지킨 소탈한 습관.` }
+    ];
+    fallbackTitles = [
+      `수조 원대 자산가 ${figureName} 님이 길거리에서 포착된 뜻밖의 모습 #shorts`,
+      `격식 다 내려놓고 사람들과 어울린 ${figureName}의 소탈한 반전 매력 #미담`,
+      `진짜 큰 사람이 더 겸손한 이유, ${figureName} 실화 #인간미`
+    ];
+    fallback60Scenes = [
+      { sceneNumber: 1, timeRange: '00:00 - 00:05', narration: `수조 원대 기업을 이끄는 ${figureName} 님, 하지만 퇴근 후 포착된 모습은 믿기 어려울 만큼 소박했습니다.`, visualGuide: '화려한 공식석상과 소탈한 일상 컷의 극적인 대비', imageSearchKeyword: `${figureName} 일상 소탈한 모습`, visualEffect: '슬로우 줌인', bgmSuggestion: '따뜻하고 경쾌한 어쿠스틱' },
+      { sceneNumber: 2, timeRange: '00:05 - 00:10', narration: '수십억 원대 외제차와 고급 레스토랑 대신, 그가 직접 운전하거나 홀로 찾은 곳은 동네의 작은 가게였습니다.', visualGuide: '소박한 골목길과 정겨운 동네 풍경', imageSearchKeyword: `${figureName} 목격담 사진`, visualEffect: '좌측 패닝' },
+      { sceneNumber: 3, timeRange: '00:10 - 00:15', narration: kw ? `현장 시민들과 똑같이 줄을 서서 '${kw}' 이야기를 나누며 소탈하게 웃었습니다.` : '현장 시민들과 똑같이 줄을 서서 먼저 반갑게 인사를 건네며 소탈하게 웃었습니다.', visualGuide: '시민들과 격의 없이 어울리며 웃는 모습', imageSearchKeyword: `${figureName} 시민 소통 미소`, visualEffect: '2단 줌인' },
+      { sceneNumber: 4, timeRange: '00:15 - 00:20', narration: '어깨에 힘을 주기보다 상대의 눈높이에 맞춰 먼저 고개를 숙이는 그의 배려가 현장 분위기를 녹였습니다.', visualGuide: '직원과 가게 사장님에게 예의를 갖추는 장면', imageSearchKeyword: `${figureName} 배려 예의`, visualEffect: '천천히 줌인' },
+      { sceneNumber: 5, timeRange: '00:20 - 00:25', narration: '사진 촬영을 요청하는 시민 한 명 한 명에게도 귀찮은 기색 없이 진심으로 응대했습니다.', visualGuide: '팬·시민과 다정하게 셀카를 찍는 따뜻한 현장', imageSearchKeyword: `${figureName} 사진 촬영 팬서비스`, visualEffect: '우측 패닝' },
+      { sceneNumber: 6, timeRange: '00:25 - 00:30', narration: '그가 이토록 소탈함을 잃지 않는 데는, 어려웠던 젊은 시절 직접 현장을 뛰며 배운 철학이 있었습니다.', visualGuide: '과거 낡은 점퍼를 입고 현장을 누리던 젊은 시절', imageSearchKeyword: `${figureName} 젊은 시절 현장`, visualEffect: '흑백 컷전환' },
+      { sceneNumber: 7, timeRange: '00:30 - 00:35', narration: '"현장의 땀방울을 잊는 순간, 리더의 자격도 사라진다"는 게 그의 오랜 신념이었습니다.', visualGuide: '현장 직원들과 식사하며 이야기를 듣는 모습', imageSearchKeyword: `${figureName} 직원 식사 소통`, visualEffect: '슬로우 줌아웃' },
+      { sceneNumber: 8, timeRange: '00:35 - 00:40', narration: '화려한 의전은 줄이고, 아낀 시간과 마음은 고스란히 구성원과 이웃을 챙기는 데 썼습니다.', visualGuide: '조용한 기부와 상생 프로젝트 보도 화면', imageSearchKeyword: `${figureName} 조용한 선행 기부`, visualEffect: '화이트 플래시' },
+      { sceneNumber: 9, timeRange: '00:40 - 00:45', narration: '자리를 떠난 뒤에도 가게에 따뜻한 여운과 넉넉한 응원을 남기고 조용히 사라졌습니다.', visualGuide: '소탈한 뒷모습과 훈훈한 미담 보도', imageSearchKeyword: `${figureName} 훈훈한 미담`, visualEffect: '슬로우 줌인' },
+      { sceneNumber: 10, timeRange: '00:45 - 00:50', narration: '권위를 내려놓을수록 오히려 더 큰 존경이 돌아온다는 사실을 몸소 증명했습니다.', visualGuide: '온라인에서 쏟아지는 응원 댓글과 긍정 반응', imageSearchKeyword: `${figureName} 호감 여론 반응`, visualEffect: '시네마틱 페이드' },
+      { sceneNumber: 11, timeRange: '00:50 - 00:55', narration: '높은 자리에 오를수록 더 낮아지는 겸손함이야말로 진짜 거인의 품격이었습니다.', visualGuide: '존경받는 리더의 온화한 클로즈업', imageSearchKeyword: `${figureName} 온화한 웃음`, visualEffect: '와이드 줌아웃' },
+      { sceneNumber: 12, timeRange: '00:55 - 01:00', narration: '화려한 성공보다 더 빛났던 소박한 인간미, 여러분은 어떤 장면이 가장 인상 깊으셨나요?', visualGuide: '따뜻한 여운이 남는 엔딩 카드', imageSearchKeyword: `${figureName} 최근 인터뷰`, visualEffect: '엔딩 페이드 아웃', bgmSuggestion: '기분 좋은 피아노 아웃트로' }
+    ];
   } else if (effectiveAngle === 'twist') {
     // ⚡ 충격 반전 비하인드
     fallbackHooks = [
@@ -196,25 +222,100 @@ export function generateClientFallbackScript(
     ];
   }
 
+  const toBanmalNounEnding = (text: string): string => {
+    let out = text
+      .replace(/했습니다/g, '했음')
+      .replace(/였습니다/g, '였음')
+      .replace(/됐습니다/g, '됐음')
+      .replace(/되었습니다/g, '됐음')
+      .replace(/있습니다/g, '있음')
+      .replace(/없습니다/g, '없음')
+      .replace(/겠습니다/g, '겠음')
+      .replace(/었습니다/g, '었음')
+      .replace(/았습니다/g, '았음')
+      .replace(/졌습니다/g, '졌음')
+      .replace(/났습니다/g, '났음')
+      .replace(/왔습니다/g, '왔음')
+      .replace(/갔습니다/g, '갔음')
+      .replace(/입니다/g, '임')
+      .replace(/아닙니다/g, '아님')
+      .replace(/됩니다/g, '됨')
+      .replace(/합니다/g, '함')
+      .replace(/바랍니다/g, '바람')
+      .replace(/지킵니다/g, '지킴')
+      .replace(/만듭니다/g, '만듦')
+      .replace(/([가-힣])니다(?=[.!?,"'\s]|$)/g, (_m, ch: string) => {
+        const code = ch.charCodeAt(0);
+        if (code >= 0xac00 && code <= 0xd7a3) {
+          const offset = code - 0xac00;
+          if (offset % 28 === 17) {
+            // Final consonant ㅂ -> ㅁ
+            return `${String.fromCharCode(code - 1)}`;
+          }
+        }
+        return `${ch}음`;
+      })
+      .replace(/([가-힣])습니다(?=[.!?,"'\s]|$)/g, '$1음')
+      .replace(/했대요/g, '했음')
+      .replace(/였대요/g, '였음')
+      .replace(/있대요/g, '있음')
+      .replace(/없대요/g, '없음')
+      .replace(/됐대요/g, '됐음')
+      .replace(/졌대요/g, '졌음')
+      .replace(/본대요/g, '봄')
+      .replace(/([가-힣])(었|았|였|졌)어요(?=[.!?,"'\s]|$)/g, '$1$2음')
+      .replace(/아십니까\?/g, '알고 있음?')
+      .replace(/믿어지시나요\?/g, '믿어짐?')
+      .replace(/얻으셨습니까\?/g, '얻었음?')
+      .replace(/있으셨나요\?/g, '있었음?')
+      .replace(/깊으셨나요\?/g, '깊었음?')
+      .replace(/했을까요\?/g, '했을까?')
+      .replace(/됐을까요\?/g, '됐을까?')
+      .replace(/있을까요\?/g, '있을까?')
+      .replace(/일까요\?/g, '일까?')
+      .replace(/무엇이었을까요\?/g, '뭐였을까?')
+      .replace(/보세요\./g, '보길.')
+      .replace(/내리세요\./g, '내리길.')
+      .replace(/시작하세요\./g, '시작하길.')
+      .replace(/이뤄집니다\./g, '이뤄짐.');
+    return out;
+  };
+
   const applySpeechTone = (text: string): string => {
     if (speechTone === 'friendly_story') {
       return text
-        .replace(/했습니다\./g, '했대요.')
-        .replace(/였습니다\./g, '였대요.')
-        .replace(/밝혀졌습니다\./g, '밝혀졌대요.')
-        .replace(/아십니까\?/g, '믿어지시나요?');
+        .replace(/했습니다/g, '했대요')
+        .replace(/였습니다/g, '였대요')
+        .replace(/되었습니다/g, '됐대요')
+        .replace(/됐습니다/g, '됐대요')
+        .replace(/밝혀졌습니다/g, '밝혀졌대요')
+        .replace(/알려졌습니다/g, '알려졌대요')
+        .replace(/있습니다/g, '있어요')
+        .replace(/없습니다/g, '없어요')
+        .replace(/입니다/g, '이래요')
+        .replace(/아닙니다/g, '아니래요')
+        .replace(/됩니다/g, '된대요')
+        .replace(/합니다/g, '한대요')
+        .replace(/바랍니다/g, '바라요')
+        .replace(/아십니까\?/g, '믿어지시나요?')
+        .replace(/얻으셨습니까\?/g, '얻으셨나요?');
     }
     if (speechTone === 'trendy_shorts') {
-      return text
-        .replace(/했습니다\./g, '했음.')
-        .replace(/였습니다\./g, '였음.')
-        .replace(/있습니다\./g, '있음.')
-        .replace(/됩니다\./g, '됨.');
+      return toBanmalNounEnding(text);
     }
-    return text;
+    return text
+      .replace(/했대요/g, '했습니다')
+      .replace(/였대요/g, '였습니다')
+      .replace(/됐대요/g, '되었습니다')
+      .replace(/있대요/g, '있습니다')
+      .replace(/믿어지시나요\?/g, '아십니까?');
   };
 
   const rawSliced = targetDuration === 45 ? fallback60Scenes.slice(0, 9) : fallback60Scenes;
+  const hooksToReturn = fallbackHooks.map((h) => ({
+    ...h,
+    text: applySpeechTone(h.text),
+  }));
   const scenesToReturn = rawSliced.map((s, idx) => ({
     ...s,
     narration: applySpeechTone(s.narration),
@@ -228,7 +329,7 @@ export function generateClientFallbackScript(
   };
 
   return {
-    hooks: fallbackHooks,
+    hooks: hooksToReturn,
     titles: fallbackTitles,
     hashtags: ['#shorts', `#${figureName}`, '#기업인스토리'],
     cleanSemanticTags: [`#${figureName}`, '#기업인스토리', '#성공미담'],

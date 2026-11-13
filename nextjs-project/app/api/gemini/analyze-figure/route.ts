@@ -26,8 +26,17 @@ export async function POST(request: Request) {
     name: figureName,
     title: `${figureName}의 아무도 몰랐던 긍정 미담과 통 큰 결단 스토리`,
     viralityScore: 95,
-    trendingReason: `${figureName}의 공식 어록, 최근 행보 및 리더십 미담이 쇼츠에서 재조명`,
-    relatedFigures: category === 'economy' ? ['동반 주목 업계 리더', '연관 협력사 대표'] : [],
+    trendingReason: `${figureName}의 공식 어록, 최근 행보 및 긍정 미담이 쇼츠·검색에서 급상승 중`,
+    relatedFigures:
+      category === 'economy'
+        ? ['이재용 삼성전자 회장', '젠슨 황 (Jensen Huang)']
+        : category === 'sports'
+        ? ['손흥민', '이강인']
+        : category === 'actor'
+        ? ['변우석', '마동석']
+        : category === 'global'
+        ? ['일론 머스크', '오타니 쇼헤이']
+        : ['유재석', '백종원'],
     buzzSummary: `${figureName}의 공식 활동 이력과 소탈한 반전 에피소드가 숏폼·검색에서 급상승하며 화제 인물로 주목받고 있습니다.`,
     controversyOrIssue: '위기 속에서도 원칙과 사람을 지켜낸 통 큰 결단과 인간미',
     suggestedAngle: '홍보팀 관점의 긍정 미담, 소탈한 반전 매력, 통 큰 결단 스토리텔링',
@@ -47,7 +56,7 @@ export async function POST(request: Request) {
 [★ 최우선 절대 원칙: 홍보팀 마인드 긍정 서사 & 실시간 팩트]
 1. Google Search 도구로 대상 인물의 가장 최신 뉴스·주가/실적·어록·방한·미담 등 공인된 '실제 사실(Fact)'을 검색해 분석하세요.
 2. 비난·악인전·미검증 루머는 초상권 고소 위험이 있으므로 제외하고, 긍정적 미담·위기 극복·소박한 인간미·통 큰 결단에 집중하세요.
-3. trendingReason에는 "왜 지금 화제인지(주가 급등, 어록, 방한, 신제품 등)" 1줄을 작성하고, relatedFigures에는 같이 올리면 동반 떡상하는 파생 인물 2~3명(예: 젠슨 황 이슈 시 이재용·깐부치킨 대표)을 배열로 묶어 추천하세요.
+3. 카테고리를 불문하고 모든 인물에게 trendingReason("왜 지금 화제인지: 주가 급등, 어록, 방한, 화제작, 신기록 등" 1줄)과 relatedFigures("같이 올리면 동반 떡상하는 파생 인물 2~3명" 배열, 예: 젠슨 황 -> 이재용·깐부치킨 대표)를 반드시 추천하세요.
 4. hookLine에는 출생연도 나열 대신 충격적 숫자나 반전 질문으로 첫 0~3초에 꽂는 오프닝 훅 1줄(20~38자)을 작성하세요.
 5. 반드시 아래 JSON 객체 형식으로만 응답하세요(코드펜스·부연 설명 금지):
 {
