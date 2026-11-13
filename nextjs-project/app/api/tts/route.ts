@@ -27,6 +27,11 @@ function resolveVoiceId(rawId: string | null): string {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
+    if (searchParams.get('check') === '1') {
+      return NextResponse.json({
+        configured: Boolean(process.env.ELEVENLABS_API_KEY || request.headers.get('xi-api-key')),
+      });
+    }
     const rawText = searchParams.get('text') || '';
     const cleanText = rawText.trim().slice(0, 1000);
     const voiceId = resolveVoiceId(searchParams.get('voice_id') || searchParams.get('reference_id'));
@@ -42,7 +47,7 @@ export async function GET(request: Request) {
     }
 
     // 1. ElevenLabs API (Priority 1 with eleven_v4 default)
-    const elevenApiKey = process.env.ELEVENLABS_API_KEY;
+    const elevenApiKey = process.env.ELEVENLABS_API_KEY || request.headers.get('xi-api-key') || '';
     if (elevenApiKey) {
       try {
         const endpoint = withTimestamps ? '/with-timestamps' : '';
@@ -152,7 +157,7 @@ export async function POST(request: Request) {
     }
 
     // 1. ElevenLabs API (Priority 1 with eleven_v4 default)
-    const elevenApiKey = process.env.ELEVENLABS_API_KEY;
+    const elevenApiKey = process.env.ELEVENLABS_API_KEY || request.headers.get('xi-api-key') || '';
     if (elevenApiKey) {
       try {
         const endpoint = withTimestamps ? '/with-timestamps' : '';

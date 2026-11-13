@@ -1095,6 +1095,11 @@ function resolveVoiceId(rawId: string | null | undefined): string {
 // Endpoint: ElevenLabs v4 High-Quality Korean TTS streamer for video rendering & voice preview
 app.all('/api/tts', async (req, res) => {
   try {
+    if (req.method === 'GET' && req.query.check === '1') {
+      return res.json({
+        configured: Boolean(process.env.ELEVENLABS_API_KEY || req.headers['xi-api-key']),
+      });
+    }
     const rawText = (req.method === 'POST' ? req.body?.text : req.query.text) || '';
     const cleanText = (rawText as string).trim().slice(0, 1000);
     const rawVoiceId = (req.method === 'POST' ? (req.body?.voice_id || req.body?.reference_id) : (req.query.voice_id || req.query.reference_id)) as string;

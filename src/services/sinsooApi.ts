@@ -1310,6 +1310,29 @@ export async function testElevenLabsTts(opt?: { apiKey?: string; voiceId?: strin
   };
 }
 
+export async function checkElevenLabsServerStatus(): Promise<{
+  serverConfigured: boolean;
+  hasUserKey: boolean;
+  connected: boolean;
+}> {
+  const hasUserKey = Boolean(getActiveElevenLabsKey());
+  let serverConfigured = false;
+  try {
+    const res = await fetch('/api/tts?check=1', { signal: AbortSignal.timeout(4000) });
+    if (res.ok) {
+      const data = await res.json().catch(() => null);
+      serverConfigured = Boolean(data?.configured);
+    }
+  } catch {
+    serverConfigured = false;
+  }
+  return {
+    serverConfigured,
+    hasUserKey,
+    connected: serverConfigured || hasUserKey,
+  };
+}
+
 async function wavToMonoFloat32(blob: Blob): Promise<{ data: Float32Array; sr: number }> {
   const buf = await blob.arrayBuffer();
   const v = new DataView(buf);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   X,
   KeyRound,
@@ -13,6 +13,7 @@ import {
   ExternalLink,
   RefreshCw,
   Crown,
+  Lock,
 } from 'lucide-react';
 import {
   SinsooSettings,
@@ -23,6 +24,7 @@ import {
   synthesizeGeminiTts,
   synthesizeElevenLabsTts,
   testElevenLabsTts,
+  checkElevenLabsServerStatus,
   listGeminiVoices,
   yFetch,
   explainSinsooError,
@@ -56,6 +58,7 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
 
   const [testingEleven, setTestingEleven] = useState(false);
   const [elevenStatus, setElevenStatus] = useState<{ ok?: boolean; text: string } | null>(null);
+  const [elevenServerConnected, setElevenServerConnected] = useState(false);
 
   const [testingVoice, setTestingVoice] = useState(false);
   const [testingElevenVoice, setTestingElevenVoice] = useState(false);
@@ -64,6 +67,19 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
   const [saveToast, setSaveToast] = useState<string>('');
 
   const voices = listGeminiVoices();
+  const hasElevenUserKey = Boolean(form.elevenLabsKey?.trim());
+  const hasElevenConnected = Boolean(hasElevenUserKey || elevenServerConnected || elevenStatus?.ok === true);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let alive = true;
+    checkElevenLabsServerStatus().then((st) => {
+      if (alive) setElevenServerConnected(st.serverConfigured);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -213,6 +229,9 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
         voiceId: form.elevenLabsVoiceId,
         modelId: form.elevenLabsModel,
       });
+      if (res.source === 'server') {
+        setElevenServerConnected(true);
+      }
       setElevenStatus({
         ok: true,
         text: `연동 성공 ✓ (${res.model} · ${res.source === 'server' ? '서버 .env 유료 키 사용' : '입력 키 직접 연결'} · ${(res.bytes / 1024).toFixed(1)}KB)`,
@@ -406,17 +425,47 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     <label className="block text-xs font-medium text-[#37352F]">
-                      TTS 모델
+                      TTS 모델 {hasElevenConnected && <span className="text-[10px] text-amber-600">(ElevenLabs 선택 가능)</span>}
                       <select
-                        value={form.ttsModel}
-                        onChange={(e) => setForm({ ...form, ttsModel: e.target.value })}
+                        value={
+                          hasElevenConnected && (form.ttsProvider || 'elevenlabs') === 'elevenlabs'
+                            ? `elevenlabs:${form.elevenLabsModel || 'eleven_v4'}`
+                            : form.ttsModel
+                        }
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v.startsWith('elevenlabs:')) {
+                            setForm({
+                              ...form,
+                              ttsProvider: 'elevenlabs',
+                              elevenLabsModel: v.replace(/^elevenlabs:/, ''),
+                            });
+                          } else {
+                            setForm({
+                              ...form,
+                              ttsProvider: 'gemini',
+                              ttsModel: v,
+                            });
+                          }
+                        }}
                         className="mt-1 w-full px-2 py-1.5 rounded-lg border border-[#E3E2DE] bg-white text-xs"
                       >
-                        {Array.from(new Set([form.ttsModel, ...GEMINI_FALLBACK_CATALOG.tts])).map((m) => (
-                          <option key={m} value={m}>
-                            {m}
-                          </option>
-                        ))}
+                        {hasElevenConnected && (
+                          <optgroup label="👑 ElevenLabs 유료 TTS (API 키 연결됨)">
+                            {ELEVENLABS_MODELS.map((m) => (
+                              <option key={`elevenlabs:${m.id}`} value={`elevenlabs:${m.id}`}>
+                                👑 ElevenLabs · {m.label}
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        <optgroup label="✨ Gemini TTS (30종)">
+                          {Array.from(new Set([form.ttsModel, ...GEMINI_FALLBACK_CATALOG.tts])).map((m) => (
+                            <option key={m} value={m}>
+                              {m}
+                            </option>
+                          ))}
+                        </optgroup>
                       </select>
                     </label>
                     <label className="block text-xs font-medium text-[#37352F]">
@@ -624,9 +673,19 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
               <div className="bg-white p-4 rounded-xl border border-[#E9E9E7] space-y-3">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div>
-                    <h3 className="text-sm font-bold text-[#191919] flex items-center gap-1.5">
+                    <h3 className="text-sm font-bold text-[#191919] flex items-center gap-1.5 flex-wrap">
                       <Crown className="w-4 h-4 text-amber-500" />
-                      기본 AI 음성 엔진 & ElevenLabs 유료 16인 성우
+                      <span>기본 AI 음성 엔진 & ElevenLabs 유료 16인 성우</span>
+                      {hasElevenConnected ? (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">
+                          ✓ {hasElevenUserKey ? '개인 API 키 연결됨 (유료 오픈)' : '서버 .env 유료 키 자동 연결됨 (유료 오픈)'}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#F1F1EF] text-[#787774] border border-[#E3E2DE] font-semibold inline-flex items-center gap-1">
+                          <Lock className="w-2.5 h-2.5" />
+                          API 키 미연결 (연동 시 오픈)
+                        </span>
+                      )}
                     </h3>
                     <p className="text-xs text-[#787774] mt-0.5">
                       기존 영상 재가공(3~5초 도입 내레이션)과 씬별 오디오 생성에 우선 사용할 TTS 엔진을 선택하세요.
@@ -635,20 +694,23 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
                   <div className="inline-flex bg-[#F1F1EF] p-0.5 rounded-xl border border-[#E3E2DE] text-xs gap-1">
                     <button
                       type="button"
+                      disabled={!hasElevenConnected}
                       onClick={() => setForm({ ...form, ttsProvider: 'elevenlabs' })}
-                      className={`px-3 py-1 rounded-lg font-medium transition cursor-pointer ${
-                        (form.ttsProvider || 'elevenlabs') === 'elevenlabs'
-                          ? 'bg-white text-[#191919] shadow-2xs font-semibold'
-                          : 'text-[#787774]'
+                      className={`px-3 py-1 rounded-lg font-medium transition ${
+                        !hasElevenConnected
+                          ? 'opacity-50 cursor-not-allowed text-[#9B9A97]'
+                          : (form.ttsProvider || 'elevenlabs') === 'elevenlabs'
+                          ? 'bg-white text-[#191919] shadow-2xs font-semibold cursor-pointer'
+                          : 'text-[#787774] cursor-pointer'
                       }`}
                     >
-                      👑 ElevenLabs (유료)
+                      {hasElevenConnected ? '👑 ElevenLabs (유료)' : '🔒 ElevenLabs (키 필요)'}
                     </button>
                     <button
                       type="button"
                       onClick={() => setForm({ ...form, ttsProvider: 'gemini' })}
                       className={`px-3 py-1 rounded-lg font-medium transition cursor-pointer ${
-                        form.ttsProvider === 'gemini'
+                        !hasElevenConnected || form.ttsProvider === 'gemini'
                           ? 'bg-white text-[#191919] shadow-2xs font-semibold'
                           : 'text-[#787774]'
                       }`}
@@ -658,49 +720,69 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label className="block text-xs font-medium text-[#37352F]">
-                    ElevenLabs 기본 성우 (16인)
-                    <select
-                      value={form.elevenLabsVoiceId || VOICE_OPTIONS[0].id}
-                      onChange={(e) => setForm({ ...form, elevenLabsVoiceId: e.target.value })}
-                      className="mt-1 w-full px-2.5 py-2 rounded-lg border border-[#E3E2DE] bg-white text-xs"
+                {!hasElevenConnected ? (
+                  <div className="p-3 rounded-xl bg-[#FBFBFA] border border-[#E3E2DE] flex items-center justify-between gap-3 flex-wrap">
+                    <div className="text-xs text-[#787774] flex items-center gap-2">
+                      <Lock className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>
+                        ElevenLabs 유료 16인 성우는 <b>API 키 · 모델</b> 탭에서 ElevenLabs API 키를 연결(또는 서버 <code>.env</code> 연동 확인)해야 오픈됩니다.
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setTab('keys')}
+                      className="px-3 py-1.5 rounded-lg bg-[#23272A] text-white text-xs font-semibold hover:bg-black cursor-pointer shrink-0"
                     >
-                      {VOICE_OPTIONS.map((v) => (
-                        <option key={v.id} value={v.id}>
-                          {v.name} · {v.role} ({v.tone})
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="block text-xs font-medium text-[#37352F]">
-                    ElevenLabs 기본 모델
-                    <select
-                      value={form.elevenLabsModel || 'eleven_v4'}
-                      onChange={(e) => setForm({ ...form, elevenLabsModel: e.target.value })}
-                      className="mt-1 w-full px-2.5 py-2 rounded-lg border border-[#E3E2DE] bg-white text-xs"
-                    >
-                      {ELEVENLABS_MODELS.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
+                      API 키 연결하러 가기 →
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <label className="block text-xs font-medium text-[#37352F]">
+                        ElevenLabs 기본 성우 (16인)
+                        <select
+                          value={form.elevenLabsVoiceId || VOICE_OPTIONS[0].id}
+                          onChange={(e) => setForm({ ...form, elevenLabsVoiceId: e.target.value })}
+                          className="mt-1 w-full px-2.5 py-2 rounded-lg border border-[#E3E2DE] bg-white text-xs"
+                        >
+                          {VOICE_OPTIONS.map((v) => (
+                            <option key={v.id} value={v.id}>
+                              {v.name} · {v.role} ({v.tone})
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="block text-xs font-medium text-[#37352F]">
+                        ElevenLabs 기본 모델
+                        <select
+                          value={form.elevenLabsModel || 'eleven_v4'}
+                          onChange={(e) => setForm({ ...form, elevenLabsModel: e.target.value })}
+                          className="mt-1 w-full px-2.5 py-2 rounded-lg border border-[#E3E2DE] bg-white text-xs"
+                        >
+                          {ELEVENLABS_MODELS.map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {m.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
 
-                <div className="flex items-center gap-3 flex-wrap pt-1">
-                  <button
-                    type="button"
-                    onClick={handleElevenVoicePreview}
-                    disabled={testingElevenVoice}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-semibold transition cursor-pointer"
-                  >
-                    {testingElevenVoice ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Volume2 className="w-3.5 h-3.5 text-amber-600" />}
-                    <span>ElevenLabs 성우 테스트 재생</span>
-                  </button>
-                  {elevenVoiceNote && <span className="text-xs text-[#787774]">{elevenVoiceNote}</span>}
-                </div>
+                    <div className="flex items-center gap-3 flex-wrap pt-1">
+                      <button
+                        type="button"
+                        onClick={handleElevenVoicePreview}
+                        disabled={testingElevenVoice}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-semibold transition cursor-pointer"
+                      >
+                        {testingElevenVoice ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Volume2 className="w-3.5 h-3.5 text-amber-600" />}
+                        <span>ElevenLabs 성우 테스트 재생</span>
+                      </button>
+                      {elevenVoiceNote && <span className="text-xs text-[#787774]">{elevenVoiceNote}</span>}
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="bg-white p-4 rounded-xl border border-[#E9E9E7] space-y-3">
