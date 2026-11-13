@@ -705,7 +705,7 @@ function inferSmtpFromEmail(email: string, hostOverride?: string, portOverride?:
   }
   const lower = email.toLowerCase();
   if (lower.endsWith('@naver.com')) {
-    return { host: 'smtp.naver.com', port: 587, secure: false };
+    return { host: 'smtp.naver.com', port: 465, secure: true };
   }
   if (lower.endsWith('@daum.net') || lower.endsWith('@hanmail.net') || lower.endsWith('@kakao.com')) {
     return { host: 'smtp.daum.net', port: 465, secure: true };
