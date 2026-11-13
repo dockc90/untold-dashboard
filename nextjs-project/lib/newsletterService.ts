@@ -21,16 +21,6 @@ export interface NewsletterSubscriber {
   createdAt: string;
 }
 
-export interface MailDeliveryConfig {
-  resendKey?: string;
-  brevoKey?: string;
-  smtpHost?: string;
-  smtpPort?: number;
-  smtpUser?: string;
-  smtpPass?: string;
-  fromEmail?: string;
-}
-
 export interface NewsletterBriefItem {
   rank: number;
   name: string;
@@ -59,7 +49,6 @@ export interface NewsletterIssue {
 export interface NewsletterStatus {
   emailConfigured: boolean;
   emailProvider: 'resend' | 'brevo' | 'smtp' | 'none';
-  configuredFromHint?: string;
   supabaseConfigured: boolean;
   cronUtc: string;
   cronKst: string;
@@ -69,10 +58,8 @@ export interface NewsletterStatus {
 const TMP_DIR = os.tmpdir ? os.tmpdir() : '/tmp';
 const TMP_SUBS_FILE = path.join(TMP_DIR, 'untold_newsletter_subscribers.json');
 const TMP_ISSUE_FILE = path.join(TMP_DIR, 'untold_newsletter_issue.json');
-const TMP_CONFIG_FILE = path.join(TMP_DIR, 'untold_newsletter_config.json');
 
 const SYS_SUBS_ROW_ID = '__sys_newsletter_subscribers';
-const SYS_CFG_ROW_ID = '__sys_newsletter_config';
 
 const g = globalThis as any;
 if (!g.__untoldNewsletterSubs) {
@@ -80,9 +67,6 @@ if (!g.__untoldNewsletterSubs) {
 }
 if (!g.__untoldNewsletterIssues) {
   g.__untoldNewsletterIssues = new Map<string, NewsletterIssue>();
-}
-if (g.__untoldNewsletterConfig === undefined) {
-  g.__untoldNewsletterConfig = null as MailDeliveryConfig | null;
 }
 
 const memSubs: Map<string, NewsletterSubscriber> = g.__untoldNewsletterSubs;
@@ -159,31 +143,6 @@ function saveDiskIssue(issue: NewsletterIssue) {
   }
 }
 
-function loadDiskConfig(): MailDeliveryConfig | null {
-  if (g.__untoldNewsletterConfig) return g.__untoldNewsletterConfig;
-  try {
-    if (fs.existsSync(TMP_CONFIG_FILE)) {
-      const cfg = JSON.parse(fs.readFileSync(TMP_CONFIG_FILE, 'utf8'));
-      if (cfg && typeof cfg === 'object') {
-        g.__untoldNewsletterConfig = cfg;
-        return cfg;
-      }
-    }
-  } catch {
-    // ignore
-  }
-  return null;
-}
-
-function saveDiskConfig(cfg: MailDeliveryConfig) {
-  g.__untoldNewsletterConfig = cfg;
-  try {
-    fs.writeFileSync(TMP_CONFIG_FILE, JSON.stringify(cfg), 'utf8');
-  } catch {
-    // ignore
-  }
-}
-
 loadDiskSubs();
 
 export function normalizeEmail(raw: string): string {
@@ -194,87 +153,16 @@ export function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
 }
 
-function sanitizeMailConfig(raw?: MailDeliveryConfig | null): MailDeliveryConfig {
-  const cfg = raw || {};
+function getEnvMailConfig() {
   return {
-    ...(cfg.resendKey?.trim() ? { resendKey: cfg.resendKey.trim() } : {}),
-    ...(cfg.brevoKey?.trim() ? { brevoKey: cfg.brevoKey.trim() } : {}),
-    ...(cfg.smtpHost?.trim() ? { smtpHost: cfg.smtpHost.trim() } : {}),
-    ...(cfg.smtpPort ? { smtpPort: Number(cfg.smtpPort) } : {}),
-    ...(cfg.smtpUser?.trim() ? { smtpUser: cfg.smtpUser.trim() } : {}),
-    ...(cfg.smtpPass?.trim() ? { smtpPass: cfg.smtpPass.trim() } : {}),
-    ...(cfg.fromEmail?.trim() ? { fromEmail: cfg.fromEmail.trim() } : {}),
-  };
-}
-
-export async function getEffectiveMailConfig(override?: MailDeliveryConfig | null): Promise<MailDeliveryConfig> {
-  const envCfg: MailDeliveryConfig = {
-    resendKey: process.env.RESEND_API_KEY?.trim() || undefined,
-    brevoKey: process.env.BREVO_API_KEY?.trim() || undefined,
-    smtpHost: process.env.SMTP_HOST?.trim() || undefined,
+    resendKey: process.env.RESEND_API_KEY?.trim() || '',
+    brevoKey: process.env.BREVO_API_KEY?.trim() || '',
+    smtpHost: process.env.SMTP_HOST?.trim() || '',
     smtpPort: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined,
-    smtpUser: (process.env.SMTP_USER || process.env.GMAIL_USER)?.trim() || undefined,
-    smtpPass: (process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD)?.trim() || undefined,
-    fromEmail: process.env.NEWSLETTER_FROM_EMAIL?.trim() || undefined,
+    smtpUser: (process.env.SMTP_USER || process.env.GMAIL_USER)?.trim() || '',
+    smtpPass: (process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD)?.trim() || '',
+    fromEmail: process.env.NEWSLETTER_FROM_EMAIL?.trim() || '',
   };
-
-  let savedCfg = loadDiskConfig() || {};
-  const sb = getSupabaseAdminClient();
-  if (sb && !savedCfg.resendKey && !savedCfg.brevoKey && !savedCfg.smtpUser) {
-    try {
-      const { data } = await sb
-        .from('untold_projects')
-        .select('data')
-        .eq('id', SYS_CFG_ROW_ID)
-        .maybeSingle();
-      if (data?.data?.config) {
-        savedCfg = sanitizeMailConfig(data.data.config);
-        saveDiskConfig(savedCfg);
-      }
-    } catch {
-      // ignore if untold_projects unavailable
-    }
-  }
-
-  const ov = sanitizeMailConfig(override);
-  return {
-    resendKey: ov.resendKey || envCfg.resendKey || savedCfg.resendKey,
-    brevoKey: ov.brevoKey || envCfg.brevoKey || savedCfg.brevoKey,
-    smtpHost: ov.smtpHost || envCfg.smtpHost || savedCfg.smtpHost,
-    smtpPort: ov.smtpPort || envCfg.smtpPort || savedCfg.smtpPort,
-    smtpUser: ov.smtpUser || envCfg.smtpUser || savedCfg.smtpUser,
-    smtpPass: ov.smtpPass || envCfg.smtpPass || savedCfg.smtpPass,
-    fromEmail: ov.fromEmail || envCfg.fromEmail || savedCfg.fromEmail,
-  };
-}
-
-export async function saveMailDeliveryConfig(cfg: MailDeliveryConfig): Promise<NewsletterStatus> {
-  const prev = await getEffectiveMailConfig();
-  const next = sanitizeMailConfig({
-    ...prev,
-    ...sanitizeMailConfig(cfg),
-  });
-  saveDiskConfig(next);
-
-  const sb = getSupabaseAdminClient();
-  if (sb) {
-    try {
-      await sb.from('untold_projects').upsert(
-        {
-          id: SYS_CFG_ROW_ID,
-          figure_name: '__system_newsletter_config__',
-          category: 'social',
-          full_script: '',
-          data: { __system: true, config: next },
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'id' }
-      );
-    } catch {
-      // ignore if table unavailable
-    }
-  }
-  return getNewsletterStatus();
 }
 
 async function syncSubsToFallbackDb() {
@@ -343,7 +231,7 @@ export async function listActiveSubscribers(): Promise<NewsletterSubscriber[]> {
 }
 
 export async function getNewsletterStatus(): Promise<NewsletterStatus> {
-  const cfg = await getEffectiveMailConfig();
+  const cfg = getEnvMailConfig();
   const emailProvider: 'resend' | 'brevo' | 'smtp' | 'none' = cfg.resendKey
     ? 'resend'
     : cfg.brevoKey
@@ -353,19 +241,9 @@ export async function getNewsletterStatus(): Promise<NewsletterStatus> {
     : 'none';
   const subs = await listActiveSubscribers();
 
-  let configuredFromHint: string | undefined;
-  if (emailProvider === 'smtp' && cfg.smtpUser) {
-    configuredFromHint = cfg.smtpUser;
-  } else if (emailProvider === 'resend') {
-    configuredFromHint = cfg.fromEmail || 'Resend API 연동됨';
-  } else if (emailProvider === 'brevo') {
-    configuredFromHint = cfg.fromEmail || 'Brevo API 연동됨';
-  }
-
   return {
     emailConfigured: emailProvider !== 'none',
     emailProvider,
-    configuredFromHint,
     supabaseConfigured: Boolean(getSupabaseAdminClient()),
     cronUtc: '0 22 * * *',
     cronKst: '매일 오전 07:00 (KST)',
@@ -837,10 +715,9 @@ function inferSmtpFromEmail(email: string, hostOverride?: string, portOverride?:
 
 export async function sendNewsletterEmail(
   to: string,
-  issue: NewsletterIssue,
-  overrideConfig?: MailDeliveryConfig | null
+  issue: NewsletterIssue
 ): Promise<{ ok: boolean; configured: boolean; provider: 'resend' | 'brevo' | 'smtp' | 'none'; error?: string }> {
-  const cfg = await getEffectiveMailConfig(overrideConfig);
+  const cfg = getEnvMailConfig();
   const html = renderNewsletterEmailHtml(issue, to);
   const text = renderNewsletterEmailText(issue);
 
@@ -863,7 +740,7 @@ export async function sendNewsletterEmail(
     if (!r.ok) {
       const errBody = await r.text().catch(() => '');
       const hint = /only send testing emails to your own email/i.test(errBody)
-        ? ' (Resend 기본 주소는 Resend 가입 본인 메일로만 발송됩니다. 다른 메일로 받으려면 네이버/구글 SMTP 탭을 이용하세요.)'
+        ? ' (Resend 도메인 인증 완료 또는 운영자 본인 메일 테스트 시 정상 발송됩니다.)'
         : '';
       return {
         ok: false,
@@ -921,7 +798,7 @@ export async function sendNewsletterEmail(
     } catch (err: any) {
       const msg = String(err?.message || err);
       const hint = /auth|535|invalid|login|username/i.test(msg)
-        ? ' (이메일 주소 또는 앱 비밀번호·네이버 POP3/SMTP 허용 설정을 확인해 주세요.)'
+        ? ' (서버 SMTP 계정 또는 앱 비밀번호 환경변수를 확인해 주세요.)'
         : '';
       return {
         ok: false,
@@ -936,7 +813,7 @@ export async function sendNewsletterEmail(
     ok: false,
     configured: false,
     provider: 'none',
-    error: '메일 발송 수단이 아직 연결되지 않았습니다. 아래에서 네이버/구글 메일 또는 Resend 키를 입력해 주세요.',
+    error: '이메일은 구독 목록에 등록되었으며, 실제 외부 발송은 운영 서버(Vercel 환경변수 RESEND_API_KEY) 설정 후 매일 오전 7시 작동합니다. 지금은 [메일앱 열기] 또는 [전문 복사]로 바로 확인하실 수 있습니다.',
   };
 }
 
