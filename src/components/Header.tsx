@@ -203,7 +203,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="inline-flex items-center gap-1">
                   <span className={`w-2 h-2 rounded-full ${hasGemini ? 'bg-emerald-500' : 'bg-slate-400'}`} title="Gemini API" />
                   <span className={`w-2 h-2 rounded-full ${hasYt ? 'bg-emerald-500' : 'bg-slate-400'}`} title="YouTube API" />
-                  <span className={`w-2 h-2 rounded-full ${hasEleven ? 'bg-amber-500' : 'bg-slate-400'}`} title="ElevenLabs 유료 TTS" />
+                  <span className={`w-2 h-2 rounded-full ${hasEleven ? 'bg-emerald-500' : 'bg-slate-400'}`} title="ElevenLabs 유료 TTS" />
                 </span>
                 <KeyRound className="w-3.5 h-3.5 text-[#37352F]" />
                 <span>API 설정</span>
