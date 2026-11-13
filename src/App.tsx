@@ -575,6 +575,8 @@ export default function App() {
             viralityScore: dynamicScore,
             isHot: item.isHot ?? (idx < 5),
             isLive: fetchedLive || item.isLive,
+            ...(item.isUpcoming || category === 'upcoming' ? { isUpcoming: true } : {}),
+            ...(item.scheduledDate ? { scheduledDate: String(item.scheduledDate).trim() } : {}),
           };
         });
 

@@ -2,6 +2,7 @@ export type SourceChannel = 'all' | 'naver' | 'youtube' | 'instagram';
 
 export type CategoryType = 
   | 'all'
+  | 'upcoming'
   | 'viral'
   | 'entertainment'
   | 'actor'
@@ -70,6 +71,8 @@ export interface TrendingFigure {
   suggestedAngle: string;
   hookLine?: string; // 첫 3초 스크롤 정지 오프닝 훅 1줄
   isLive?: boolean; // Google Search 실시간 수집 여부
+  isUpcoming?: boolean; // 내일 예고·선점(예정 이벤트) 여부
+  scheduledDate?: string; // 예정 시점 라벨 (예: "내일(11/14)", "주말 예정")
   tags: string[];
   imageUrl?: string;
   sourceArticlesCount?: number;

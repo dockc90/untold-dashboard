@@ -41,6 +41,7 @@ interface TrendRadarProps {
 
 const CATEGORIES: { id: CategoryType; label: string }[] = [
   { id: 'all', label: '전체' },
+  { id: 'upcoming', label: '🔭 내일 예고·선점' },
   { id: 'viral', label: '🔥 SNS 바이럴·밈' },
   { id: 'entertainment', label: '연예·가수' },
   { id: 'actor', label: '배우·드라마' },
@@ -52,6 +53,7 @@ const CATEGORIES: { id: CategoryType; label: string }[] = [
 
 const CATEGORY_ICONS: Record<CategoryType, string> = {
   all: '🔥',
+  upcoming: '🔭',
   viral: '⚡',
   sports: '⚽',
   entertainment: '🍳',
@@ -63,6 +65,7 @@ const CATEGORY_ICONS: Record<CategoryType, string> = {
 
 const CATEGORY_GRADIENTS: Record<CategoryType, string> = {
   all: 'from-[#1E1E1E] to-[#4338CA]',
+  upcoming: 'from-violet-600 to-indigo-600',
   viral: 'from-orange-500 to-amber-500',
   sports: 'from-blue-600 to-indigo-600',
   entertainment: 'from-amber-500 to-rose-500',
@@ -157,7 +160,12 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
 
     const liveMatching = figures.filter((fig) => {
       if (!fig.isLive) return false;
-      const catOk = nextCat === 'all' ? true : fig.category === nextCat;
+      const catOk =
+        nextCat === 'all'
+          ? true
+          : nextCat === 'upcoming'
+          ? Boolean(fig.isUpcoming || fig.category === 'upcoming')
+          : fig.category === nextCat;
       const tfOk = nextTf === '7d' ? true : nextTf === '48h' ? fig.timeframe === '24h' || fig.timeframe === '48h' : fig.timeframe === '24h';
       return catOk && tfOk;
     });
@@ -206,7 +214,12 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
       return fig.timeframe === '24h' || !fig.timeframe || fig.isHot;
     })();
 
-    const matchesCategory = categoryFilter === 'all' ? true : fig.category === categoryFilter;
+    const matchesCategory =
+      categoryFilter === 'all'
+        ? true
+        : categoryFilter === 'upcoming'
+        ? Boolean(fig.isUpcoming || fig.category === 'upcoming')
+        : fig.category === categoryFilter;
     const matchesQuery =
       searchQuery === '' ||
       fig.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -401,6 +414,8 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
                 className={`whitespace-nowrap px-3 py-1.5 rounded-lg transition font-medium border shrink-0 cursor-pointer ${
                   categoryFilter === cat.id
                     ? 'bg-[#23272A] text-white border-[#23272A] shadow-2xs font-semibold'
+                    : cat.id === 'upcoming'
+                    ? 'bg-violet-50/70 text-violet-800 border-violet-200/80 hover:bg-violet-100/70'
                     : 'bg-white text-[#787774] border-[#E3E2DE] hover:text-[#37352F] hover:bg-[#F1F1EF]'
                 }`}
               >
@@ -515,6 +530,11 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
                               {fig.isHot && (
                                 <span className="px-1.5 py-0.2 text-[9px] font-semibold bg-rose-50 text-rose-700 border border-rose-200/60 rounded-md flex items-center gap-0.5">
                                   <TrendingUp className="w-2.5 h-2.5" /> 급상승
+                                </span>
+                              )}
+                              {(fig.isUpcoming || fig.category === 'upcoming') && (
+                                <span className="px-1.5 py-0.2 text-[9px] font-bold bg-violet-50 text-violet-700 border border-violet-200/80 rounded-md">
+                                  🔭 {fig.scheduledDate ? `내일 선점 · ${fig.scheduledDate}` : '내일 예고·선점'}
                                 </span>
                               )}
                             </div>

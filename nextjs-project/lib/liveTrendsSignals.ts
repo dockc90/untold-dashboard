@@ -9,6 +9,7 @@ export interface LiveSignalItem {
 export interface LiveSignalsBundle {
   fetchedAt: string;
   todayKst: string;
+  tomorrowKst: string;
   trendsKr: LiveSignalItem[];
   headlines: LiveSignalItem[];
   formattedBrief: string;
@@ -22,6 +23,14 @@ export function getKstTodayString(): string {
     return new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
   } catch {
     return new Date().toISOString().slice(0, 10);
+  }
+}
+
+export function getKstTomorrowString(): string {
+  try {
+    return new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+  } catch {
+    return new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   }
 }
 
@@ -160,6 +169,14 @@ export async function collectLiveTrendSignals(opts?: {
       limit: category === 'viral' ? 14 : 8,
     });
   }
+  if (category === 'all' || category === 'upcoming') {
+    const upcomingQuery = encodeURIComponent('when:3d (내일 OR 예정 OR 개봉 OR 컴백 OR 발표 OR 결승 OR 출시 OR 개막 OR 공개)');
+    feeds.push({
+      url: `https://news.google.com/rss/search?q=${upcomingQuery}&hl=ko&gl=KR&ceid=KR:ko`,
+      source: '내일 예고·선점 일정',
+      limit: category === 'upcoming' ? 22 : 6,
+    });
+  }
 
   const results = await Promise.allSettled(feeds.map((f) => fetchFeed(f.url, f.source, f.limit)));
 
@@ -188,6 +205,7 @@ export async function collectLiveTrendSignals(opts?: {
     .slice(0, 42);
 
   const todayKst = getKstTodayString();
+  const tomorrowKst = getKstTomorrowString();
   const lines: string[] = [];
 
   if (trendsKr.length > 0) {
@@ -199,7 +217,7 @@ export async function collectLiveTrendSignals(opts?: {
   }
 
   if (headlines.length > 0) {
-    lines.push(`\n[실시간 분야별 최신 뉴스 헤드라인 (${todayKst} 기준)]`);
+    lines.push(`\n[실시간 분야별 최신 뉴스 헤드라인 (${todayKst} · 내일 ${tomorrowKst} 예고 포함)]`);
     headlines.forEach((h) => {
       const timeStr = formatKstShort(h.pubDate);
       lines.push(`- [${h.source}${timeStr ? ` · ${timeStr}` : ''}] ${h.title}`);
@@ -209,6 +227,7 @@ export async function collectLiveTrendSignals(opts?: {
   const bundle: LiveSignalsBundle = {
     fetchedAt: new Date().toISOString(),
     todayKst,
+    tomorrowKst,
     trendsKr,
     headlines,
     formattedBrief: lines.join('\n'),
@@ -222,6 +241,7 @@ export async function collectLiveTrendSignals(opts?: {
 }
 
 function mapSourceToCategory(source: string): string {
+  if (source.includes('내일 예고')) return 'upcoming';
   if (source.includes('연예')) return 'entertainment';
   if (source.includes('스포츠')) return 'sports';
   if (source.includes('경제')) return 'economy';
@@ -241,11 +261,24 @@ export function buildSignalFallbackFigures(
 
   const now = Date.now();
   const out: Array<Record<string, any>> = [];
+  const upcomingRe = /내일|예고|예정|개봉|컴백|발표|결승|출시|개막|공개|선발|청약|재판/;
+  const isUpcomingMode = requestedCategory === 'upcoming';
 
-  bundle.headlines.slice(0, 14).forEach((h, idx) => {
+  let candidateHeadlines = bundle.headlines;
+  if (isUpcomingMode) {
+    const matched = bundle.headlines.filter(
+      (h) => h.source === '내일 예고·선점 일정' || upcomingRe.test(h.title)
+    );
+    if (matched.length > 0) {
+      candidateHeadlines = matched;
+    }
+  }
+
+  candidateHeadlines.slice(0, 14).forEach((h, idx) => {
     const [headlineBody, mediaName] = h.title.split(/\s+-\s+(?=[^-]+$)/);
     const cleanBody = (headlineBody || h.title).trim();
     const timeLabel = formatKstShort(h.pubDate) || bundle.todayKst;
+    const isUpcoming = isUpcomingMode || h.source === '내일 예고·선점 일정' || upcomingRe.test(cleanBody);
     const cat = requestedCategory !== 'all' ? requestedCategory : mapSourceToCategory(h.source);
     const quoteOrSubject = cleanBody.match(/^['‘“"]?([^,·…:]{2,18})/)?.[1]?.trim() || h.source;
 
@@ -257,16 +290,25 @@ export function buildSignalFallbackFigures(
       viralityScore: Math.max(88, 99 - idx),
       timeframe,
       buzzSummary: `[${timeLabel}${mediaName ? ` · ${mediaName}` : ''}] ${cleanBody}`,
-      controversyOrIssue: `${h.source} 실시간 주요 이슈로 주목받고 있습니다.`,
-      suggestedAngle: `오늘(${bundle.todayKst}) 화제 뉴스 핵심 요약 및 쟁점 정리`,
-      hookLine: `오늘 뉴스 가장 많이 본 이슈: ${cleanBody.slice(0, 34)}${cleanBody.length > 34 ? '…' : ''}`,
-      tags: [h.source.replace(/·/g, ''), '오늘화제', '실시간뉴스'],
+      controversyOrIssue: isUpcoming
+        ? `내일(${bundle.tomorrowKst})·예정 일정 선점 키워드로 급부상 중입니다.`
+        : `${h.source} 실시간 주요 이슈로 주목받고 있습니다.`,
+      suggestedAngle: isUpcoming
+        ? `내일(${bundle.tomorrowKst}) 터질 이슈 미리 선점하는 관전 포인트 요약`
+        : `오늘(${bundle.todayKst}) 화제 뉴스 핵심 요약 및 쟁점 정리`,
+      hookLine: isUpcoming
+        ? `내일 검색어 1위 예약? 미리 보는 ${cleanBody.slice(0, 26)}${cleanBody.length > 26 ? '…' : ''}`
+        : `오늘 뉴스 가장 많이 본 이슈: ${cleanBody.slice(0, 34)}${cleanBody.length > 34 ? '…' : ''}`,
+      tags: isUpcoming
+        ? [h.source.replace(/·/g, ''), '내일예고', '선점추천']
+        : [h.source.replace(/·/g, ''), '오늘화제', '실시간뉴스'],
       primaryChannel: 'naver',
       channelMetrics: {
         naverRank: `${h.source} 최신 이슈`,
       },
       isHot: idx < 5,
       isLive: true,
+      ...(isUpcoming ? { isUpcoming: true, scheduledDate: `내일·예정` } : {}),
     });
   });
 

@@ -6,7 +6,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI, Type } from '@google/genai';
 import { createClient } from '@supabase/supabase-js';
-import { collectLiveTrendSignals } from './nextjs-project/lib/liveTrendsSignals.ts';
+import { collectLiveTrendSignals, buildSignalFallbackFigures } from './nextjs-project/lib/liveTrendsSignals.ts';
 
 dotenv.config();
 
@@ -155,19 +155,26 @@ app.post('/api/gemini/trending', async (req, res) => {
       '네이버 검색량, 유튜브 쇼츠 100만 뷰 이상 바이럴, 인스타그램 릴스 바이럴 3대 포털 통합';
 
     const todayStr = liveSignals?.todayKst || new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+    const tomorrowStr = liveSignals?.tomorrowKst || new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
     const targetCount = category === 'all' ? '18~20명(전 카테고리 최소 2~3명씩 골고루)' : '12~14명';
+    const categoryGuide =
+      category === 'upcoming'
+        ? `🔭 [내일 예고·선점] 내일(${tomorrowStr})~이번 주 공개/개봉/컴백/경기/발표 예정이라 지금 올리면 선점 가능한 인물 12~14명 (모두 category:"upcoming", isUpcoming:true, scheduledDate:"내일(M/D)" 등 명시)`
+        : category === 'all'
+        ? `viral, entertainment, actor, sports, economy, social, global 전 분야 균형 + 내일(${tomorrowStr}) 예정 선점 이슈 2~3명에는 isUpcoming:true, scheduledDate 표기`
+        : category;
     const signalsBlock = liveSignals?.formattedBrief
       ? `\n[★ 방금 수집된 실시간 구글 급상승 검색어 & 분야별 뉴스 헤드라인]\n${liveSignals.formattedBrief}\n`
       : '';
-    const prompt = `대한민국에서 오늘(${todayStr}) 기준 최근 ${timeframe} 동안 ${channelPromptDesc}으로 실제로 가장 화제가 되고 있는 인물 ${targetCount}을 선정하세요.
+    const prompt = `대한민국에서 오늘(${todayStr}, 내일 ${tomorrowStr}) 기준 최근 ${timeframe} 동안 ${channelPromptDesc}으로 실제로 가장 화제가 되고 있거나 내일 선점이 유리한 인물 ${targetCount}을 선정하세요.
 ${signalsBlock}
-카테고리: ${category === 'all' ? 'viral, entertainment, actor, sports, economy, social, global 전 분야 균형' : category}
-1. 위 실시간 뉴스·급상승 검색어에 등장한 인물을 최우선 반영하고, 추가로 Google Search 도구로 오늘(${todayStr}) 새로 뜬 화제 인물까지 포함하세요.
-2. 옛날 과거 일화(오래된 성공담·유행가 등)는 절대 재활용하지 말고, 지금(${todayStr}) 실제로 화제인 최신 사건·스캔들·사임·발언·품절·경기·신작 이슈만 쓰세요.
-3. buzzSummary에는 "왜 지금 화제인지 + 확인된 날짜·연도·숫자" 팩트 1~2문장을 작성하세요.
+카테고리: ${categoryGuide}
+1. 위 실시간 뉴스·급상승 검색어에 등장한 인물을 최우선 반영하고, 추가로 Google Search 도구로 오늘(${todayStr}) 새로 뜬 화제 인물 또는 내일(${tomorrowStr}) 예정 이슈까지 포함하세요.
+2. 옛날 과거 일화(오래된 성공담·유행가 등)는 절대 재활용하지 말고, 지금(${todayStr}) 실제로 화제인 최신 사건 또는 내일(${tomorrowStr}) 확정 일정만 쓰세요.
+3. buzzSummary에는 "왜 지금 화제인지(또는 내일 일정) + 확인된 날짜·연도·숫자" 팩트 1~2문장을 작성하세요.
 4. hookLine에는 첫 3초 스크롤을 멈추게 하는 오프닝 훅 1줄(30~45자 내외)을 작성하세요.
 5. 반드시 아래와 같은 유효한 JSON 배열만 출력하세요(코드펜스·설명 금지):
-[{"name":"","title":"","category":"viral","viralityScore":95,"timeframe":"${timeframe}","buzzSummary":"","controversyOrIssue":"","suggestedAngle":"","hookLine":"","tags":[""],"primaryChannel":"multi","channelMetrics":{"naverRank":"","youtubeViews":"","instaReels":""}}]`;
+[{"name":"","title":"","category":"${category === 'upcoming' ? 'upcoming' : 'viral'}","viralityScore":95,"timeframe":"${timeframe}","isUpcoming":false,"scheduledDate":"","buzzSummary":"","controversyOrIssue":"","suggestedAngle":"","hookLine":"","tags":[""],"primaryChannel":"multi","channelMetrics":{"naverRank":"","youtubeViews":"","instaReels":""}}]`;
 
     const candidateModels = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.5-flash'];
     for (const mod of candidateModels) {
@@ -192,6 +199,11 @@ ${signalsBlock}
       } catch (apiErr: any) {
         console.warn(`Trending (${mod}) failed:`, apiErr.message);
       }
+    }
+
+    const rssFallback = buildSignalFallbackFigures(liveSignals, timeframe, category);
+    if (rssFallback.length > 0) {
+      return res.json(rssFallback);
     }
 
     {

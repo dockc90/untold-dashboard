@@ -2093,6 +2093,7 @@ export async function fetchLiveTrendingFigures(opt: {
   }
 
   const todayKst = getKstDateString();
+  const tomorrowKst = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
   const timeframeLabel =
     opt.timeframe === '24h' ? '최근 24시간' : opt.timeframe === '48h' ? '최근 48시간' : '최근 7일간';
   const channelLabel =
@@ -2105,8 +2106,10 @@ export async function fetchLiveTrendingFigures(opt: {
       : '한국 및 글로벌 주요 뉴스·유튜브·네이버·SNS 통합';
   const limit = opt.limit || (opt.category === 'all' ? 18 : 12);
   const categoryLabel =
-    opt.category === 'all'
-      ? '7개 분야 균형 배분 (viral·entertainment·actor·sports·economy·social·global 각 분야 최소 2~3명씩 골고루)'
+    opt.category === 'upcoming'
+      ? `🔭 [내일 예고·선점] 오늘(${todayKst}) 밤부터 내일(${tomorrowKst})·이번 주 사이 공개/개봉/컴백/경기/선발대결/발표/개막 등이 예정되어 있어 지금 올리면 내일 검색량 폭발을 선점할 수 있는 인물 ${limit}명 (모든 인물의 category를 'upcoming', isUpcoming을 true로 지정하고 scheduledDate에 "내일(M/D)" 등 예정 시점 표기)`
+      : opt.category === 'all'
+      ? `7개 분야 균형 배분 (viral·entertainment·actor·sports·economy·social·global 각 분야 최소 2~3명씩 골고루) + 그중 내일(${tomorrowKst}) 예정 이슈로 선점이 유리한 인물 2~3명에는 "isUpcoming": true, "scheduledDate": "내일·예정" 표기`
       : `요청 카테고리 '${opt.category}' 전용 (모든 인물의 category 필드를 '${opt.category}'로 지정)`;
 
   const liveSignalsSection = liveBrief
@@ -2114,24 +2117,26 @@ export async function fetchLiveTrendingFigures(opt: {
     : '';
 
   const prompt = `당신은 대한민국 실시간 쇼츠 트렌드 리서처입니다.
-오늘 날짜는 ${todayKst}(한국 시간)입니다.
+오늘 날짜는 ${todayKst}(한국 시간), 내일은 ${tomorrowKst}입니다.
 ${liveSignalsSection}
 [필수 작업]
-1. 위 실시간 뉴스·급상승 검색어에 포착된 인물들을 최우선으로 반영하고, 추가로 Google Search 도구로 오늘(${todayKst}) 및 ${timeframeLabel} 동안 ${channelLabel}에서 새롭게 급부상한 화제의 인물까지 총 ${limit}명을 선정하세요.
+1. 위 실시간 뉴스·급상승 검색어에 포착된 인물들을 최우선으로 반영하고, 추가로 Google Search 도구로 오늘(${todayKst}) 및 ${timeframeLabel} 동안 ${channelLabel}에서 새롭게 급부상한 화제의 인물(또는 내일 예고·선점 이슈)까지 총 ${limit}명을 선정하세요.
 2. 카테고리 조건: ${categoryLabel}
-3. **절대 금지**: 과거 수년 전 성공담, 오래된 드라마/음원, 예전 밈 등 낡은 내용을 오늘 화제인 것처럼 쓰지 마세요. 반드시 **지금(${todayKst} 기준 ${timeframeLabel}) 뉴스·커뮤니티·숏폼에서 실제로 뜨고 있는 최신 사건·스캔들·사임·발언·품절·경기·신작·SNS 바이럴**로 모든 인물을 업데이트하세요.
-4. 확인되지 않은 날짜나 숫자를 절대 지어내지 말고, 검색·뉴스로 확인된 실제 날짜(예: 11월 12일, 11월 13일)·숫자만 쓰세요.
+3. **절대 금지**: 과거 수년 전 성공담, 오래된 드라마/음원, 예전 밈 등 낡은 내용을 오늘 화제인 것처럼 쓰지 마세요. 반드시 **지금(${todayKst} 기준 ${timeframeLabel}) 뉴스·커뮤니티·숏폼에서 실제로 뜨고 있는 최신 사건 또는 내일(${tomorrowKst}) 확정 예정 일정**으로 모든 인물을 업데이트하세요.
+4. 확인되지 않은 날짜나 숫자를 절대 지어내지 말고, 검색·뉴스로 확인된 실제 날짜(예: 11월 12일, 11월 13일, 내일 11월 14일)·숫자만 쓰세요.
 
 아래 형식의 JSON 배열로만 출력하세요(설명·마크다운 금지):
 [
   {
     "name": "인물명",
-    "title": "지금 왜 화제인지 한 줄 헤드라인",
-    "category": "${opt.category === 'all' ? 'viral | entertainment | actor | sports | economy | social | global 중 하나' : opt.category}",
+    "title": "지금 왜 화제인지(또는 내일 무슨 일정인지) 한 줄 헤드라인",
+    "category": "${opt.category === 'all' ? 'viral | entertainment | actor | sports | economy | social | global | upcoming 중 하나' : opt.category}",
     "viralityScore": 91~100 사이 정수,
     "timeframe": "${opt.timeframe}",
-    "buzzSummary": "왜 지금(${timeframeLabel}) 화제인지 구체적 날짜·사건·숫자 포함 팩트를 1~2문장으로 작성",
-    "controversyOrIssue": "핵심 논란, 반전 포인트 또는 대중 반응",
+    "isUpcoming": false,
+    "scheduledDate": "내일 예정 일정이 있을 때만 예: 내일(11/14), 없으면 빈 문자열",
+    "buzzSummary": "왜 지금(${timeframeLabel}) 화제인지(또는 내일 예정 일정) 구체적 날짜·사건·숫자 포함 팩트를 1~2문장으로 작성",
+    "controversyOrIssue": "핵심 논란, 반전 포인트, 관전 포인트 또는 대중 반응",
     "suggestedAngle": "쇼츠/캐러셀 2차 창작 기획 앵글 1문장",
     "hookLine": "첫 3초 스크롤을 멈추게 하는 오프닝 훅 1줄(30~45자 내외)",
     "tags": ["해시태그1", "해시태그2", "해시태그3", "해시태그4"],
@@ -2163,6 +2168,7 @@ ${liveSignalsSection}
     : [];
 
   const validCategories = new Set<CategoryType>([
+    'upcoming',
     'viral',
     'entertainment',
     'actor',
@@ -2182,6 +2188,7 @@ ${liveSignalsSection}
           : validCategories.has(item.category)
           ? item.category
           : 'viral';
+      const isUpcoming = Boolean(item.isUpcoming) || cat === 'upcoming';
       return {
         id: `fig-live-${now}-${idx}`,
         name: String(item.name).trim(),
@@ -2203,6 +2210,8 @@ ${liveSignalsSection}
         channelMetrics: item.channelMetrics || undefined,
         isHot: idx < 5,
         isLive: true,
+        ...(isUpcoming ? { isUpcoming: true } : {}),
+        ...(item.scheduledDate ? { scheduledDate: String(item.scheduledDate).trim() } : {}),
       };
     });
 

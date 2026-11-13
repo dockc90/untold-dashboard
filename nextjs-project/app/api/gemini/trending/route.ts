@@ -364,12 +364,15 @@ export async function POST(request: Request) {
   }
 
   const targetCount = category === 'all' ? '18~20명' : '12~14명';
+  const todayStr = liveSignals?.todayKst || new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+  const tomorrowStr = liveSignals?.tomorrowKst || new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
   const categoryInstruction =
-    category === 'all'
-      ? '전 카테고리 균형: SNS 바이럴·밈(viral), 연예·가수(entertainment), 배우·드라마(actor), 스포츠(sports), 경제·기업(economy), 사회·이슈(social), 글로벌·셀럽(global) 7개 분야에서 각각 2~3명씩 골고루 선별하세요.'
+    category === 'upcoming'
+      ? `🔭 [내일 예고·선점 모드] 오늘(${todayStr}) 밤부터 내일(${tomorrowStr})·이번 주 사이 공개/개봉/컴백/경기/선발대결/판결/발표/개막 등이 예정되어 있어 **지금 미리 쇼츠·캐러셀을 올리면 내일 검색량 폭발을 선점할 수 있는 인물** 12~14명을 선정하세요. 모든 항목의 category는 'upcoming', isUpcoming은 true로 지정하고 scheduledDate에 "내일(M/D)" 또는 예정 일정을 적으세요.`
+      : category === 'all'
+      ? `전 카테고리 균형: SNS 바이럴·밈(viral), 연예·가수(entertainment), 배우·드라마(actor), 스포츠(sports), 경제·기업(economy), 사회·이슈(social), 글로벌·셀럽(global) 7개 분야에서 각각 2~3명씩 골고루 선별하고, 그중 내일(${tomorrowStr})·곧 예정된 대형 일정으로 선점이 유리한 인물 2~3명에는 "isUpcoming": true, "scheduledDate": "내일·예정 일정"을 함께 표기하세요.`
       : `요청된 카테고리('${category}')에 100% 집중하여 오늘 실제로 화제인 인물들을 선별하고, 모든 인물의 category 필드는 반드시 '${category}'로 지정하세요.`;
 
-  const todayStr = liveSignals?.todayKst || new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
   const timeframeLabel =
     timeframe === '24h' ? '최근 24시간' : timeframe === '48h' ? '최근 48시간' : '최근 7일간';
 
@@ -378,25 +381,27 @@ export async function POST(request: Request) {
     : '';
 
   const prompt = `당신은 대한민국 최고 유튜브 쇼츠 & 인스타 릴스 실시간 트렌드 리서처입니다.
-오늘 날짜는 ${todayStr}(한국 시간)입니다.
+오늘 날짜는 ${todayStr}(한국 시간), 내일은 ${tomorrowStr}입니다.
 ${signalsSection}
 [필수 지시]
-1. 위 실시간 뉴스·급상승 검색어에 등장한 화제의 인물들을 최우선으로 반영하고, 추가로 Google Search 도구로 오늘(${todayStr}) 및 ${timeframeLabel} 동안 네이버 실시간 뉴스·유튜브 쇼츠·인스타 릴스에서 새롭게 급부상한 인물까지 총 ${targetCount}을 선정하세요.
+1. 위 실시간 뉴스·급상승 검색어에 등장한 화제의 인물들을 최우선으로 반영하고, 추가로 Google Search 도구로 오늘(${todayStr}) 및 ${timeframeLabel} 동안 네이버 실시간 뉴스·유튜브 쇼츠·인스타 릴스에서 새롭게 급부상한 인물(또는 내일 예고·선점 이슈)까지 총 ${targetCount}을 선정하세요.
 2. ${categoryInstruction}
-3. **절대 금지**: 옛날 과거 일화(예: 몇 년 전 성공담, 오래된 드라마/유행가, 과거 밈)를 오늘 이슈인 것처럼 재활용하지 마세요. 모든 인물은 **지금(${todayStr} 기준 ${timeframeLabel}) 실제로 터진 최신 뉴스·스캔들·사임·발언·품절·경기·신작·SNS 바이럴** 이유를 반영해야 합니다.
+3. **절대 금지**: 옛날 과거 일화(예: 몇 년 전 성공담, 오래된 드라마/유행가, 과거 밈)를 오늘 이슈인 것처럼 재활용하지 마세요. 모든 인물은 **지금(${todayStr} 기준 ${timeframeLabel}) 실제로 터진 최신 뉴스 또는 내일(${tomorrowStr}) 확정 예정 일정**을 반영해야 합니다.
 4. primaryChannel 필드는 반드시 'youtube', 'naver', 'instagram', 'multi' 중 하나의 소문자 영문 값으로 지정하세요.
-5. buzzSummary에는 **"왜 지금 화제인지 + 확인된 날짜(월·일 또는 연도)·구체적 숫자"** 팩트 1~2문장을 작성하세요(확인되지 않은 수치·날짜 날조 엄금).
+5. buzzSummary에는 **"왜 지금 화제인지(또는 내일 어떤 일정이 있는지) + 확인된 날짜(월·일 또는 연도)·구체적 숫자"** 팩트 1~2문장을 작성하세요(확인되지 않은 수치·날짜 날조 엄금).
 6. hookLine에는 **첫 3초 만에 스크롤을 멈출 오프닝 훅 1줄(30~45자 내외)**을 작성하세요.
 7. 반드시 아래와 같은 유효한 JSON 배열만 출력하세요(코드펜스 \`\`\` 나 설명 텍스트 절대 금지):
 [
   {
     "name": "인물명",
-    "title": "지금 왜 화제인지 한 줄 헤드라인",
-    "category": "viral | entertainment | actor | sports | economy | social | global",
+    "title": "지금 왜 화제인지(또는 내일 무슨 일정인지) 한 줄 헤드라인",
+    "category": "${category === 'upcoming' ? 'upcoming' : 'viral | entertainment | actor | sports | economy | social | global | upcoming'}",
     "viralityScore": 91,
     "timeframe": "${timeframe}",
+    "isUpcoming": false,
+    "scheduledDate": "내일 예정 일정이 있을 때만 예: 내일(11/14) 밤 9시, 없으면 빈 문자열",
     "buzzSummary": "날짜·숫자 포함 실시간 화제 팩트 1~2문장",
-    "controversyOrIssue": "핵심 논란/이슈/대중 반응",
+    "controversyOrIssue": "핵심 논란/이슈/관전 포인트",
     "suggestedAngle": "쇼츠/캐러셀 2차 창작 앵글",
     "hookLine": "첫 3초 오프닝 훅 1줄",
     "tags": ["태그1", "태그2", "태그3", "태그4"],
