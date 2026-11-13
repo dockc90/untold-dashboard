@@ -46,7 +46,7 @@ import {
 } from './utils/indexedDb';
 import { generateClientFallbackScript } from './utils/fallbackGenerator';
 import { getSceneFallbackImage } from './utils/sceneImages';
-import { analyzeLiveFigure, fetchLiveTrendingFigures, formatKoreanViewCount, loadSinsooSettings } from './services/sinsooApi';
+import { analyzeLiveFigure, fetchLiveTrendingFigures, formatKoreanViewCount, generateShortsScriptDirect, getActiveGeminiKey, loadSinsooSettings } from './services/sinsooApi';
 
 const LIVE_TRENDS_CACHE_KEY = 'autoshorts_live_trends_v2';
 const LIVE_TRENDS_TTL_MS = 10 * 60 * 1000;
@@ -826,7 +826,34 @@ export default function App() {
         clearTimeout(timeoutId);
       }
 
-      // If API was unavailable or returned empty data, use robust client fallback generator
+      // If server hit its offline fallback (or timed out/failed) and browser Gemini key exists, call Gemini directly via sinsooApi
+      if ((!data || data.isFallback || !data.scenes || data.scenes.length === 0) && getActiveGeminiKey()) {
+        try {
+          const directResult = await generateShortsScriptDirect({
+            figureName: selectedFigure.name,
+            title: selectedFigure.title,
+            buzzSummary: selectedFigure.buzzSummary,
+            controversyOrIssue: selectedFigure.controversyOrIssue,
+            suggestedAngle: selectedFigure.suggestedAngle,
+            hookLine: selectedFigure.hookLine,
+            targetPersona,
+            targetDuration: duration,
+            videoTone,
+            storyAngle,
+            scriptFormat,
+            speechTone,
+            customKeyword,
+            refreshCounter: nextCount,
+          });
+          if (directResult && Array.isArray(directResult.scenes) && directResult.scenes.length > 0) {
+            data = directResult;
+          }
+        } catch (directErr) {
+          console.warn('Direct browser Gemini script generation failed, keeping best available fallback:', directErr);
+        }
+      }
+
+      // If API was unavailable or returned empty data, use figure-aware client fallback generator
       if (!data || !data.scenes || data.scenes.length === 0) {
         data = generateClientFallbackScript(
           selectedFigure.name,
@@ -836,7 +863,14 @@ export default function App() {
           targetPersona,
           customKeyword,
           scriptFormat,
-          speechTone
+          speechTone,
+          {
+            title: selectedFigure.title,
+            buzzSummary: selectedFigure.buzzSummary,
+            controversyOrIssue: selectedFigure.controversyOrIssue,
+            suggestedAngle: selectedFigure.suggestedAngle,
+            hookLine: selectedFigure.hookLine,
+          }
         );
       }
       const charCount = (data.fullScript || '').replace(/\s+/g, '').length;

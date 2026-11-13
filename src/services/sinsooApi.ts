@@ -2,6 +2,7 @@
 // Client-side AI & Media Services ported cleanly from ssamtool/sinsoo architecture.
 // All API requests run directly from the user's browser using user-supplied keys stored in localStorage.
 import type { CategoryType, SourceChannel, TimeFilter, TrendingFigure, YoutubeBreakoutMetric } from '../types';
+import { applyToneToShortsPayload, getSpeechTonePromptDirective } from '../utils/speechTone';
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com';
 const YT_BASE = 'https://www.googleapis.com/youtube/v3';
@@ -2506,5 +2507,149 @@ Google Search 도구로 인물 "${opt.figureName}"(카테고리: ${opt.category}
     tags: Array.isArray(data.tags) ? data.tags.map((t: any) => String(t).replace(/^#/, '')) : [opt.figureName, '화제의인물'],
     isHot: true,
     isLive: true,
+  };
+}
+
+export async function generateShortsScriptDirect(opt: {
+  figureName: string;
+  title?: string;
+  buzzSummary?: string;
+  controversyOrIssue?: string;
+  suggestedAngle?: string;
+  hookLine?: string;
+  targetPersona: string;
+  targetDuration: 45 | 60;
+  videoTone: string;
+  storyAngle: string;
+  scriptFormat: string;
+  speechTone: string;
+  customKeyword?: string;
+  refreshCounter?: number;
+}) {
+  if (!getActiveGeminiKey()) {
+    throw new SinsooApiError('gemini', 401, 'Gemini API 키가 설정되지 않았습니다.');
+  }
+
+  const formatDirectives: Record<string, string> = {
+    overcoming_story:
+      '① [역경극복·감동미담형] 기업·기업인이 적자·위기를 무릅쓰고 누군가의 삶을 바꾸거나 기술/품질에 집념을 쏟아 낸 감동 미담과 통 큰 결단 중심 서사',
+    humble_twist:
+      '② [소박한 반전매력형] 막대한 성취에도 길거리 음식을 즐기거나 소탈한 차림을 고집하고 사람들과 격의 없이 어울리는 인간미·반전 매력 중심',
+    life_timeline:
+      '③ [어린시절~현재 인생변천사형] 어려운 초창기에서 출발해 결정적 터닝포인트를 거쳐 정상에 오른 극적인 인생 궤적 압축',
+    biz_sports_owner:
+      '④ [기업인+스포츠 구단주/비즈니스형] 팬 사랑, 파격 투자, 현장 뒷이야기와 통 큰 결단 중심 서사',
+  };
+
+  const chosenFormatText = formatDirectives[opt.scriptFormat] || formatDirectives.overcoming_story;
+  const chosenSpeechText = getSpeechTonePromptDirective(opt.speechTone);
+  const totalScenes = opt.targetDuration === 45 ? 9 : 12;
+  const targetCharMin = opt.targetDuration === 45 ? 290 : 390;
+  const targetCharMax = opt.targetDuration === 45 ? 360 : 470;
+  const todayKst = getKstDateString();
+
+  const prompt = `당신은 조회수 100만 뷰와 대기업 브랜디드 광고를 부르는 '국내외 기업인·부자 전문' 쇼츠 작가입니다.
+오늘 날짜는 ${todayKst}입니다.
+
+[★ 절대 원칙 3대 철칙]
+1. 철저히 '그 기업과 인물의 홍보팀'이라는 마인드로 긍정적 미담, 위기 극복, 소박한 인간미, 통 큰 결단만 다루세요(비난·악인전·루머 절대 금지).
+2. 첫 0~3초에 출생연도 나열 대신 충격적인 숫자나 반전 질문으로 무조건 후킹하세요.
+3. 오직 대상 인물("${opt.figureName}")의 실제 이력과 팩트만 사용하세요. (타인 사례 숫자 복제 금지)
+4. ${opt.targetDuration}초 대본을 5단계 구조(1단계 0~3초 후킹 -> 2단계 3~15초 배경 -> 3단계 15~40초 위기/반전 -> 4단계 40~55초 결단/성취 -> 5단계 55~60초 여운 엔딩)로 총 ${totalScenes}개 씬, 공백 제외 ${targetCharMin}~${targetCharMax}자에 맞춰 작성하세요.
+
+[선택 옵션 (100% 준수)]
+- 기획 포맷: ${chosenFormatText}
+- 대본 말투: ${chosenSpeechText}
+- 타겟 무드/연출: ${opt.targetPersona} / ${opt.videoTone} (앵글 참고: ${opt.storyAngle})
+
+[대상 인물 정보]
+- 인물/기업: ${opt.figureName}
+- 테마: ${opt.title || ''}
+- 최근 화제 배경: ${opt.buzzSummary || ''}
+- 주목할 미담/반전 포인트: ${opt.controversyOrIssue || ''}
+- 추천 기획 앵글: ${opt.suggestedAngle || ''}${opt.hookLine ? `\n- 참고 후킹: "${opt.hookLine}"` : ''}${opt.customKeyword ? `\n- ★강조 키워드: "${opt.customKeyword}" (후킹과 핵심 씬에 반드시 자연스럽게 녹여내세요)` : ''}
+
+반드시 아래 JSON 객체 형식으로만 출력하세요(코드펜스·설명 금지):
+{
+  "hooks": [
+    { "type": "question", "label": "질문형 후킹", "text": "20~35자 첫 3초 훅" },
+    { "type": "provocative", "label": "반전형 후킹", "text": "20~35자 첫 3초 훅" },
+    { "type": "emotional", "label": "여운형 후킹", "text": "20~35자 첫 3초 훅" }
+  ],
+  "titles": ["제목1", "제목2", "제목3"],
+  "hashtags": ["#shorts", "#태그1", "#태그2", "#태그3"],
+  "cleanSemanticTags": ["#태그1", "#태그2", "#태그3"],
+  "firstTwoLinesSeo": "검색 최적화 첫 2줄",
+  "description": "유튜브 설명란 텍스트",
+  "pinnedComment": "댓글 소통 유도 고정 댓글",
+  "commentBaits": {
+    "debateQuestion": "질문",
+    "optionA": "A안",
+    "optionB": "B안",
+    "pinnedCommentDraft": "고정 댓글 초안"
+  },
+  "semanticKeywords": ["키워드1", "키워드2", "키워드3", "키워드4", "키워드5"],
+  "shareTrigger": "공유 유도 카피",
+  "timestamps": [
+    { "time": "00:00", "label": "강렬한 후킹" },
+    { "time": "00:15", "label": "의외의 배경" },
+    { "time": "00:40", "label": "결단과 성취" },
+    { "time": "00:55", "label": "여운 엔딩" }
+  ],
+  "fullScript": "전체 나레이션 (씬 사이 빈 줄 구분)",
+  "scenes": [
+    {
+      "sceneNumber": 1,
+      "timeRange": "00:00 - 00:05",
+      "narration": "씬 나레이션",
+      "visualGuide": "화면 연출 가이드",
+      "imageSearchKeyword": "구글 이미지 검색 한국어 키워드",
+      "visualEffect": "줌인/패닝",
+      "bgmSuggestion": "BGM 무드"
+    }
+  ],
+  "safetyCheck": {
+    "numbersToVerify": ["검증 필요한 숫자/연도 1", "검증 필요한 숫자/연도 2"],
+    "positivePrFit": "적합 — 비난·루머 없이 미담·인간미·통 큰 결단 중심의 홍보팀 친화 서사",
+    "isPrSafe": true
+  },
+  "copyrightDefenseNote": "공인된 사실과 긍정적 미담·리더십 팩트를 기반으로 창작한 2차 저작물입니다."
+}`;
+
+  const res = await genGeminiText({
+    text: prompt,
+    json: true,
+    attemptTimeoutMs: 18000,
+    timeoutMs: 45000,
+  });
+
+  const parsed = parseGeminiJson<any>(res.text);
+  if (!parsed || !Array.isArray(parsed.scenes) || parsed.scenes.length === 0) {
+    throw new SinsooApiError('parse', 0, '대본 JSON 형식을 파싱하지 못했습니다.');
+  }
+
+  const toned = applyToneToShortsPayload(parsed, opt.speechTone);
+  const fullScript: string = String(toned.fullScript || toned.scenes.map((s: any) => s.narration).join('\n\n'));
+  const numMatches: string[] =
+    fullScript.match(/\d+(?:,\d{3})*(?:\.\d+)?\s*(?:년|개월|일|시간|원|만\s*원|억\s*원|조\s*원|억|만|배|%|개|명|위|차|번|초|달러)?/g) || [];
+  const extractedNums = Array.from(new Set(numMatches.map((m: string) => m.trim()).filter((m: string) => m.length >= 2))).slice(0, 2);
+
+  return {
+    ...toned,
+    fullScript,
+    isFallback: false,
+    modelUsed: res.model,
+    safetyCheck: {
+      numbersToVerify:
+        Array.isArray(parsed.safetyCheck?.numbersToVerify) && parsed.safetyCheck.numbersToVerify.length >= 2
+          ? parsed.safetyCheck.numbersToVerify.slice(0, 2)
+          : extractedNums.length >= 2
+          ? extractedNums
+          : [extractedNums[0] || '핵심 연도·기간 확인 필요', '주요 실적·수치 공식 보도 확인 필요'],
+      positivePrFit:
+        parsed.safetyCheck?.positivePrFit ||
+        '적합 — 비난·루머 배제, 미담·인간미·결단 중심의 홍보팀 친화 서사',
+      isPrSafe: parsed.safetyCheck?.isPrSafe !== false,
+    },
   };
 }

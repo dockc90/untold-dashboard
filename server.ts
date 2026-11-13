@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import { GoogleGenAI, Type } from '@google/genai';
 import { createClient } from '@supabase/supabase-js';
 import { collectLiveTrendSignals, buildSignalFallbackFigures } from './nextjs-project/lib/liveTrendsSignals.ts';
+import { applyToneToShortsPayload, getSpeechTonePromptDirective } from './nextjs-project/lib/speechTone.ts';
 import {
   buildDailyMorningIssue,
   getNewsletterStatus,
@@ -455,14 +456,8 @@ app.post('/api/gemini/generate-shorts', async (req, res) => {
       'biz_sports_owner': '④ [기업인+스포츠 구단주/비즈니스형] 구단주·스폰서로서 보여준 남다른 팬 사랑, 파격적 투자, 락커룸·경기장 뒷이야기 또는 비즈니스 승부사로서의 통 큰 결단과 성과를 흥미진진하게 풀어내세요.',
     };
 
-    const speechToneDirectives: Record<string, string> = {
-      'friendly_story': '① [친근한 썰풀이체] 반드시 모든 문장 끝을 "~했대요", "~였대요", "~됐대요", "~였나 봐요", "~믿어지시나요?" 같은 친근한 구어체 종결어미로만 작성하세요. ("~했습니다", "~였습니다", "~입니다", "~했음" 금지)',
-      'trendy_shorts': '② [트렌디한 쇼츠체] 반드시 모든 문장과 후킹 끝을 "~했음", "~였음", "~됨", "~임", "~있음", "~알고 있음?" 같은 짧고 힙한 반말 명사형 종결어미로만 작성하세요. ("~했습니다", "~였습니다", "~입니다", "~했대요", "~하세요" 절대 금지)',
-      'news_briefing': '③ [속도감 있는 뉴스 브리핑체] 반드시 모든 문장 끝을 "~했습니다", "~였습니다", "~밝혀졌습니다", "~입니다" 같은 간결한 뉴스 브리핑 경어체로만 작성하세요. ("~했음", "~했대요" 금지)',
-    };
-
     const chosenFormatText = formatDirectives[scriptFormat] || formatDirectives['overcoming_story'];
-    const chosenSpeechText = speechToneDirectives[speechTone] || speechToneDirectives['friendly_story'];
+    const chosenSpeechText = getSpeechTonePromptDirective(speechTone);
     const totalScenes = targetDuration === 45 ? 9 : 12;
     const targetCharMin = targetDuration === 45 ? 290 : 390;
     const targetCharMax = targetDuration === 45 ? 360 : 470;
@@ -472,6 +467,7 @@ app.post('/api/gemini/generate-shorts', async (req, res) => {
 [★ 절대 원칙 3대 철칙 (최우선 준수)]
 1. 첫째, 철저히 '그 기업과 인물의 홍보팀'이라는 마인드로 긍정적인 미담, 위기 극복, 소박한 인간미, 통 큰 결단만 다루세요.
    - 비난, 악인전, 스캔들 폭로, 부정적 가십, 미검증 루머는 초상권·명예훼손 고소 위험이 있으므로 **절대 금지**합니다.
+   - 오직 대상 인물(${figureName})의 실제 이력과 팩트만 사용하고, 타인의 숫자(예: CJ 290만 개·17년)를 다른 인물에게 베껴 쓰지 마세요.
 2. 둘째, 첫 0~3초에 출생연도 같은 지루한 설명 대신 **충격적인 숫자나 반전 질문**으로 무조건 후킹하세요.
 3. 셋째, ${targetDuration}초 대본을 반드시 아래 **5단계 구조**로 작성해 총 ${totalScenes}개 씬에 정확히 배분하세요:
    - [1단계: 0~3초 강렬한 후킹] (씬 1)
@@ -479,9 +475,6 @@ app.post('/api/gemini/generate-shorts', async (req, res) => {
    - [3단계: 15~40초 위기/반전 디테일] (씬 4~8)
    - [4단계: 40~55초 통 큰 결단과 성취] (씬 9~10)
    - [5단계: 55~60초 칭찬 댓글을 유도하는 여운 엔딩] (씬 11~12)
-
-[★ 레퍼런스 대본 스타일 (CJ 이재현 회장 '햇반 저단백밥' 감동 브랜디드 사례)]
-"CJ그룹 회장 이재현. 한 임직원 딸이 쌀밥을 못 먹는다는 사연을 들었대요. 정말 희귀 질환이었대요. 밥 한 그릇을 먹을 수가 없어서 아픈 사람들이 먹을 수 있는 햇반을 만들라고 시켰나 봐요. 근데 만들수록 손해를 본대요. 근데 달랐대요. 즉석밥 기술을 가지고 있기 때문에 해야 된다 그랬대요. 그래서 '햇반 저단백밥'이 나왔대요. 그렇게 환자들의 생명줄이 됐대요. 누적 생산량 290만 개. 만들수록 적자인 제품이지만 환우들이 평범한 일상을 포기하지 않도록 17년 동안 이걸 만들어 왔다. 사업의 가치는 숫자로만 남지 않는다. 누군가의 삶을 바꿨을 때 기업의 존재 이유가 된다."
 
 [사용자 선택 기획 옵션]
 - [기획 포맷]: ${chosenFormatText}
@@ -503,83 +496,6 @@ app.post('/api/gemini/generate-shorts', async (req, res) => {
 
 반드시 정해진 JSON 스키마로만 응답하세요.`;
 
-    const enforceSpeechToneServer = (rawText: string, tone: string): string => {
-      if (!rawText) return rawText;
-      if (tone === 'trendy_shorts') {
-        return rawText
-          .replace(/했습니다/g, '했음')
-          .replace(/였습니다/g, '였음')
-          .replace(/됐습니다/g, '됐음')
-          .replace(/되었습니다/g, '됐음')
-          .replace(/있습니다/g, '있음')
-          .replace(/없습니다/g, '없음')
-          .replace(/겠습니다/g, '겠음')
-          .replace(/었습니다/g, '었음')
-          .replace(/았습니다/g, '았음')
-          .replace(/졌습니다/g, '졌음')
-          .replace(/입니다/g, '임')
-          .replace(/아닙니다/g, '아님')
-          .replace(/됩니다/g, '됨')
-          .replace(/합니다/g, '함')
-          .replace(/([가-힣])니다(?=[.!?,"'\s]|$)/g, (_m, ch: string) => {
-            const code = ch.charCodeAt(0);
-            if (code >= 0xac00 && code <= 0xd7a3 && (code - 0xac00) % 28 === 17) {
-              return String.fromCharCode(code - 1);
-            }
-            return `${ch}음`;
-          })
-          .replace(/([가-힣])습니다(?=[.!?,"'\s]|$)/g, '$1음')
-          .replace(/했대요/g, '했음')
-          .replace(/였대요/g, '였음')
-          .replace(/있대요/g, '있음')
-          .replace(/없대요/g, '없음')
-          .replace(/됐대요/g, '됐음')
-          .replace(/아십니까\?/g, '알고 있음?')
-          .replace(/믿어지시나요\?/g, '믿어짐?')
-          .replace(/했을까요\?/g, '했을까?')
-          .replace(/일까요\?/g, '일까?')
-          .replace(/보세요\./g, '보길.');
-      }
-      if (tone === 'friendly_story') {
-        return rawText
-          .replace(/했습니다/g, '했대요')
-          .replace(/였습니다/g, '였대요')
-          .replace(/되었습니다/g, '됐대요')
-          .replace(/됐습니다/g, '됐대요')
-          .replace(/밝혀졌습니다/g, '밝혀졌대요')
-          .replace(/있습니다/g, '있어요')
-          .replace(/없습니다/g, '없어요')
-          .replace(/입니다/g, '이래요')
-          .replace(/아닙니다/g, '아니래요')
-          .replace(/됩니다/g, '된대요')
-          .replace(/합니다/g, '한대요')
-          .replace(/아십니까\?/g, '믿어지시나요?');
-      }
-      return rawText
-        .replace(/했대요/g, '했습니다')
-        .replace(/였대요/g, '였습니다')
-        .replace(/됐대요/g, '되었습니다')
-        .replace(/믿어지시나요\?/g, '아십니까?');
-    };
-
-    const applyToneToPayloadServer = (payload: any, tone: string) => {
-      const nextHooks = Array.isArray(payload.hooks)
-        ? payload.hooks.map((h: any) => ({ ...h, text: enforceSpeechToneServer(String(h?.text || ''), tone) }))
-        : [];
-      const nextScenes = Array.isArray(payload.scenes)
-        ? payload.scenes.map((s: any) => ({ ...s, narration: enforceSpeechToneServer(String(s?.narration || ''), tone) }))
-        : [];
-      const nextFullScript = nextScenes.length > 0
-        ? nextScenes.map((s: any) => s.narration).join('\n\n')
-        : enforceSpeechToneServer(String(payload.fullScript || ''), tone);
-      return {
-        ...payload,
-        hooks: nextHooks,
-        scenes: nextScenes,
-        fullScript: nextFullScript,
-      };
-    };
-
     const extractTwoFactNumbers = (scriptText: string) => {
       const matches = scriptText.match(/\d+(?:,\d{3})*(?:\.\d+)?\s*(?:년|개월|일|시간|원|만\s*원|억\s*원|조\s*원|억|만|배|%|개|명|위|차|번|초)?/g) || [];
       const unique = Array.from(new Set(matches.map((m) => m.trim()).filter((m) => m.length >= 2))).slice(0, 2);
@@ -591,7 +507,7 @@ app.post('/api/gemini/generate-shorts', async (req, res) => {
     try {
       const response = await callGeminiWithRetry(() =>
         ai.models.generateContent({
-          model: 'gemini-2.5-flash',
+          model: 'gemini-flash-latest',
           contents: prompt,
           config: {
             responseMimeType: 'application/json',
@@ -686,10 +602,14 @@ app.post('/api/gemini/generate-shorts', async (req, res) => {
         })
       );
 
-      const parsed = JSON.parse(response.text || '{}');
-      const tonedParsed = applyToneToPayloadServer(parsed, speechTone);
+      const cleanedJson = String(response.text || '{}').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+      const sIdx = cleanedJson.indexOf('{');
+      const eIdx = cleanedJson.lastIndexOf('}');
+      const parsed = JSON.parse(sIdx >= 0 && eIdx > sIdx ? cleanedJson.slice(sIdx, eIdx + 1) : cleanedJson);
+      const tonedParsed = applyToneToShortsPayload(parsed, speechTone);
       return res.json({
         ...tonedParsed,
+        isFallback: false,
         safetyCheck: parsed.safetyCheck || {
           numbersToVerify: extractTwoFactNumbers(tonedParsed.fullScript || ''),
           positivePrFit: '적합 — 비난·루머 배제, 미담·인간미·결단 중심의 홍보팀 친화 서사',
@@ -756,9 +676,9 @@ app.post('/api/gemini/generate-shorts', async (req, res) => {
         ];
       } else {
         fallbackHooks = [
-          { type: 'question', label: '사건형 후킹', text: kw ? `'${kw}' 뒤에 숨은 ${figureName} 님의 가슴 뭉클한 결단.` : `남들이 다 적자라고 말릴 때 ${figureName} 님이 끝까지 포기하지 않은 이유.` },
-          { type: 'provocative', label: '반전형 후킹', text: `수익이 안 나도 17년 넘게 묵묵히 지켜낸 약속의 진실.` },
-          { type: 'emotional', label: '공감형 후킹', text: `단 한 명의 일상을 지키려던 진심이 기업을 바꿨습니다.` }
+          { type: 'question', label: '사건형 후킹', text: kw ? `'${kw}' 뒤에 숨은 ${figureName} 님의 가슴 뭉클한 결단.` : `남들이 다 어렵다고 말릴 때 ${figureName} 님이 끝까지 포기하지 않은 이유.` },
+          { type: 'provocative', label: '반전형 후킹', text: `당장의 손해를 감수하고도 묵묵히 지켜낸 약속의 진실.` },
+          { type: 'emotional', label: '공감형 후킹', text: `단 한 사람의 진심이 기업과 시장을 바꿨습니다.` }
         ];
         fallbackTitles = [
           `만들수록 적자였지만 ${figureName} 님이 끝내 포기하지 않은 이유 #shorts`,
@@ -781,12 +701,18 @@ app.post('/api/gemini/generate-shorts', async (req, res) => {
         ];
       }
 
-      const rawSliced = targetDuration === 45 ? fallback60Scenes.slice(0, 9) : fallback60Scenes;
-      const basePayload = applyToneToPayloadServer({
+      const rawSliced = (targetDuration === 45 ? fallback60Scenes.slice(0, 9) : fallback60Scenes).map((s, idx) => {
+        let narration = s.narration;
+        if (idx === 0 && hookLine) narration = String(hookLine).trim();
+        else if (idx === 1 && buzzSummary) narration = String(buzzSummary).trim().slice(0, 95);
+        else if (idx === 3 && controversyOrIssue) narration = String(controversyOrIssue).trim().slice(0, 95);
+        return { ...s, narration };
+      });
+      const basePayload = applyToneToShortsPayload({
         hooks: fallbackHooks,
         titles: fallbackTitles,
-        hashtags: ['#shorts', `#${figureName}`, '#기업인미담'],
-        cleanSemanticTags: [`#${figureName}`, '#기업인미담', '#성공스토리'],
+        hashtags: ['#shorts', `#${figureName.replace(/\s+/g, '')}`, '#기업인미담'],
+        cleanSemanticTags: [`#${figureName.replace(/\s+/g, '')}`, '#기업인미담', '#성공스토리'],
         firstTwoLinesSeo: `${figureName}의 긍정적 리더십과 위기 극복 미담. 통 큰 결단과 인간미를 담은 브랜드 세이프 숏폼입니다.`,
         timestamps: [
           { time: '00:00', label: '강렬한 첫 후킹' },
@@ -804,11 +730,13 @@ app.post('/api/gemini/generate-shorts', async (req, res) => {
         shareTrigger: `오늘 따뜻한 울림과 영감이 필요한 지인에게 이 영상을 공유해보세요! 🚀`,
         description: `${figureName}의 긍정적인 미담과 통 큰 결단을 5단계 쇼츠 서사로 재구성한 브랜드 세이프 콘텐츠입니다.`,
         pinnedComment: `📌 [댓글 소통] ${figureName} 님의 이야기 중 가장 인상 깊었던 장면을 댓글로 남겨주세요! 👇`,
+        fullScript: rawSliced.map((s) => s.narration).join('\n\n'),
         scenes: rawSliced,
       }, speechTone);
 
       return res.json({
         ...basePayload,
+        isFallback: true,
         safetyCheck: {
           numbersToVerify: extractTwoFactNumbers(basePayload.fullScript),
           positivePrFit: '적합 — 비난·루머 배제, 미담·인간미·결단 중심의 홍보팀 친화 서사',

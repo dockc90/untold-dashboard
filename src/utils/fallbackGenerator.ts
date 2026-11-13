@@ -1,5 +1,21 @@
 import { getSceneFallbackImage } from './sceneImages';
+import { applyToneToShortsPayload } from './speechTone';
 import { ScriptFormatType, ScriptSpeechTone, ShortsSafetyCheck } from '../types';
+
+export interface FallbackFigureContext {
+  title?: string;
+  buzzSummary?: string;
+  controversyOrIssue?: string;
+  suggestedAngle?: string;
+  hookLine?: string;
+}
+
+function cleanCtxSnippet(text?: string, maxLen = 82): string {
+  const s = String(text || '').replace(/\s+/g, ' ').trim();
+  if (!s) return '';
+  if (s.length <= maxLen) return s.replace(/[.!?]+$/, '');
+  return s.slice(0, maxLen).replace(/\s+\S*$/, '').replace(/[.!?]+$/, '');
+}
 
 function extractTwoFactNumbersFromScript(scriptText: string): string[] {
   const matches = scriptText.match(/\d+(?:,\d{3})*(?:\.\d+)?\s*(?:년|개월|일|시간|원|만\s*원|억\s*원|조\s*원|억|만|배|%|개|명|위|차|번|초)?/g) || [];
@@ -17,10 +33,16 @@ export function generateClientFallbackScript(
   targetPersona: string = '4060_emotional',
   customKeyword: string = '',
   scriptFormat: ScriptFormatType = 'overcoming_story',
-  speechTone: ScriptSpeechTone = 'friendly_story'
+  speechTone: ScriptSpeechTone = 'friendly_story',
+  figureContext?: FallbackFigureContext
 ) {
   const kw = customKeyword ? customKeyword.trim() : '';
   const isJensen = figureName.includes('젠슨') || figureName.includes('Jensen') || figureName.includes('엔비디아');
+  const ctxHook = cleanCtxSnippet(figureContext?.hookLine, 56);
+  const ctxTitle = cleanCtxSnippet(figureContext?.title, 62);
+  const ctxBuzz = cleanCtxSnippet(figureContext?.buzzSummary, 88);
+  const ctxIssue = cleanCtxSnippet(figureContext?.controversyOrIssue, 84);
+  const ctxAngle = cleanCtxSnippet(figureContext?.suggestedAngle, 80);
 
   let fallback60Scenes: any[] = [];
   let fallbackHooks: any[] = [];
@@ -222,137 +244,66 @@ export function generateClientFallbackScript(
     ];
   }
 
-  const toBanmalNounEnding = (text: string): string => {
-    let out = text
-      .replace(/했습니다/g, '했음')
-      .replace(/였습니다/g, '였음')
-      .replace(/됐습니다/g, '됐음')
-      .replace(/되었습니다/g, '됐음')
-      .replace(/있습니다/g, '있음')
-      .replace(/없습니다/g, '없음')
-      .replace(/겠습니다/g, '겠음')
-      .replace(/었습니다/g, '었음')
-      .replace(/았습니다/g, '았음')
-      .replace(/졌습니다/g, '졌음')
-      .replace(/났습니다/g, '났음')
-      .replace(/왔습니다/g, '왔음')
-      .replace(/갔습니다/g, '갔음')
-      .replace(/입니다/g, '임')
-      .replace(/아닙니다/g, '아님')
-      .replace(/됩니다/g, '됨')
-      .replace(/합니다/g, '함')
-      .replace(/바랍니다/g, '바람')
-      .replace(/지킵니다/g, '지킴')
-      .replace(/만듭니다/g, '만듦')
-      .replace(/([가-힣])니다(?=[.!?,"'\s]|$)/g, (_m, ch: string) => {
-        const code = ch.charCodeAt(0);
-        if (code >= 0xac00 && code <= 0xd7a3) {
-          const offset = code - 0xac00;
-          if (offset % 28 === 17) {
-            // Final consonant ㅂ -> ㅁ
-            return `${String.fromCharCode(code - 1)}`;
-          }
-        }
-        return `${ch}음`;
-      })
-      .replace(/([가-힣])습니다(?=[.!?,"'\s]|$)/g, '$1음')
-      .replace(/했대요/g, '했음')
-      .replace(/였대요/g, '였음')
-      .replace(/있대요/g, '있음')
-      .replace(/없대요/g, '없음')
-      .replace(/됐대요/g, '됐음')
-      .replace(/졌대요/g, '졌음')
-      .replace(/본대요/g, '봄')
-      .replace(/([가-힣])(었|았|였|졌)어요(?=[.!?,"'\s]|$)/g, '$1$2음')
-      .replace(/아십니까\?/g, '알고 있음?')
-      .replace(/믿어지시나요\?/g, '믿어짐?')
-      .replace(/얻으셨습니까\?/g, '얻었음?')
-      .replace(/있으셨나요\?/g, '있었음?')
-      .replace(/깊으셨나요\?/g, '깊었음?')
-      .replace(/했을까요\?/g, '했을까?')
-      .replace(/됐을까요\?/g, '됐을까?')
-      .replace(/있을까요\?/g, '있을까?')
-      .replace(/일까요\?/g, '일까?')
-      .replace(/무엇이었을까요\?/g, '뭐였을까?')
-      .replace(/보세요\./g, '보길.')
-      .replace(/내리세요\./g, '내리길.')
-      .replace(/시작하세요\./g, '시작하길.')
-      .replace(/이뤄집니다\./g, '이뤄짐.');
-    return out;
-  };
-
-  const applySpeechTone = (text: string): string => {
-    if (speechTone === 'friendly_story') {
-      return text
-        .replace(/했습니다/g, '했대요')
-        .replace(/였습니다/g, '였대요')
-        .replace(/되었습니다/g, '됐대요')
-        .replace(/됐습니다/g, '됐대요')
-        .replace(/밝혀졌습니다/g, '밝혀졌대요')
-        .replace(/알려졌습니다/g, '알려졌대요')
-        .replace(/있습니다/g, '있어요')
-        .replace(/없습니다/g, '없어요')
-        .replace(/입니다/g, '이래요')
-        .replace(/아닙니다/g, '아니래요')
-        .replace(/됩니다/g, '된대요')
-        .replace(/합니다/g, '한대요')
-        .replace(/바랍니다/g, '바라요')
-        .replace(/아십니까\?/g, '믿어지시나요?')
-        .replace(/얻으셨습니까\?/g, '얻으셨나요?');
+  const rawSliced = (targetDuration === 45 ? fallback60Scenes.slice(0, 9) : fallback60Scenes).map((s, idx) => {
+    let narration = s.narration;
+    if (!isJensen && idx === 0 && ctxHook) {
+      narration = ctxHook;
+    } else if (!isJensen && idx === 1 && ctxBuzz) {
+      narration = `${ctxBuzz}.`;
+    } else if (!isJensen && idx === 3 && ctxIssue) {
+      narration = `${ctxIssue}.`;
+    } else if (!isJensen && idx === 7 && ctxAngle) {
+      narration = `${ctxAngle}.`;
     }
-    if (speechTone === 'trendy_shorts') {
-      return toBanmalNounEnding(text);
-    }
-    return text
-      .replace(/했대요/g, '했습니다')
-      .replace(/였대요/g, '였습니다')
-      .replace(/됐대요/g, '되었습니다')
-      .replace(/있대요/g, '있습니다')
-      .replace(/믿어지시나요\?/g, '아십니까?');
-  };
+    return {
+      ...s,
+      narration,
+      uploadedImageUrl: getSceneFallbackImage(figureName, 'entertainment', idx),
+    };
+  });
 
-  const rawSliced = targetDuration === 45 ? fallback60Scenes.slice(0, 9) : fallback60Scenes;
-  const hooksToReturn = fallbackHooks.map((h) => ({
-    ...h,
-    text: applySpeechTone(h.text),
-  }));
-  const scenesToReturn = rawSliced.map((s, idx) => ({
-    ...s,
-    narration: applySpeechTone(s.narration),
-    uploadedImageUrl: getSceneFallbackImage(figureName, 'entertainment', idx),
-  }));
-  const fullScriptToReturn = scenesToReturn.map((s) => s.narration).join('\n\n');
+  const tonedPayload = applyToneToShortsPayload(
+    {
+      hooks: fallbackHooks.map((h, i) =>
+        !isJensen && i === 0 && (ctxHook || ctxTitle)
+          ? { ...h, text: ctxHook || ctxTitle }
+          : h
+      ),
+      titles: fallbackTitles,
+      hashtags: ['#shorts', `#${figureName.replace(/\s+/g, '')}`, '#기업인스토리'],
+      cleanSemanticTags: [`#${figureName.replace(/\s+/g, '')}`, '#기업인스토리', '#성공미담'],
+      firstTwoLinesSeo: `${figureName}의 긍정적 리더십과 위기 극복 미담 스토리.`,
+      timestamps: [
+        { time: '00:00', label: '강렬한 후킹' },
+        { time: '00:15', label: '의외의 배경과 위기' },
+        { time: '00:40', label: '통 큰 결단과 성취' },
+        { time: '00:55', label: '존경과 여운 엔딩' }
+      ],
+      commentBaits: {
+        debateQuestion: `${figureName} 님의 리더십 중 가장 인상 깊었던 순간은 무엇인가요?`,
+        optionA: 'A. 적자나 위기에도 원칙을 지킨 통 큰 결단',
+        optionB: 'B. 격의 없이 다가가는 소탈하고 따뜻한 인간미',
+        pinnedCommentDraft: `📌 [댓글 소통] ${figureName} 님의 이야기 중 가장 멋졌던 포인트를 댓글로 남겨주세요! 👇`
+      },
+      semanticKeywords: [figureName, '기업인 미담', '통 큰 결단', '소탈한 매력', '리더십'],
+      shareTrigger: `오늘 하루 영감과 따뜻한 울림이 필요한 지인에게 이 영상을 공유해보세요! 🚀`,
+      description: `${figureName}의 긍정적인 미담과 통 큰 결단을 5단계 쇼츠 서사로 재구성한 브랜드 세이프 콘텐츠입니다.`,
+      pinnedComment: `📌 [댓글 소통] ${figureName} 님의 이야기 중 가장 멋졌던 포인트를 댓글로 남겨주세요! 👇`,
+      fullScript: rawSliced.map((s) => s.narration).join('\n\n'),
+      scenes: rawSliced,
+      copyrightDefenseNote: '본 영상은 공인된 언론 보도와 긍정적 미담·리더십 팩트를 기반으로 창작한 100% 브랜드 세이프 2차 저작물입니다.'
+    },
+    speechTone
+  );
+
   const safetyCheck: ShortsSafetyCheck = {
-    numbersToVerify: extractTwoFactNumbersFromScript(fullScriptToReturn),
+    numbersToVerify: extractTwoFactNumbersFromScript(tonedPayload.fullScript),
     positivePrFit: '적합 — 비난·루머 없이 미담·인간미·통 큰 결단만 다룬 홍보팀 친화 서사',
     isPrSafe: true,
   };
 
   return {
-    hooks: hooksToReturn,
-    titles: fallbackTitles,
-    hashtags: ['#shorts', `#${figureName}`, '#기업인스토리'],
-    cleanSemanticTags: [`#${figureName}`, '#기업인스토리', '#성공미담'],
-    firstTwoLinesSeo: `${figureName}의 긍정적 리더십과 위기 극복 미담 스토리.`,
-    timestamps: [
-      { time: '00:00', label: '강렬한 후킹' },
-      { time: '00:15', label: '의외의 배경과 위기' },
-      { time: '00:40', label: '통 큰 결단과 성취' },
-      { time: '00:55', label: '존경과 여운 엔딩' }
-    ],
-    commentBaits: {
-      debateQuestion: `${figureName} 님의 리더십 중 가장 인상 깊었던 순간은 무엇인가요?`,
-      optionA: 'A. 적자나 위기에도 원칙을 지킨 통 큰 결단',
-      optionB: 'B. 격의 없이 다가가는 소탈하고 따뜻한 인간미',
-      pinnedCommentDraft: `📌 [댓글 소통] ${figureName} 님의 이야기 중 가장 멋졌던 포인트를 댓글로 남겨주세요! 👇`
-    },
-    semanticKeywords: [figureName, '기업인 미담', '통 큰 결단', '소탈한 매력', '리더십'],
-    shareTrigger: `오늘 하루 영감과 따뜻한 울림이 필요한 지인에게 이 영상을 공유해보세요! 🚀`,
-    description: `${figureName}의 긍정적인 미담과 통 큰 결단을 5단계 쇼츠 서사로 재구성한 브랜드 세이프 콘텐츠입니다.`,
-    pinnedComment: `📌 [댓글 소통] ${figureName} 님의 이야기 중 가장 멋졌던 포인트를 댓글로 남겨주세요! 👇`,
-    fullScript: fullScriptToReturn,
-    scenes: scenesToReturn,
+    ...tonedPayload,
     safetyCheck,
-    copyrightDefenseNote: '본 영상은 공인된 언론 보도와 긍정적 미담·리더십 팩트를 기반으로 창작한 100% 브랜드 세이프 2차 저작물입니다.'
   };
 }
