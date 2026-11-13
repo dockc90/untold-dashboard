@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Client-side AI & Media Services ported cleanly from ssamtool/sinsoo architecture.
 // All API requests run directly from the user's browser using user-supplied keys stored in localStorage.
-import type { CategoryType, SourceChannel, TimeFilter, TrendingFigure } from '../types';
+import type { CategoryType, SourceChannel, TimeFilter, TrendingFigure, YoutubeBreakoutMetric } from '../types';
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com';
 const YT_BASE = 'https://www.googleapis.com/youtube/v3';
@@ -1942,6 +1942,218 @@ export async function searchYoutubeVideos(opt: {
   }
 
   return items;
+}
+
+const LS_YT_BREAKOUT = 'autoshorts.yt.breakout.v1';
+const YT_BREAKOUT_TTL_MS = 6 * 60 * 60 * 1000;
+
+export function formatKoreanViewCount(n: number): string {
+  if (!n || Number.isNaN(n)) return '0';
+  if (n >= 100000000) return `${(n / 100000000).toFixed(1).replace(/\.0$/, '')}억`;
+  if (n >= 10000) return `${Math.round(n / 10000).toLocaleString()}만`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, '')}천`;
+  return n.toLocaleString();
+}
+
+function readYtBreakoutCache(): Record<string, { expiresAt: number; metric: YoutubeBreakoutMetric }> {
+  try {
+    const raw = localStorage.getItem(LS_YT_BREAKOUT);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeYtBreakoutCache(cache: Record<string, { expiresAt: number; metric: YoutubeBreakoutMetric }>) {
+  try {
+    const now = Date.now();
+    const pruned: Record<string, { expiresAt: number; metric: YoutubeBreakoutMetric }> = {};
+    Object.entries(cache).forEach(([k, v]) => {
+      if (v && v.expiresAt > now) pruned[k] = v;
+    });
+    localStorage.setItem(LS_YT_BREAKOUT, JSON.stringify(pruned));
+  } catch {
+    // ignore storage quota
+  }
+}
+
+export async function measureYoutubeBreakoutForFigure(
+  figureName: string,
+  opt?: { timeframe?: TimeFilter; shortsOnly?: boolean; bypassCache?: boolean }
+): Promise<YoutubeBreakoutMetric | null> {
+  const cleanName = String(figureName || '').replace(/\([^)]*\)/g, '').trim();
+  if (!cleanName) return null;
+  const timeframe = opt?.timeframe || '24h';
+  const shortsOnly = opt?.shortsOnly ?? false;
+  const cacheKey = `${cleanName.toLowerCase()}:${timeframe}:${shortsOnly ? 's' : 'a'}`;
+
+  if (!opt?.bypassCache) {
+    const cache = readYtBreakoutCache();
+    const hit = cache[cacheKey];
+    if (hit && hit.expiresAt > Date.now() && hit.metric) {
+      return hit.metric;
+    }
+  }
+
+  const daysBack = timeframe === '24h' ? 3 : timeframe === '48h' ? 5 : 10;
+  const publishedAfter = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000).toISOString();
+
+  const searchRes = await yFetch('/search', {
+    part: 'snippet',
+    type: 'video',
+    q: cleanName,
+    maxResults: 8,
+    order: 'viewCount',
+    publishedAfter,
+    regionCode: 'KR',
+    relevanceLanguage: 'ko',
+    safeSearch: 'none',
+    videoDuration: shortsOnly ? 'short' : undefined,
+  });
+
+  const videoIds = Array.from(
+    new Set((searchRes.items || []).map((it: any) => it?.id?.videoId).filter(Boolean))
+  ) as string[];
+  if (videoIds.length === 0) return null;
+
+  const videosRes = await yFetch('/videos', {
+    part: 'snippet,statistics,contentDetails',
+    id: videoIds.join(','),
+  });
+
+  const videos = (videosRes.items || []).filter((v: any) => {
+    if (!v?.id) return false;
+    if (!shortsOnly) return true;
+    const dur = parseIsoDuration(v.contentDetails?.duration);
+    return dur > 0 && dur < 240;
+  });
+  if (videos.length === 0) return null;
+
+  const channelIds = Array.from(
+    new Set(videos.map((v: any) => v.snippet?.channelId).filter(Boolean))
+  ) as string[];
+
+  const subByChannel: Record<string, { subs: number; title: string }> = {};
+  if (channelIds.length > 0) {
+    try {
+      const chRes = await yFetch('/channels', {
+        part: 'snippet,statistics',
+        id: channelIds.join(','),
+      });
+      (chRes.items || []).forEach((c: any) => {
+        if (!c?.id) return;
+        const hidden = Boolean(c.statistics?.hiddenSubscriberCount);
+        const subs = hidden ? 0 : +c.statistics?.subscriberCount || 0;
+        subByChannel[c.id] = {
+          subs,
+          title: c.snippet?.title || '',
+        };
+      });
+    } catch {
+      // ignore optional channel stats error
+    }
+  }
+
+  let totalViews = 0;
+  let maxViews = 0;
+  let bestSubRatio = 0;
+  let ratioSum = 0;
+  let ratioCount = 0;
+  let engageSum = 0;
+  let bestVideo: any = videos[0];
+
+  videos.forEach((v: any) => {
+    const views = +v.statistics?.viewCount || 0;
+    const likes = +v.statistics?.likeCount || 0;
+    const comments = +v.statistics?.commentCount || 0;
+    const chId = v.snippet?.channelId || '';
+    const subs = subByChannel[chId]?.subs || 0;
+    // Floor denominator at 1,000 subscribers so micro-test channels don't skew ratios unrealistically
+    const ratio = subs > 0 ? views / Math.max(1000, subs) : 0;
+
+    totalViews += views;
+    if (views > maxViews) maxViews = views;
+    engageSum += ((likes + comments) / Math.max(1, views)) * 100;
+
+    if (ratio > 0) {
+      ratioSum += ratio;
+      ratioCount += 1;
+      if (ratio > bestSubRatio) {
+        bestSubRatio = ratio;
+        bestVideo = v;
+      }
+    } else if (!bestSubRatio && views >= maxViews) {
+      bestVideo = v;
+    }
+  });
+
+  const bestChId = bestVideo?.snippet?.channelId || '';
+  const bestCh = subByChannel[bestChId];
+
+  const metric: YoutubeBreakoutMetric = {
+    totalViews,
+    maxViews,
+    bestSubRatio: Number(bestSubRatio.toFixed(1)),
+    avgSubRatio: Number((ratioCount > 0 ? ratioSum / ratioCount : 0).toFixed(1)),
+    engagementRate: Number((engageSum / Math.max(1, videos.length)).toFixed(2)),
+    videoCount: videos.length,
+    bestVideoTitle: bestVideo?.snippet?.title || undefined,
+    bestVideoId: bestVideo?.id || undefined,
+    bestChannelTitle: bestCh?.title || bestVideo?.snippet?.channelTitle || undefined,
+    bestChannelSubs: bestCh?.subs || undefined,
+    shortsOnly,
+    measuredAt: new Date().toISOString(),
+  };
+
+  const cache = readYtBreakoutCache();
+  cache[cacheKey] = { expiresAt: Date.now() + YT_BREAKOUT_TTL_MS, metric };
+  writeYtBreakoutCache(cache);
+  return metric;
+}
+
+export async function measureYoutubeBreakoutForFigures(
+  figures: TrendingFigure[],
+  opt?: { timeframe?: TimeFilter; shortsOnly?: boolean; maxFigures?: number }
+): Promise<Map<string, YoutubeBreakoutMetric>> {
+  const key = getActiveYoutubeKey();
+  if (!key) {
+    throw new SinsooApiError(
+      'youtube',
+      401,
+      'YouTube Data API v3 키가 필요합니다. 상단 [API 설정]에서 키를 입력하면 실측 랭킹이 계산됩니다.'
+    );
+  }
+
+  const targetSlice = figures.slice(0, opt?.maxFigures || 8);
+  const out = new Map<string, YoutubeBreakoutMetric>();
+  const concurrency = 3;
+
+  for (let i = 0; i < targetSlice.length; i += concurrency) {
+    const batch = targetSlice.slice(i, i + concurrency);
+    const settled = await Promise.allSettled(
+      batch.map(async (fig) => {
+        const metric = await measureYoutubeBreakoutForFigure(fig.name, {
+          timeframe: opt?.timeframe || fig.timeframe,
+          shortsOnly: opt?.shortsOnly,
+        });
+        return { id: fig.id, metric };
+      })
+    );
+    for (const res of settled) {
+      if (res.status === 'fulfilled' && res.value.metric) {
+        out.set(res.value.id, res.value.metric);
+      } else if (res.status === 'rejected') {
+        const err = res.reason;
+        if (err instanceof SinsooApiError && (err.status === 401 || err.status === 403)) {
+          throw err;
+        }
+      }
+    }
+  }
+
+  return out;
 }
 
 /* ───────── IndexedDB Asset Vault (ported from store.js) ───────── */

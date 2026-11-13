@@ -18,6 +18,7 @@ const SavedProjectsView = lazy(() => import('./components/SavedProjectsView').th
 const VideoRepurposeStudio = lazy(() => import('./components/VideoRepurposeStudio').then(m => ({ default: m.VideoRepurposeStudio })));
 const MediaCollectorModal = lazy(() => import('./components/MediaCollectorModal').then(m => ({ default: m.MediaCollectorModal })));
 const ApiSettingsModal = lazy(() => import('./components/ApiSettingsModal').then(m => ({ default: m.ApiSettingsModal })));
+const NewsletterModal = lazy(() => import('./components/NewsletterModal').then(m => ({ default: m.NewsletterModal })));
 
 const StudioLoadingFallback: React.FC<{ label?: string }> = ({ label = '스튜디오 로딩 중...' }) => (
   <div className="flex-1 flex flex-col items-center justify-center p-8 min-h-[360px] text-slate-500 space-y-3 animate-fade-in">
@@ -27,7 +28,7 @@ const StudioLoadingFallback: React.FC<{ label?: string }> = ({ label = '스튜�
 );
 import { INITIAL_TRENDING_FIGURES } from './data/initialTrends';
 import { SAMPLE_PROJECT } from './data/sampleProject';
-import { TrendingFigure, ShortsProject, CategoryType, TimeFilter, TargetPersona, VideoMoodTone, SourceChannel, SceneItem } from './types';
+import { TrendingFigure, ShortsProject, CategoryType, TimeFilter, TargetPersona, VideoMoodTone, SourceChannel, SceneItem, YoutubeBreakoutMetric } from './types';
 import { AlertCircle, X, ArrowLeft, Flame, Sparkles } from 'lucide-react';
 import { 
   fetchProjectsFromSupabase, 
@@ -45,7 +46,7 @@ import {
 } from './utils/indexedDb';
 import { generateClientFallbackScript } from './utils/fallbackGenerator';
 import { getSceneFallbackImage } from './utils/sceneImages';
-import { analyzeLiveFigure, fetchLiveTrendingFigures, loadSinsooSettings } from './services/sinsooApi';
+import { analyzeLiveFigure, fetchLiveTrendingFigures, formatKoreanViewCount, loadSinsooSettings } from './services/sinsooApi';
 
 const LIVE_TRENDS_CACHE_KEY = 'autoshorts_live_trends_v2';
 const LIVE_TRENDS_TTL_MS = 10 * 60 * 1000;
@@ -138,6 +139,7 @@ export default function App() {
   // Sinsoo Studio features: Repurpose Track A, API Settings, Media Collector
   const [studioMode, setStudioMode] = useState<'trends_new' | 'repurpose'>('trends_new');
   const [isApiSettingsOpen, setIsApiSettingsOpen] = useState(false);
+  const [isNewsletterOpen, setIsNewsletterOpen] = useState(false);
   const [isMediaCollectorOpen, setIsMediaCollectorOpen] = useState(false);
   const [mediaCollectorQuery, setMediaCollectorQuery] = useState('');
   const [incomingRepurposeFile, setIncomingRepurposeFile] = useState<File | null>(null);
@@ -866,6 +868,24 @@ export default function App() {
     }
   };
 
+  // Apply real YouTube View-to-Subscriber breakout metrics onto figures
+  const handleApplyYoutubeBreakouts = (metricsById: Map<string, YoutubeBreakoutMetric>) => {
+    setFigures((prev) =>
+      prev.map((fig) => {
+        const m = metricsById.get(fig.id);
+        if (!m) return fig;
+        return {
+          ...fig,
+          youtubeBreakout: m,
+          channelMetrics: {
+            ...(fig.channelMetrics || {}),
+            youtubeViews: `유튜브 최고 ${formatKoreanViewCount(m.maxViews)}뷰 (구독자 ${m.bestSubRatio}배)`,
+          },
+        };
+      })
+    );
+  };
+
   // Global Reset to Home View (Step 1 Trending Radar)
   const handleResetToHome = () => {
     setCurrentTab('studio');
@@ -1178,6 +1198,9 @@ export default function App() {
                     }}
                     onRefreshTrends={handleRefreshTrends}
                     onAnalyzeCustomFigure={handleAnalyzeCustomFigure}
+                    onApplyYoutubeBreakouts={handleApplyYoutubeBreakouts}
+                    onOpenApiSettings={() => setIsApiSettingsOpen(true)}
+                    onOpenNewsletter={() => setIsNewsletterOpen(true)}
                     isLoading={isLoadingTrends}
                     isLiveData={isLiveTrendsLoaded}
                     lastLiveSyncedAt={lastLiveSyncedAt}
@@ -1395,6 +1418,72 @@ export default function App() {
               if (!isLiveTrendsLoaded && loadSinsooSettings().geminiKey?.trim()) {
                 handleRefreshTrends('24h', 'all', 'all').catch(() => {});
               }
+            }}
+          />
+        </Suspense>
+      )}
+      {isNewsletterOpen && (
+        <Suspense fallback={null}>
+          <NewsletterModal
+            isOpen={isNewsletterOpen}
+            onClose={() => setIsNewsletterOpen(false)}
+            onSelectForShorts={(fig) => {
+              setFigures((prev) => [fig, ...prev.filter((p) => normalizeFigureKey(p.name) !== normalizeFigureKey(fig.name))]);
+              setSelectedFigure(fig);
+              const draftProj: ShortsProject = {
+                id: `proj-${Date.now()}`,
+                figureName: fig.name,
+                category: fig.category,
+                targetPersona: '4060_emotional',
+                targetDuration: 60,
+                videoTone: 'Cinematic',
+                hooks: [
+                  {
+                    type: 'question',
+                    label: fig.hookLine ? '첫 3초 훅 추천' : '질문형 후킹',
+                    text: fig.hookLine || `여러분은 ${fig.name} 님이 지금 왜 주목받는지 아십니까?`,
+                  },
+                ],
+                selectedHookIndex: 0,
+                titles: [`${fig.name} 오늘 화제 핵심 정리 #shorts`],
+                hashtags: fig.tags.map((t) => `#${t}`),
+                description: fig.buzzSummary,
+                pinnedComment: `${fig.name} 소식에 대해 어떻게 생각하시나요?`,
+                fullScript: `${fig.hookLine || fig.title}\n\n${fig.buzzSummary}\n\n${fig.controversyOrIssue}`,
+                scenes: [
+                  {
+                    sceneNumber: 1,
+                    timeRange: '00:00 - 00:05',
+                    narration: fig.hookLine || fig.title,
+                    visualGuide: `${fig.name} 클로즈업`,
+                    imageSearchKeyword: `${fig.name} 고화질`,
+                    visualEffect: '슬로우 줌인',
+                    uploadedImageUrl: getSceneFallbackImage(fig.name, fig.category, 0),
+                    motionEffect: 'zoom_in',
+                  },
+                ],
+                copyrightDefenseNote: '2차 저작물 공정 이용 가이드 준수',
+                charCount: 300,
+                estimatedSeconds: 45,
+                createdAt: new Date().toISOString(),
+                isSaved: false,
+                selectedVoiceId: currentProject?.selectedVoiceId || 'voice-1',
+                voiceSpeedMultiplier: currentProject?.voiceSpeedMultiplier || 1.1,
+                photoAspectRatio: currentProject?.photoAspectRatio || '1:1',
+                backdropStyle: currentProject?.backdropStyle || 'blur',
+              };
+              setCurrentProject(draftProj);
+              setRenderingProject(draftProj);
+              setCurrentTab('studio');
+              setStudioStep('editor');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onSelectForCarousel={(fig) => {
+              setFigures((prev) => [fig, ...prev.filter((p) => normalizeFigureKey(p.name) !== normalizeFigureKey(fig.name))]);
+              setSelectedFigure(fig);
+              setViralTopic(fig.name);
+              setCurrentTab('carousel');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
           />
         </Suspense>

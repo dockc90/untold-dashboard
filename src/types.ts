@@ -19,6 +19,21 @@ export interface ChannelMetrics {
   instaReels?: string;     // e.g. "릴스 챌린지 15만 개"
 }
 
+export interface YoutubeBreakoutMetric {
+  totalViews: number;
+  maxViews: number;
+  bestSubRatio: number;    // 최고 구독자 대비 조회수 배율 (예: 14.5x)
+  avgSubRatio: number;     // 평균 구독자 대비 조회수 배율
+  engagementRate: number;  // (좋아요+댓글)/조회수 %
+  videoCount: number;
+  bestVideoTitle?: string;
+  bestVideoId?: string;
+  bestChannelTitle?: string;
+  bestChannelSubs?: number;
+  shortsOnly: boolean;
+  measuredAt: string;
+}
+
 export interface ElevenLabsVoiceSettings {
   stability: number; // 0.0 ~ 1.0 (기본 0.5)
   similarityBoost: number; // 0.0 ~ 1.0 (기본 0.75)
@@ -79,6 +94,7 @@ export interface TrendingFigure {
   isHot?: boolean;
   primaryChannel?: 'naver' | 'youtube' | 'instagram' | 'multi';
   channelMetrics?: ChannelMetrics;
+  youtubeBreakout?: YoutubeBreakoutMetric;
 }
 
 export interface HookOption {

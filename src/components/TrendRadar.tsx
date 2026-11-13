@@ -15,9 +15,18 @@ import {
   Info,
   Film,
   Layers,
-  X
+  X,
+  Mail,
+  Copy,
+  Check,
+  ExternalLink
 } from 'lucide-react';
-import { TrendingFigure, CategoryType, TimeFilter, SourceChannel } from '../types';
+import { TrendingFigure, CategoryType, TimeFilter, SourceChannel, YoutubeBreakoutMetric } from '../types';
+import {
+  formatKoreanViewCount,
+  measureYoutubeBreakoutForFigures,
+  SinsooApiError,
+} from '../services/sinsooApi';
 import { 
   InstagramIcon, 
   InstagramBadge, 
@@ -34,6 +43,9 @@ interface TrendRadarProps {
   onSelectFigureForCarousel?: (figure: TrendingFigure) => void;
   onRefreshTrends: (timeframe: TimeFilter, category: CategoryType, channel?: SourceChannel) => Promise<void>;
   onAnalyzeCustomFigure: (figureName: string, category: CategoryType) => Promise<void>;
+  onApplyYoutubeBreakouts?: (metricsById: Map<string, YoutubeBreakoutMetric>) => void;
+  onOpenApiSettings?: () => void;
+  onOpenNewsletter?: () => void;
   isLoading: boolean;
   isLiveData?: boolean;
   lastLiveSyncedAt?: string | null;
@@ -135,6 +147,9 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
   onSelectFigureForCarousel,
   onRefreshTrends,
   onAnalyzeCustomFigure,
+  onApplyYoutubeBreakouts,
+  onOpenApiSettings,
+  onOpenNewsletter,
   isLoading,
   isLiveData = false,
   lastLiveSyncedAt = null,
@@ -150,6 +165,10 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
   const [showDbInfo, setShowDbInfo] = useState(false);
   const [refreshToast, setRefreshToast] = useState<string | null>(null);
   const [lastUpdatedTime, setLastUpdatedTime] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<'virality' | 'subRatio'>('virality');
+  const [shortsOnlyYt, setShortsOnlyYt] = useState(true);
+  const [isMeasuringYt, setIsMeasuringYt] = useState(false);
+  const [copiedTagKey, setCopiedTagKey] = useState<string | null>(null);
   const fetchedSlicesRef = useRef<Map<string, number>>(new Map());
 
   const ensureSliceFresh = (nextTf: TimeFilter, nextCat: CategoryType, nextChan: SourceChannel) => {
@@ -270,6 +289,19 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
           </div>
 
           <div className="flex items-center space-x-1.5 sm:space-x-2 shrink-0">
+            {onOpenNewsletter && (
+              <button
+                type="button"
+                onClick={onOpenNewsletter}
+                className="flex items-center space-x-1 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200/80 rounded-xl text-xs font-semibold transition shadow-2xs cursor-pointer"
+                title="매일 오전 7시(KST) 모닝 인물 뉴스레터 구독 및 오늘 브리핑 보기"
+              >
+                <Mail className="w-3.5 h-3.5 text-indigo-600" />
+                <span className="hidden sm:inline">07:00 뉴스레터</span>
+                <span className="sm:hidden">07시</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={handleRefreshClick}
@@ -428,8 +460,8 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
 
       {/* Figures Scroll List / Grid */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-5 bg-[#FAF9F7]/50 space-y-3.5">
-        {/* Real-time Status & 1-Click Refresh Bar */}
-        <div className="flex items-center justify-between px-1 text-[11px] font-semibold text-[#787774]">
+        {/* Real-time Status & YouTube Breakout Scouter Bar */}
+        <div className="flex items-center justify-between flex-wrap gap-2 px-1 text-[11px] font-semibold text-[#787774]">
           <div className="flex items-center gap-1.5 flex-wrap">
             <Flame className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
             <span className="text-[#37352F] font-bold">실시간 화제 인물 랭킹 ({filteredFigures.length}명)</span>
@@ -447,16 +479,94 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
               </span>
             )}
           </div>
-          <button
-            type="button"
-            onClick={handleRefreshClick}
-            disabled={isLoading}
-            className="text-[11px] text-[#37352F] hover:text-black font-semibold flex items-center gap-1 cursor-pointer transition disabled:opacity-50"
-            title="새로고침 버튼을 눌러 최신 화제 인물로 다시 갱신"
-          >
-            <RotateCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
-            <span>{isLoading ? '갱신 중...' : '새로고침'}</span>
-          </button>
+
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="inline-flex items-center bg-[#F1F1EF] p-0.5 rounded-lg border border-[#E3E2DE] text-[10px]">
+              <button
+                type="button"
+                onClick={() => setSortBy('virality')}
+                className={`px-2 py-0.5 rounded-md cursor-pointer transition ${
+                  sortBy === 'virality' ? 'bg-white text-[#191919] font-bold shadow-2xs' : 'text-[#787774]'
+                }`}
+              >
+                화제성 순
+              </button>
+              <button
+                type="button"
+                onClick={() => setSortBy('subRatio')}
+                className={`px-2 py-0.5 rounded-md cursor-pointer transition ${
+                  sortBy === 'subRatio' ? 'bg-white text-red-700 font-bold shadow-2xs' : 'text-[#787774]'
+                }`}
+                title="구독자 대비 조회수 폭발률(소규모 채널도 터지는 인물) 우선 정렬"
+              >
+                📈 구독자 대비
+              </button>
+            </div>
+
+            <label
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white border border-[#E3E2DE] text-[10px] font-medium text-[#37352F] cursor-pointer select-none"
+              title="유튜브 실측 시 4분 미만 쇼츠 영상만 집계"
+            >
+              <input
+                type="checkbox"
+                checked={shortsOnlyYt}
+                onChange={(e) => setShortsOnlyYt(e.target.checked)}
+                className="w-3 h-3 accent-red-600 cursor-pointer"
+              />
+              <span>쇼츠(4분↓)</span>
+            </label>
+
+            <button
+              type="button"
+              onClick={async () => {
+                if (isMeasuringYt || filteredFigures.length === 0) return;
+                setIsMeasuringYt(true);
+                setRefreshToast('📺 YouTube Data API v3로 상위 8명의 구독자 대비 조회수 폭발률을 실측 중...');
+                try {
+                  const map = await measureYoutubeBreakoutForFigures(filteredFigures, {
+                    timeframe: timeFilter,
+                    shortsOnly: shortsOnlyYt,
+                    maxFigures: 8,
+                  });
+                  if (map.size > 0) {
+                    onApplyYoutubeBreakouts?.(map);
+                    setSortBy('subRatio');
+                    setRefreshToast(`📈 ${map.size}명 유튜브 구독자 대비 폭발률 실측 완료! (6시간 캐시)`);
+                  } else {
+                    setRefreshToast('⚠️ 최근 조건에 맞는 유튜브 영상 데이터를 찾지 못했습니다.');
+                  }
+                  setTimeout(() => setRefreshToast(null), 4500);
+                } catch (err: any) {
+                  if (err instanceof SinsooApiError && err.status === 401) {
+                    setRefreshToast('🔑 YouTube Data API 키가 필요합니다. [API 설정]에서 키를 입력해 주세요.');
+                    onOpenApiSettings?.();
+                  } else {
+                    setRefreshToast(`⚠️ ${err?.message || 'YouTube 실측 조회 실패'}`);
+                  }
+                  setTimeout(() => setRefreshToast(null), 4500);
+                } finally {
+                  setIsMeasuringYt(false);
+                }
+              }}
+              disabled={isMeasuringYt || filteredFigures.length === 0}
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200/80 text-[10px] font-bold cursor-pointer transition disabled:opacity-50"
+              title="YouTube Data API v3로 구독자 대비 조회수 실측 랭킹 계산"
+            >
+              <YouTubeIcon className="w-3 h-3 shrink-0" />
+              <span>{isMeasuringYt ? '실측 중...' : 'YouTube 실측'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleRefreshClick}
+              disabled={isLoading}
+              className="text-[11px] text-[#37352F] hover:text-black font-semibold flex items-center gap-1 cursor-pointer transition disabled:opacity-50"
+              title="새로고침 버튼을 눌러 최신 화제 인물로 다시 갱신"
+            >
+              <RotateCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
+              <span>{isLoading ? '갱신 중...' : '새로고침'}</span>
+            </button>
+          </div>
         </div>
 
         {filteredFigures.length === 0 ? (
@@ -474,6 +584,11 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
             {[...filteredFigures]
               .sort((a, b) => {
+                if (sortBy === 'subRatio') {
+                  const ra = a.youtubeBreakout?.bestSubRatio || 0;
+                  const rb = b.youtubeBreakout?.bestSubRatio || 0;
+                  if (rb !== ra) return rb - ra;
+                }
                 if (Boolean(b.isLive) !== Boolean(a.isLive)) {
                   return b.isLive ? 1 : -1;
                 }
@@ -573,6 +688,40 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
                         </div>
                       )}
 
+                      {/* Real YouTube View-to-Subscriber Breakout Box (if measured via YT API) */}
+                      {fig.youtubeBreakout && (
+                        <div className="mb-2.5 px-2.5 py-2 rounded-xl bg-red-50/75 border border-red-200/80 text-[10px] text-red-900 space-y-1">
+                          <div className="flex items-center justify-between gap-1.5 flex-wrap font-bold">
+                            <span className="flex items-center gap-1">
+                              <YouTubeIcon className="w-3 h-3 shrink-0" />
+                              구독자 대비 {fig.youtubeBreakout.bestSubRatio}배 폭발
+                            </span>
+                            <span className="text-red-700 font-semibold">
+                              최고 {formatKoreanViewCount(fig.youtubeBreakout.maxViews)}뷰 · 총 {formatKoreanViewCount(fig.youtubeBreakout.totalViews)}뷰
+                            </span>
+                          </div>
+                          {fig.youtubeBreakout.bestVideoTitle && (
+                            <div className="flex items-center justify-between gap-1 text-[10px] text-red-800/85">
+                              <span className="truncate">
+                                참여율 {fig.youtubeBreakout.engagementRate}% · {fig.youtubeBreakout.bestChannelTitle || ''}
+                              </span>
+                              {fig.youtubeBreakout.bestVideoId && (
+                                <a
+                                  href={`https://www.youtube.com/watch?v=${fig.youtubeBreakout.bestVideoId}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="inline-flex items-center gap-0.5 font-bold text-red-700 hover:underline shrink-0"
+                                >
+                                  <span>영상</span>
+                                  <ExternalLink className="w-2.5 h-2.5" />
+                                </a>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {/* Buzz Summary (왜 지금 · 핵심 팩트) */}
                       <p className="text-xs text-[#5C5A54] line-clamp-3 mb-2.5 leading-relaxed font-normal">
                         {fig.buzzSummary}
@@ -602,14 +751,64 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
                         )}
                       </div>
 
-                      {/* Tags */}
-                      <div className="flex items-center space-x-1 overflow-hidden mb-3">
+                      {/* Click-to-Copy Tags */}
+                      <div className="flex items-center flex-wrap gap-1 mb-3">
                         <span className="text-[10px] font-semibold text-[#37352F] bg-[#F1F1EF] px-1.5 py-0.5 rounded border border-[#E3E2DE] shrink-0">
                           태그
                         </span>
-                        <span className="text-[10px] text-[#9B9A97] truncate font-medium">
-                          {fig.tags.slice(0, 4).map((t) => `#${t}`).join(' ')}
-                        </span>
+                        {fig.tags.slice(0, 4).map((t) => {
+                          const key = `${fig.id}-${t}`;
+                          const isCopied = copiedTagKey === key;
+                          return (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigator.clipboard?.writeText(`#${t}`).catch(() => {});
+                                setCopiedTagKey(key);
+                                setTimeout(() => setCopiedTagKey((prev) => (prev === key ? null : prev)), 1300);
+                              }}
+                              className={`text-[10px] px-1.5 py-0.5 rounded border transition cursor-pointer inline-flex items-center gap-0.5 font-medium ${
+                                isCopied
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300 font-bold'
+                                  : 'bg-[#FAF9F7] hover:bg-[#23272A] text-[#5C5A54] hover:text-white border-[#E3E2DE]'
+                              }`}
+                              title="클릭해서 해시태그 복사"
+                            >
+                              {isCopied ? (
+                                <>
+                                  <Check className="w-2.5 h-2.5" />
+                                  <span>복사됨</span>
+                                </>
+                              ) : (
+                                <span>#{t}</span>
+                              )}
+                            </button>
+                          );
+                        })}
+                        {fig.tags.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const all = fig.tags.map((t) => `#${t}`).join(' ');
+                              navigator.clipboard?.writeText(all).catch(() => {});
+                              const allKey = `${fig.id}-all`;
+                              setCopiedTagKey(allKey);
+                              setTimeout(() => setCopiedTagKey((prev) => (prev === allKey ? null : prev)), 1300);
+                            }}
+                            className="ml-auto text-[10px] px-1.5 py-0.5 rounded text-[#787774] hover:text-[#191919] hover:bg-[#F1F1EF] inline-flex items-center gap-0.5 cursor-pointer transition"
+                            title="태그 전체 복사"
+                          >
+                            {copiedTagKey === `${fig.id}-all` ? (
+                              <Check className="w-2.5 h-2.5 text-emerald-600" />
+                            ) : (
+                              <Copy className="w-2.5 h-2.5" />
+                            )}
+                            <span>{copiedTagKey === `${fig.id}-all` ? '완료' : '복사'}</span>
+                          </button>
+                        )}
                       </div>
                     </div>
 

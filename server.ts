@@ -7,6 +7,17 @@ import { fileURLToPath } from 'url';
 import { GoogleGenAI, Type } from '@google/genai';
 import { createClient } from '@supabase/supabase-js';
 import { collectLiveTrendSignals, buildSignalFallbackFigures } from './nextjs-project/lib/liveTrendsSignals.ts';
+import {
+  buildDailyMorningIssue,
+  getNewsletterStatus,
+  isValidEmail,
+  normalizeEmail,
+  renderNewsletterEmailText,
+  runDailyNewsletterCron,
+  sendNewsletterEmail,
+  subscribeNewsletter,
+  unsubscribeNewsletter,
+} from './nextjs-project/lib/newsletterService.ts';
 
 dotenv.config();
 
@@ -139,6 +150,79 @@ app.get('/api/trends/live-signals', async (req, res) => {
     return res.json(bundle);
   } catch (err: any) {
     return res.status(500).json({ error: err?.message || '실시간 신호 수집 실패', trendsKr: [], headlines: [], formattedBrief: '' });
+  }
+});
+
+// Endpoints: Daily 07:00 KST Newsletter Preview, Subscribe, Send-Test, Cron
+app.get('/api/newsletter/preview', async (req, res) => {
+  const unsub = req.query.unsubscribe ? String(req.query.unsubscribe) : '';
+  if (unsub) {
+    try {
+      const r = await unsubscribeNewsletter(unsub);
+      return res.send(`<html><body style="font-family:sans-serif;text-align:center;margin-top:60px;"><h2>구독 해지 완료</h2><p>${r.email}</p></body></html>`);
+    } catch (err: any) {
+      return res.status(400).json({ error: err?.message || '구독 해지 실패' });
+    }
+  }
+  try {
+    const forceRefresh = req.query.force === '1';
+    const [status, issue] = await Promise.all([getNewsletterStatus(), buildDailyMorningIssue({ forceRefresh })]);
+    return res.json({ status, issue, textBrief: renderNewsletterEmailText(issue) });
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message || '뉴스레터 미리보기 실패' });
+  }
+});
+
+app.post('/api/newsletter/subscribe', async (req, res) => {
+  try {
+    const result = await subscribeNewsletter(String(req.body?.email || ''), req.body?.name);
+    return res.json(result);
+  } catch (err: any) {
+    return res.status(400).json({ ok: false, error: err?.message || '구독 등록 실패' });
+  }
+});
+
+app.delete('/api/newsletter/subscribe', async (req, res) => {
+  try {
+    const email = String(req.body?.email || req.query.email || '');
+    const result = await unsubscribeNewsletter(email);
+    return res.json(result);
+  } catch (err: any) {
+    return res.status(400).json({ ok: false, error: err?.message || '구독 해지 실패' });
+  }
+});
+
+app.post('/api/newsletter/send-test', async (req, res) => {
+  try {
+    const email = normalizeEmail(req.body?.email || '');
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ ok: false, error: '올바른 이메일 주소를 입력해 주세요.' });
+    }
+    await subscribeNewsletter(email, req.body?.name).catch(() => null);
+    const issue = await buildDailyMorningIssue({
+      forceRefresh: Boolean(req.body?.forceRefresh),
+      geminiKey: req.body?.geminiKey,
+    });
+    const sendRes = await sendNewsletterEmail(email, issue);
+    return res.json({
+      ok: sendRes.ok,
+      configured: sendRes.configured,
+      provider: sendRes.provider,
+      message: sendRes.ok ? `${email}로 샘플 메일을 발송했습니다.` : sendRes.error,
+      issue,
+      textBrief: renderNewsletterEmailText(issue),
+    });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message || '테스트 발송 실패' });
+  }
+});
+
+app.all('/api/newsletter/cron', async (req, res) => {
+  try {
+    const result = await runDailyNewsletterCron({ forceResendSameDay: req.query.force === '1' });
+    return res.json(result);
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message || '크론 실패' });
   }
 });
 

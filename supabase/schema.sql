@@ -301,3 +301,28 @@ CREATE POLICY "Users can modify project metadata"
         SELECT 1 FROM public.shorts_projects p
         WHERE p.id = project_metadata.project_id AND p.user_id = auth.uid()
     ));
+
+-- ==============================================================================
+-- 10. NEWSLETTER SUBSCRIBERS & DAILY 07:00 KST BRIEFING ISSUES
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.newsletter_subscribers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email TEXT NOT NULL UNIQUE,
+    name TEXT,
+    send_hour_kst INT DEFAULT 7 NOT NULL,
+    is_active BOOLEAN DEFAULT true NOT NULL,
+    last_sent_kst DATE,
+    created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW()) NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW()) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS public.newsletter_issues (
+    issue_date DATE PRIMARY KEY,
+    subject TEXT NOT NULL,
+    summary TEXT,
+    items_json JSONB DEFAULT '[]'::JSONB NOT NULL,
+    upcoming_json JSONB DEFAULT '[]'::JSONB NOT NULL,
+    html_body TEXT,
+    sent_count INT DEFAULT 0 NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW()) NOT NULL
+);
