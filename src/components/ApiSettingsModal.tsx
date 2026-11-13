@@ -839,44 +839,6 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
                 )}
               </div>
 
-              {hasElevenConnected && (form.ttsProvider || 'gemini') === 'elevenlabs' && (
-                <div className="bg-[#FBFBFA] p-4 rounded-xl border border-[#E3E2DE] space-y-2.5">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <h4 className="text-xs font-bold text-[#37352F]">
-                      ✨ 보조 엔진 설정: Gemini TTS (30종 · 배치 WAV 분할용)
-                    </h4>
-                    <span className="text-[11px] text-[#787774]">
-                      Gemini 배치 TTS 분할 기능이나 일레븐랩스 미사용 시 참고용 기본 음색
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <label className="block text-xs text-[#37352F]">
-                      Gemini 보조 음색
-                      <select
-                        value={form.voice}
-                        onChange={(e) => setForm({ ...form, voice: e.target.value })}
-                        className="mt-1 w-full px-2.5 py-1.5 rounded-lg border border-[#E3E2DE] bg-white text-xs"
-                      >
-                        {voices.map((v) => (
-                          <option key={v.id} value={v.id}>
-                            {v.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="block text-xs text-[#37352F]">
-                      Gemini 말투 지시 (Style)
-                      <input
-                        type="text"
-                        value={form.ttsStyle}
-                        onChange={(e) => setForm({ ...form, ttsStyle: e.target.value })}
-                        className="mt-1 w-full px-2.5 py-1.5 rounded-lg border border-[#E3E2DE] bg-white text-xs"
-                      />
-                    </label>
-                  </div>
-                </div>
-              )}
-
               <div className="bg-white p-4 rounded-xl border border-[#E9E9E7] space-y-3">
                 <h3 className="text-sm font-bold text-[#191919]">영상 출력 & 재가공 기본값</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
