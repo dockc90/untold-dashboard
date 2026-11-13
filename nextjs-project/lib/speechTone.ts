@@ -13,7 +13,7 @@ const FRIENDLY_PRESENT_CONSONANT_ENDINGS = ['이거든요', '이죠', '이랍니
 
 export function getSpeechTonePromptDirective(speechTone: string): string {
   if (speechTone === 'trendy_shorts') {
-    return '② [트렌디한 쇼츠체] 짧고 속도감 있는 쇼츠 전용 반말 구어체("~했음", "~였음", "~임", "~됨", "~함", "~한 거임", "~실화냐?", "~알고 있음?")로 지루할 틈 없이 치고 나가세요. ★절대 규칙: "~습니다/~입니다/~했대요/~세요" 같은 존댓말 종결어미는 절대 금지하며, 같은 어미만 단조롭게 반복하지 말고 질문·감탄·명사형 종결을 자연스럽게 섞어 쓰세요.';
+    return '② [직설·다큐 쇼츠체] 짧게 끊어 치는 직설적인 숏폼 다큐체("~했다", "~였다", "~이다", "~됐다", "~한다", 명사 종결)로 군더더기 없이 몰입감을 끌어올리세요. ★절대 규칙: "~습니다/~입니다/~했대요/~했음/~세요" 같은 존댓말·음슴체·썰풀이 어미는 절대 금지하며, 짧은 단문 위주로 힘 있게 끝맺으세요.';
   }
   if (speechTone === 'news_briefing') {
     return '③ [속도감 있는 뉴스 브리핑체] 군더더기 없이 팩트와 숫자를 쾌속으로 전하는 뉴스 브리핑 경어체("~했습니다", "~밝혀졌습니다", "~주목받았습니다", "~평가됩니다", "~전망입니다")로 일관 작성하세요. "~했대요", "~했음" 같은 구어체·반말은 사용하지 마세요.';
@@ -248,111 +248,128 @@ function convertSentenceTrendy(sentence: string, state: ToneState): string {
 
   if (punct.includes('?')) {
     body = body
-      .replace(/믿어지시나요$/, '믿어짐')
-      .replace(/기억나시나요$/, '기억남')
-      .replace(/기억하십니까$/, '기억남')
-      .replace(/알고 계셨나요$/, '알고 있었음')
-      .replace(/알고 계십니까$/, '알고 있음')
-      .replace(/아십니까$/, '알고 있음')
-      .replace(/보셨나요$/, '봤음')
-      .replace(/멋졌나요$/, '어땠음')
-      .replace(/깊으셨나요$/, '깊었음')
-      .replace(/얻으셨습니까$/, '얻었음')
-      .replace(/([가-힣])셨나요$/, '$1셨음')
-      .replace(/([가-힣])시나요$/, '$1는 거임')
-      .replace(/무엇이었을까요$/, '뭐였을까')
-      .replace(/무엇일까요$/, '뭘까')
+      .replace(/믿어지시나요$/, '믿어지는가')
+      .replace(/기억나시나요$/, '기억하는가')
+      .replace(/기억하십니까$/, '기억하는가')
+      .replace(/알고 계셨나요$/, '알고 있었을까')
+      .replace(/알고 계십니까$/, '알고 있는가')
+      .replace(/아십니까$/, '알고 있는가')
+      .replace(/보셨나요$/, '봤을까')
+      .replace(/멋졌나요$/, '어땠을까')
+      .replace(/깊으셨나요$/, '깊었을까')
+      .replace(/얻으셨습니까$/, '얻었을까')
+      .replace(/([가-힣])셨나요$/, '$1셨을까')
+      .replace(/([가-힣])시나요$/, '$1는가')
+      .replace(/무엇이었을까요$/, '무엇이었을까')
+      .replace(/무엇일까요$/, '무엇일까')
       .replace(/이유일까요$/, '이유일까')
       .replace(/했을까요$/, '했을까')
       .replace(/됐을까요$/, '됐을까')
       .replace(/있을까요$/, '있을까')
       .replace(/([가-힣])을까요$/, '$1을까')
       .replace(/([가-힣])일까요$/, '$1일까')
-      .replace(/([가-힣])나요$/, '$1음')
-      .replace(/([가-힣])어요$/, '$1음')
-      .replace(/([가-힣])아요$/, '$1음');
+      .replace(/([가-힣])이에요$/, '$1일까')
+      .replace(/([가-힣])예요$/, '$1일까')
+      .replace(/([가-힣])나요$/, '$1는가')
+      .replace(/([가-힣])어요$/, '$1을까')
+      .replace(/([가-힣])아요$/, '$1을까');
     return body + punct;
   }
 
   body = body
-    .replace(/응원합니다$/, '응원함')
-    .replace(/바랍니다$/, '바람')
-    .replace(/해보세요$/, '해보길')
-    .replace(/기억해 보시길 바랍니다$/, '기억해 두길 바람')
-    .replace(/([가-힣])세요$/, '$1길');
+    .replace(/응원합니다$/, '응원한다')
+    .replace(/바랍니다$/, '바란다')
+    .replace(/기억해 보시길 바랍니다$/, '기억해 두자')
+    .replace(/해보세요$/, '해보자')
+    .replace(/하세요$/, '하자')
+    .replace(/보세요$/, '보자')
+    .replace(/주세요$/, '주자')
+    .replace(/([가-힣])으세요$/, '$1자')
+    .replace(/([가-힣])세요$/, '$1자');
 
   body = body
-    .replace(/아닙니다$/, '아님')
-    .replace(/아니거든요$/, '아님')
-    .replace(/아니죠$/, '아님')
-    .replace(/아니답니다$/, '아님')
-    .replace(/아니래요$/, '아님')
-    .replace(/아니에요$/, '아님')
-    .replace(/합니다$/, '함')
-    .replace(/하거든요$/, '함')
-    .replace(/하죠$/, '함')
-    .replace(/한답니다$/, '함')
-    .replace(/한대요$/, '함')
-    .replace(/해요$/, '함')
-    .replace(/됩니다$/, '됨')
-    .replace(/되거든요$/, '됨')
-    .replace(/되죠$/, '됨')
-    .replace(/된답니다$/, '됨')
-    .replace(/된대요$/, '됨')
-    .replace(/돼요$/, '됨')
-    .replace(/입니다$/, '임')
-    .replace(/이거든요$/, '임')
-    .replace(/이죠$/, '임')
-    .replace(/이랍니다$/, '임')
-    .replace(/이래요$/, '임')
-    .replace(/이에요$/, '임')
-    .replace(/예요$/, '임')
-    .replace(/거든요$/, '음')
-    .replace(/랍니다$/, '임')
-    .replace(/답니다$/, '음')
-    .replace(/대요$/, '음')
-    .replace(/거예요$/, '거임')
-    .replace(/셈이죠$/, '셈임')
+    .replace(/아닙니다$/, '아니다')
+    .replace(/아니거든요$/, '아니다')
+    .replace(/아니죠$/, '아니다')
+    .replace(/아니랍니다$/, '아니다')
+    .replace(/아니래요$/, '아니다')
+    .replace(/아니에요$/, '아니다')
+    .replace(/아님$/, '아니다')
+    .replace(/만듭니다$/, '만든다')
+    .replace(/이끕니다$/, '이끈다')
+    .replace(/삽니다$/, '산다')
+    .replace(/압니다$/, '안다')
+    .replace(/봅니다$/, '본다')
+    .replace(/갑니다$/, '간다')
+    .replace(/옵니다$/, '온다')
+    .replace(/합니다$/, '한다')
+    .replace(/하거든요$/, '한다')
+    .replace(/하죠$/, '한다')
+    .replace(/한답니다$/, '한다')
+    .replace(/한대요$/, '한다')
+    .replace(/해요$/, '한다')
+    .replace(/함$/, '한다')
+    .replace(/됩니다$/, '된다')
+    .replace(/되거든요$/, '된다')
+    .replace(/되죠$/, '된다')
+    .replace(/된답니다$/, '된다')
+    .replace(/된대요$/, '된다')
+    .replace(/돼요$/, '된다')
+    .replace(/됨$/, '된다')
+    .replace(/거예요$/, '거다')
+    .replace(/거거든요$/, '거다')
+    .replace(/거죠$/, '거다')
+    .replace(/거랍니다$/, '거다')
+    .replace(/거래요$/, '거다')
+    .replace(/거임$/, '거다')
+    .replace(/셈이죠$/, '셈이다')
+    .replace(/셈입니다$/, '셈이다')
+    .replace(/셈이에요$/, '셈이다')
+    .replace(/셈임$/, '셈이다')
+    .replace(/([가-힣]+)이셨습니다$/, '$1이었다')
+    .replace(/([가-힣]+)이셨음$/, '$1이었다')
     .replace(/더라고요$/, '더라')
-    .replace(/([가-힣]+)이셨습니다$/, '$1이셨음')
-    .replace(/([가-힣])습니다$/, '$1음');
+    .replace(/예[요]$/, '다');
 
-  const jyoMatch = body.match(/([가-힣])죠$/);
-  if (jyoMatch) {
-    const prev = jyoMatch[1];
-    const jong = getJongseong(prev);
-    if (jong === 20) {
-      body = body.slice(0, -1) + '음';
-    } else if (prev === '거') {
-      body = body.slice(0, -1) + '임';
-    } else if (prev === '이') {
-      body = body.slice(0, -2) + '임';
-    } else if (jong === 0) {
-      body = body.slice(0, -2) + swapJongseong(prev, 16);
-    } else {
-      body = body.slice(0, -1) + '음';
-    }
+  const copulaMatch = body.match(/([가-힣])(입니다|이거든요|이죠|이랍니다|이래요|이에요)$/);
+  if (copulaMatch) {
+    const stemChar = copulaMatch[1];
+    const jong = getJongseong(stemChar);
+    body = body.slice(0, -copulaMatch[2].length) + (jong > 0 ? '이다' : '다');
   }
 
-  const eoyoMatch = body.match(/([가-힣])(어요|아요)$/);
-  if (eoyoMatch) {
-    const prev = eoyoMatch[1];
+  const umseumPastMatch = body.match(/([가-힣])음$/);
+  if (umseumPastMatch && getJongseong(umseumPastMatch[1]) === 20) {
+    body = body.slice(0, -1) + '다';
+  }
+  body = body.replace(/(것|뿐|곳|수|줄|터|때문)임$/, '$1이다');
+
+  const ssEndingMatch = body.match(/([가-힣])(습니다|거든요|랍니다|답니다|대요|죠|어요|아요)$/);
+  if (ssEndingMatch) {
+    const prev = ssEndingMatch[1];
+    const suffix = ssEndingMatch[2];
     const jong = getJongseong(prev);
     if (jong === 20) {
-      body = body.slice(0, -2) + '음';
+      body = body.slice(0, -suffix.length) + '다';
+    } else if (prev === '렇') {
+      body = body.slice(0, -suffix.length) + '다';
+    } else if (suffix === '습니다') {
+      if (['많', '작', '같', '좋', '깊', '높', '넓', '적', '낮', '짧', '길', '멀'].includes(prev)) {
+        body = body.slice(0, -suffix.length) + '다';
+      } else {
+        body = body.slice(0, -suffix.length) + '는다';
+      }
     } else if (jong === 0) {
-      body = body.slice(0, -3) + swapJongseong(prev, 16);
+      body = body.slice(0, -suffix.length - 1) + swapJongseong(prev, 4) + '다';
     } else {
-      body = body.slice(0, -2) + '음';
+      body = body.slice(0, -suffix.length) + '다';
     }
   }
 
   const pnidaMatch = body.match(/([가-힣])니다$/);
   if (pnidaMatch && getJongseong(pnidaMatch[1]) === 17) {
-    body = body.slice(0, -3) + swapJongseong(pnidaMatch[1], 16);
+    body = body.slice(0, -3) + swapJongseong(pnidaMatch[1], 4) + '다';
   }
-
-  body = body.replace(/([가-힣])거든요음$/, '$1음').replace(/하음$/, '함').replace(/되음$/, '됨').replace(/보음$/, '봄');
 
   state.lastTrendyEnd = body.slice(-2);
   return body + punct;

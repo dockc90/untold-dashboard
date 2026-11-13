@@ -75,7 +75,7 @@ const SCRIPT_FORMAT_OPTIONS: { id: ScriptFormatType; label: string }[] = [
 
 const SPEECH_TONE_OPTIONS: { id: ScriptSpeechTone; label: string }[] = [
   { id: 'friendly_story', label: '① 친근한 썰풀이("~했대요/믿어지시나요?")' },
-  { id: 'trendy_shorts', label: '② 트렌디한 쇼츠체("~했음/그랬음")' },
+  { id: 'trendy_shorts', label: '② 직설·다큐 쇼츠체("~했다 / ~였다 / 명사 종결")' },
   { id: 'news_briefing', label: '③ 속도감 있는 뉴스 브리핑체("~했습니다/밝혀졌습니다")' },
 ];
 
