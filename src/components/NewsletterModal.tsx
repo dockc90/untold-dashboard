@@ -225,7 +225,7 @@ export const NewsletterModal: React.FC<NewsletterModalProps> = ({
           ok: false,
           text:
             json?.message ||
-            '구독 이메일은 등록되었습니다. 실제 발송은 운영 서버(Vercel 환경변수 RESEND_API_KEY) 설정 후 작동하며, 지금은 상단 [메일앱 열기]·[전문 복사]로 바로 확인하실 수 있습니다.',
+            '구독 이메일은 등록되었습니다. 실제 발송은 운영 서버(Vercel 환경변수 SMTP_USER · SMTP_PASS) 설정 후 작동하며, 지금은 상단 [메일앱 열기]·[전문 복사]로 바로 확인하실 수 있습니다.',
         });
       }
     } catch (err: any) {

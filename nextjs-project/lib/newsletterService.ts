@@ -777,18 +777,23 @@ export async function sendNewsletterEmail(
 
   if (cfg.smtpUser && cfg.smtpPass) {
     const smtp = inferSmtpFromEmail(cfg.smtpUser, cfg.smtpHost, cfg.smtpPort);
+    const isGmail = /@gmail\.com$|@googlemail\.com$/i.test(cfg.smtpUser);
+    const normalizedPass = isGmail ? cfg.smtpPass.replace(/\s+/g, '') : cfg.smtpPass;
     try {
       const transporter = nodemailer.createTransport({
         host: smtp.host,
         port: smtp.port,
         secure: smtp.secure,
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
         auth: {
           user: cfg.smtpUser,
-          pass: cfg.smtpPass,
+          pass: normalizedPass,
         },
       });
       await transporter.sendMail({
-        from: `Untold 모닝 브리핑 <${cfg.smtpUser}>`,
+        from: `"Untold 모닝 브리핑" <${cfg.smtpUser}>`,
         to,
         subject: issue.subject,
         text,
@@ -798,7 +803,7 @@ export async function sendNewsletterEmail(
     } catch (err: any) {
       const msg = String(err?.message || err);
       const hint = /auth|535|invalid|login|username/i.test(msg)
-        ? ' (서버 SMTP 계정 또는 앱 비밀번호 환경변수를 확인해 주세요.)'
+        ? ' (네이버 메일은 해외 로그인 차단 해제 및 POP3/SMTP 허용, Gmail은 2단계 인증 앱 비밀번호를 확인해 주세요.)'
         : '';
       return {
         ok: false,
@@ -813,7 +818,7 @@ export async function sendNewsletterEmail(
     ok: false,
     configured: false,
     provider: 'none',
-    error: '이메일은 구독 목록에 등록되었으며, 실제 외부 발송은 운영 서버(Vercel 환경변수 RESEND_API_KEY) 설정 후 매일 오전 7시 작동합니다. 지금은 [메일앱 열기] 또는 [전문 복사]로 바로 확인하실 수 있습니다.',
+    error: '이메일은 구독 목록에 등록되었으며, 실제 외부 발송은 운영 서버(Vercel 환경변수 SMTP_USER · SMTP_PASS) 설정 후 매일 오전 7시 작동합니다. 지금은 [메일앱 열기] 또는 [전문 복사]로 바로 확인하실 수 있습니다.',
   };
 }
 
