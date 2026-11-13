@@ -74,9 +74,10 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
   };
 
   const handleSaveOnly = () => {
-    persist(form);
+    const cleaned = { ...form, geminiKey: form.geminiKey.trim(), ytKey: form.ytKey.trim() };
+    persist(cleaned);
     setSaveToast(
-      form.geminiKey.trim()
+      cleaned.geminiKey
         ? '설정이 브라우저(localStorage)에 안전하게 저장되었습니다.'
         : '저장 완료 (Gemini 키를 입력하면 AI 분석/TTS 기능이 활성화됩니다.)'
     );
@@ -84,24 +85,40 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
   };
 
   const handleTestGemini = async () => {
-    persist(form);
-    if (!form.geminiKey.trim()) {
+    const cleanKey = form.geminiKey.trim();
+    persist({ ...form, geminiKey: cleanKey });
+    if (!cleanKey) {
       setGeminiStatus({ ok: false, text: 'Gemini API 키를 먼저 입력하세요.' });
       return;
     }
     setTestingGemini(true);
-    setGeminiStatus({ text: '키 확인 및 사용 가능한 모델 목록 조회 중…' });
+    setGeminiStatus({ text: '키 확인 및 사용 가능한 최신 모델 목록 조회 중…' });
     try {
-      const models = await listGeminiModels(form.geminiKey.trim());
+      const models = await listGeminiModels(cleanKey);
       const nextTextModels = models.text.length ? models.text : GEMINI_FALLBACK_CATALOG.text;
       const nextTtsModels = models.tts.length ? models.tts : GEMINI_FALLBACK_CATALOG.tts;
       const nextImgModels = models.image.length ? models.image : GEMINI_FALLBACK_CATALOG.image;
 
-      const selectedModel = nextTextModels.includes(form.model)
-        ? form.model
-        : nextTextModels.find((m: string) => /flash$/.test(m)) || nextTextModels[0];
-      const selectedTts = nextTtsModels.includes(form.ttsModel) ? form.ttsModel : nextTtsModels[0];
-      const selectedImg = nextImgModels.includes(form.imgModel) ? form.imgModel : nextImgModels[0];
+      const selectedModel =
+        nextTextModels.includes(form.model) && !/^gemini-2\./.test(form.model)
+          ? form.model
+          : nextTextModels.find((m: string) => !/^gemini-2\./.test(m) && /flash/.test(m)) || nextTextModels[0];
+      const selectedTts = nextTtsModels.includes(form.ttsModel) && !/^gemini-2\./.test(form.ttsModel)
+        ? form.ttsModel
+        : nextTtsModels[0];
+      const selectedImg = nextImgModels.includes(form.imgModel) && !/^gemini-2\./.test(form.imgModel)
+        ? form.imgModel
+        : nextImgModels[0];
+
+      // Save discovered models right away so the dropdown updates immediately
+      persist({
+        ...form,
+        geminiKey: cleanKey,
+        model: selectedModel,
+        models: nextTextModels,
+        ttsModel: selectedTts,
+        imgModel: selectedImg,
+      });
 
       setGeminiStatus({
         text: `키 인식 ✓ (텍스트 ${nextTextModels.length}개 · TTS ${nextTtsModels.length}개). 실제 생성 테스트 중…`,
@@ -109,16 +126,20 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
 
       const testRes = await genGeminiText({
         model: selectedModel,
+        fallbackModels: nextTextModels,
         text: '"OK" 라고만 답하세요.',
         json: false,
-        maxTokens: 24,
-        apiKey: form.geminiKey.trim(),
+        thinking: 'low',
+        maxTokens: 256,
+        attemptTimeoutMs: 8000,
+        apiKey: cleanKey,
         onNote: (msg) => setGeminiStatus({ text: msg }),
       });
 
       const okModels = Array.from(new Set([testRes.model, ...(form.okModels || [])])).slice(0, 6);
       const updated = persist({
         ...form,
+        geminiKey: cleanKey,
         model: testRes.model,
         models: nextTextModels,
         okModels,

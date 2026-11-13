@@ -52,13 +52,21 @@ export const DEFAULT_SINSOO_SETTINGS: SinsooSettings = {
   ttsProvider: 'elevenlabs',
   elevenLabsModel: 'eleven_v4',
   elevenLabsVoiceId: 'JBFqnCBsd6RMkjVDRZzb',
-  model: 'gemini-2.5-flash',
-  models: ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro'],
+  model: 'gemini-flash-latest',
+  models: [
+    'gemini-flash-latest',
+    'gemini-flash-lite-latest',
+    'gemini-3.8-flash',
+    'gemini-3.7-flash',
+    'gemini-3.1-flash-lite',
+    'gemini-4-hydrogen',
+    'gemini-2.5-flash',
+  ],
   okModels: [],
-  ttsModel: 'gemini-2.5-flash-preview-tts',
+  ttsModel: 'gemini-3.8-flash-tts',
   voice: 'Kore',
   ttsStyle: '차분하고 또렷한 다큐멘터리 내레이션',
-  imgModel: 'gemini-2.5-flash-image',
+  imgModel: 'gemini-3.1-flash-image',
   brand: '',
   handle: '',
   outW: 1080,
@@ -75,10 +83,38 @@ export const DEFAULT_SINSOO_SETTINGS: SinsooSettings = {
 };
 
 export const GEMINI_FALLBACK_CATALOG = {
-  text: ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro'],
-  textLite: ['gemini-2.5-flash-lite', 'gemini-2.5-flash'],
-  tts: ['gemini-2.5-flash-preview-tts', 'gemini-2.5-pro-preview-tts'],
-  image: ['gemini-2.5-flash-image'],
+  text: [
+    'gemini-flash-latest',
+    'gemini-flash-lite-latest',
+    'gemini-3.8-flash',
+    'gemini-3.7-flash',
+    'gemini-3.6-flash',
+    'gemini-3.5-flash',
+    'gemini-3.1-flash-lite',
+    'gemini-4-hydrogen',
+    'gemini-pro-latest',
+    'gemini-2.5-flash',
+  ],
+  textLite: [
+    'gemini-flash-lite-latest',
+    'gemini-3.1-flash-lite',
+    'gemini-flash-latest',
+    'gemini-3.8-flash',
+    'gemini-4-hydrogen',
+  ],
+  tts: [
+    'gemini-3.8-flash-tts',
+    'gemini-3.8-flash-lite-tts',
+    'gemini-3.1-flash-tts-preview',
+    'gemini-2.5-flash-preview-tts',
+    'gemini-2.5-pro-preview-tts',
+  ],
+  image: [
+    'gemini-3.1-flash-image',
+    'gemini-3.1-flash-image-preview',
+    'gemini-3-pro-image',
+    'gemini-2.5-flash-image',
+  ],
 };
 
 export const GEMINI_VOICES = [
@@ -165,7 +201,22 @@ export class SinsooApiError extends Error {
 export function loadSinsooSettings(): SinsooSettings {
   try {
     const raw = JSON.parse(localStorage.getItem(LS_SETTINGS) || '{}');
-    return { ...DEFAULT_SINSOO_SETTINGS, ...raw };
+    const merged: SinsooSettings = { ...DEFAULT_SINSOO_SETTINGS, ...raw };
+    // Auto-migrate deprecated Gemini 2.5 default if user hasn't explicitly verified it in okModels
+    if (
+      /^gemini-2\.5-(flash|pro)(-lite)?$/.test(merged.model || '') &&
+      !(merged.okModels || []).includes(merged.model)
+    ) {
+      merged.model = DEFAULT_SINSOO_SETTINGS.model;
+    }
+    if (
+      Array.isArray(merged.models) &&
+      merged.models.length > 0 &&
+      merged.models.every((m) => /^gemini-2\./.test(m))
+    ) {
+      merged.models = Array.from(new Set([...DEFAULT_SINSOO_SETTINGS.models, ...merged.models]));
+    }
+    return merged;
   } catch {
     return { ...DEFAULT_SINSOO_SETTINGS };
   }
@@ -224,7 +275,7 @@ export function classifyGeminiError(status: number, text: string): ErrorCategory
   if (status === 0) return 'network';
   if (
     status === 401 ||
-    /API_KEY_INVALID|API key not valid|API key expired|API_KEY_SERVICE_BLOCKED|unregistered callers|API key.*(blocked|revoked|restricted)/i.test(t)
+    /API_KEY_INVALID|API key not valid|API key expired|API_KEY_SERVICE_BLOCKED|API_KEY_HTTP_REFERRER_BLOCKED|referer.*blocked|unregistered callers|API key.*(blocked|revoked|restricted)/i.test(t)
   ) {
     return 'key';
   }
@@ -247,7 +298,8 @@ export function classifyGeminiError(status: number, text: string): ErrorCategory
   if (/google_search|googleSearch|grounding|Search tool|search is not/i.test(t) && status >= 400 && status < 500) {
     return 'search';
   }
-  if (status === 404 || status === 403) return 'model';
+  if (status === 404) return 'model';
+  if (status === 403) return 'key';
   if (
     status === 400 &&
     /not supported|does not support|unsupported|not found|is not a valid model|invalid model|not available|no longer|not allowed for|access to model|only available to/i.test(t)
@@ -504,7 +556,7 @@ export async function generateContentRaw(
 ) {
   const j = await gFetch(`/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
     method: 'POST',
-    body: JSON.stringify({ store: false, ...body }),
+    body: JSON.stringify(body),
     signal: o.signal,
     apiKey: o.apiKey,
   });
@@ -544,21 +596,46 @@ export async function listGeminiModels(apiKey?: string) {
     methods: (m.supportedGenerationMethods || []) as string[],
     display: String(m.displayName || ''),
   }));
-  const text = all
+  const rawText = all
     .filter(
       (m: any) =>
         (m.methods.includes('generateContent') || m.methods.includes('interactions')) &&
-        /^gemini-[\d.]+-(flash|pro)(-lite)?(-preview.*)?$/.test(m.name) &&
-        !/(tts|image|live|embedding|transcribe|omni|audio|veo|imagen|computer-use|robotics|thinking)/.test(m.name)
+        /^gemini-((flash|pro)(-lite)?-latest|[\d.]+-(flash|pro)(-lite)?(-preview.*)?|4-(hydrogen|carbon|argon))$/i.test(
+          m.name
+        ) &&
+        !/(tts|image|live|embedding|transcribe|omni|audio|veo|imagen|computer-use|robotics|thinking|customtools)/.test(m.name)
     )
     .map((m: any) => m.name);
-  const tts = all.map((m: any) => m.name).filter((n: string) => /tts/.test(n));
-  const image = all.map((m: any) => m.name).filter((n: string) => /image|banana/.test(n) && !/imagen|embedding/.test(n));
+
+  // Rank live/newest models before deprecated 2.5 series
+  const priorityScore = (name: string) => {
+    if (name === 'gemini-flash-latest') return 0;
+    if (name === 'gemini-flash-lite-latest') return 1;
+    if (name === 'gemini-3.8-flash') return 2;
+    if (name === 'gemini-4-hydrogen') return 3;
+    if (/^gemini-3\./.test(name) && /flash/.test(name)) return 4;
+    if (/^gemini-4-/.test(name)) return 5;
+    if (/^gemini-3/.test(name)) return 6;
+    if (name === 'gemini-pro-latest') return 7;
+    if (/^gemini-2\.5/.test(name)) return 90;
+    return 50;
+  };
+  const text = Array.from(new Set(rawText)).sort((a: any, b: any) => priorityScore(a) - priorityScore(b)) as string[];
+
+  const tts = all
+    .map((m: any) => m.name)
+    .filter((n: string) => /tts/.test(n))
+    .sort((a: string, b: string) => (/^gemini-3/.test(a) ? 0 : 1) - (/^gemini-3/.test(b) ? 0 : 1));
+  const image = all
+    .map((m: any) => m.name)
+    .filter((n: string) => /image|banana/.test(n) && !/imagen|embedding/.test(n))
+    .sort((a: string, b: string) => (/^gemini-3/.test(a) ? 0 : 1) - (/^gemini-3/.test(b) ? 0 : 1));
   return { all, text, tts, image };
 }
 
 export interface GenTextOptions {
   model?: string;
+  fallbackModels?: string[];
   text: string;
   media?: GeminiMediaPart[];
   json?: boolean;
@@ -567,6 +644,7 @@ export interface GenTextOptions {
   thinking?: 'low' | 'medium' | 'high';
   maxTokens?: number;
   timeoutMs?: number;
+  attemptTimeoutMs?: number;
   signal?: AbortSignal;
   onNote?: (note: string) => void;
   apiKey?: string;
@@ -574,71 +652,34 @@ export interface GenTextOptions {
 
 export async function genGeminiText(opt: GenTextOptions) {
   const settings = loadSinsooSettings();
-  const candidates = Array.from(
-    new Set([
-      opt.model,
-      settings.model,
-      ...settings.okModels,
-      ...GEMINI_FALLBACK_CATALOG.text,
-    ].filter(Boolean))
-  ) as string[];
+  const rawList = [
+    opt.model,
+    settings.model,
+    ...settings.okModels,
+    ...(opt.fallbackModels || []),
+    ...(settings.models || []),
+    ...GEMINI_FALLBACK_CATALOG.text,
+  ].filter(Boolean) as string[];
+  // Ensure deprecated gemini-2.5-* never blocks all fallback slots unless already confirmed working
+  const nonLegacy = rawList.filter((m) => !/^gemini-2\./.test(m));
+  const legacyOnly = rawList.filter((m) => /^gemini-2\./.test(m));
+  const candidates = Array.from(new Set([...nonLegacy, ...legacyOnly]));
 
   const totalTimeout = opt.timeoutMs || 180000;
   const signal = withTimeout(opt.signal, totalTimeout);
+  const perAttemptMs = opt.attemptTimeoutMs || (opt.media?.length ? 90000 : 12000);
   const state = readModelState();
   const searchAllowed = !state.searchBlockedUntil || state.searchBlockedUntil < Date.now();
   let useTools = searchAllowed ? opt.tools || [] : (opt.tools || []).filter((t) => t !== 'google_search');
   let lastError: unknown;
 
-  for (const model of candidates.slice(0, 4)) {
+  for (const model of candidates.slice(0, 8)) {
     const legacy = /^gemini-2\./.test(model);
     const transportCache = readTransportCache();
-    // 1) Try Interactions API first for newer models if not known to need generateContent
-    if (!legacy && transportCache[model] !== 'g') {
-      try {
-        const body: any = {
-          model,
-          store: false,
-          input: [...(opt.media || []).map(toInteractionItem), { type: 'text', text: opt.text }],
-          generation_config: { max_output_tokens: opt.maxTokens || 16384 },
-        };
-        if (useTools.length) body.tools = useTools.map((t) => ({ type: t }));
-        if (opt.json !== false) body.response_format = { type: 'text', mime_type: 'application/json' };
-        if (opt.system) body.system_instruction = opt.system;
-        if (opt.thinking) body.generation_config.thinking_level = opt.thinking;
+    const attemptSig = withTimeout(signal, perAttemptMs);
 
-        const j = await gFetch('/v1beta/interactions', {
-          method: 'POST',
-          body: JSON.stringify(body),
-          signal,
-          apiKey: opt.apiKey,
-        });
-        const out = pickInteractionOutput(j);
-        if (!out.text) throw new SinsooApiError('gemini', 200, '응답이 비어 있습니다', j);
-        rememberTransport(model, 'i');
-        return { ...out, model, transport: 'interactions' as const };
-      } catch (err0) {
-        const e = abortError(err0, signal) || (err0 as SinsooApiError);
-        if (e.aborted) throw e;
-        const cat = classifyGeminiError(e.status || 0, `${e.message} ${JSON.stringify(e.raw || '')}`);
-        if (cat === 'key' || cat === 'disabled' || cat === 'region' || cat === 'billing') throw e;
-        if (useTools.includes('google_search') && (cat === 'search' || cat === 'zero' || cat === 'rate')) {
-          useTools = useTools.filter((t) => t !== 'google_search');
-          writeModelState({ searchBlockedUntil: Date.now() + 12 * 3600e3 });
-          opt.onNote?.('무료 키 제한으로 Google 검색 없이 생성합니다.');
-        }
-        if (e.status === 400 || e.status === 404 || e.status === 501) {
-          opt.onNote?.(`${model} → generateContent 모드로 전환`);
-        } else {
-          lastError = e;
-          if (!isModelUnusable(e)) {
-            // Fall through to try generateContent or next model
-          }
-        }
-      }
-    }
-
-    // 2) generateContent fallback (works reliably for gemini-2.5-* & standard API keys)
+    // 1) Try standard generateContent first (reliable & fast across 2.5 / 3.x / 4.x / -latest)
+    let generateFailedStatus = 0;
     try {
       const attemptGenerate = async (toolsForTry: string[]) => {
         const useJson = opt.json !== false && !(legacy && toolsForTry.length > 0);
@@ -663,15 +704,15 @@ export async function genGeminiText(opt: GenTextOptions) {
         if (opt.system) {
           body.systemInstruction = { parts: [{ text: opt.system }] };
         }
-        return generateContentRaw(model, body, { signal, apiKey: opt.apiKey });
+        return generateContentRaw(model, body, { signal: attemptSig, apiKey: opt.apiKey });
       };
 
       let r;
       try {
         r = await attemptGenerate(useTools);
       } catch (e0) {
-        const e = abortError(e0, signal) || (e0 as SinsooApiError);
-        if (e.aborted) throw e;
+        if (signal?.aborted) throw abortError(e0, signal) || e0;
+        const e = (e0 as SinsooApiError);
         const cat = classifyGeminiError(e.status || 0, `${e.message} ${JSON.stringify(e.raw || '')}`);
         if (useTools.includes('google_search') && (cat === 'search' || cat === 'zero' || cat === 'rate' || e.status === 400)) {
           useTools = useTools.filter((t) => t !== 'google_search');
@@ -683,7 +724,11 @@ export async function genGeminiText(opt: GenTextOptions) {
         }
       }
 
-      if (!r.text) throw new SinsooApiError('gemini', 200, '응답이 비어 있습니다', r.raw);
+      if (!r.text) {
+        opt.onNote?.(`${model} 빈 응답 → 다음 모델 시도`);
+        lastError = new SinsooApiError('gemini', 200, '응답이 비어 있습니다', r.raw);
+        continue;
+      }
       if (!legacy) rememberTransport(model, 'g');
       const okModels = Array.from(new Set([model, ...settings.okModels])).slice(0, 6);
       saveSinsooSettings({ okModels });
@@ -697,16 +742,62 @@ export async function genGeminiText(opt: GenTextOptions) {
         transport: 'generateContent' as const,
       };
     } catch (err1) {
-      const e = abortError(err1, signal) || (err1 as SinsooApiError);
-      if (e.aborted) throw e;
+      if (signal?.aborted) throw abortError(err1, signal) || err1;
+      const e = abortError(err1, attemptSig) || (err1 as SinsooApiError);
       lastError = e;
+      generateFailedStatus = e.status || 0;
       const cat = classifyGeminiError(e.status || 0, `${e.message} ${JSON.stringify(e.raw || '')}`);
       if (cat === 'key' || cat === 'disabled' || cat === 'region' || cat === 'billing') throw e;
-      if (isModelUnusable(e) || cat === 'zero' || cat === 'overload') {
-        opt.onNote?.(`${model} 사용 불가 → 다음 모델 시도`);
+      if (e.aborted === 'timeout') {
+        opt.onNote?.(`${model} 응답 지연 → 다음 모델 시도`);
         continue;
       }
-      throw e;
+      if (isModelUnusable(e) || cat === 'zero' || cat === 'overload' || cat === 'rate' || cat === 'daily') {
+        // Skip directly to next model for 404/429/503 unless interactions fallback is worth trying
+        if (generateFailedStatus !== 404 && generateFailedStatus !== 400) {
+          opt.onNote?.(`${model} 일시 제한(${e.status}) → 다음 모델 시도`);
+          continue;
+        }
+      } else {
+        throw e;
+      }
+    }
+
+    // 2) Fallback to Interactions API if generateContent returned 400/404 for a newer model
+    if (!legacy && transportCache[model] !== 'g' && (generateFailedStatus === 400 || generateFailedStatus === 404)) {
+      const intSig = withTimeout(signal, perAttemptMs);
+      try {
+        const body: any = {
+          model,
+          store: false,
+          input: [...(opt.media || []).map(toInteractionItem), { type: 'text', text: opt.text }],
+          generation_config: { max_output_tokens: opt.maxTokens || 16384 },
+        };
+        if (useTools.length) body.tools = useTools.map((t) => ({ type: t }));
+        if (opt.json !== false) body.response_format = { type: 'text', mime_type: 'application/json' };
+        if (opt.system) body.system_instruction = opt.system;
+        if (opt.thinking) body.generation_config.thinking_level = opt.thinking;
+
+        const j = await gFetch('/v1beta/interactions', {
+          method: 'POST',
+          body: JSON.stringify(body),
+          signal: intSig,
+          apiKey: opt.apiKey,
+        });
+        const out = pickInteractionOutput(j);
+        if (!out.text) throw new SinsooApiError('gemini', 200, '응답이 비어 있습니다', j);
+        rememberTransport(model, 'i');
+        const okModels = Array.from(new Set([model, ...settings.okModels])).slice(0, 6);
+        saveSinsooSettings({ okModels });
+        return { ...out, model, transport: 'interactions' as const };
+      } catch (err0) {
+        if (signal?.aborted) throw abortError(err0, signal) || err0;
+        const e = abortError(err0, intSig) || (err0 as SinsooApiError);
+        lastError = e;
+        const cat = classifyGeminiError(e.status || 0, `${e.message} ${JSON.stringify(e.raw || '')}`);
+        if (cat === 'key' || cat === 'disabled' || cat === 'region' || cat === 'billing') throw e;
+        opt.onNote?.(`${model} 사용 불가(${e.status || 'timeout'}) → 다음 모델 시도`);
+      }
     }
   }
 
