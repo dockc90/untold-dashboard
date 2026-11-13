@@ -64,20 +64,20 @@ export async function POST(request: Request) {
     {
       id: `fig-fall-${Date.now()}-1`,
       name: '젠슨 황 (Jensen Huang)',
-      title: '식당 설거지 소년에서 4,000조 엔비디아 황제가 된 가죽자켓의 신화',
+      title: '연이은 불륜 스캔들 시인 후 창립 33년 만에 엔비디아 CEO 전격 사임',
       category: 'economy',
       viralityScore: 100,
       timeframe,
-      buzzSummary: '1993년 창업 후 3차례 파산 위기를 넘긴 엔비디아가 글로벌 시가총액 1위권에 오르며, 10대 시절 데니스 식당 설거지 알바 일화가 다시 8,900만 뷰를 기록 중입니다.',
-      controversyOrIssue: '창업 초기 3번의 부도 위기와 30세 청년 시절의 무모한 도전, "더 많이 살수록 더 많이 번다"는 역발상 승부수',
-      suggestedAngle: '시련은 나를 더 단단하게 만든다, 매일 실패할 각오로 일하는 60대 억만장자의 뼈 때리는 조언',
-      hookLine: '화장실 청소하던 16세 소년이 30년 뒤 시가총액 1위 황제가 된 한 마디',
-      tags: ['젠슨황', '엔비디아', 'AI혁명', '가죽자켓', '시총1위', '인생역전', 'H100'],
+      buzzSummary: '2026년 11월 메가스피드 임원 앨리스 황·사내 임원 킴벌리 파월 등 복수의 혼외 관계 스캔들이 보도된 뒤 불충실함을 시인하고, 창립 33년 만에 엔비디아 CEO·이사회직에서 전격 사임했습니다.',
+      controversyOrIssue: '국가안보·사내 윤리 논란과 함께 임시 CEO 콜레트 크레스 선임, 엔비디아 주가 급락 및 대규모 재산분할 가능성까지 전 세계 언론이 대서특필 중입니다.',
+      suggestedAngle: '세계 1위 AI 제국을 세운 황제가 사생활 스캔들 단 한 번으로 33년 왕좌에서 내려온 충격적 몰락',
+      hookLine: '엔비디아 창립 33년 만에 전격 사임한 젠슨 황, 전 세계가 뒤집힌 불륜 스캔들 전말',
+      tags: ['젠슨황', '엔비디아', 'CEO사임', '실시간이슈', 'AI반도체'],
       primaryChannel: 'multi',
       channelMetrics: {
-        naverRank: '네이버 글로벌 인물 1위 (+650%)',
-        youtubeViews: '유튜브 쇼츠 누적 8,900만 뷰',
-        instaReels: '글로벌 릴스 바이럴 75만 개'
+        naverRank: '네이버 글로벌 뉴스 1위',
+        youtubeViews: '유튜브 쇼츠 이슈 급상승',
+        instaReels: '글로벌 릴스 화제'
       }
     },
     {
@@ -372,73 +372,88 @@ export async function POST(request: Request) {
       ? '손흥민, 페이커, 오타니 쇼헤이, 이강인, 김민재 등 역경을 딛고 세계 정상에 오른 스포츠 영웅을 추천하세요.'
       : '현재 전 세계와 대한민국 숏폼(유튜브 쇼츠, 릴스, 틱톡)에서 가장 도파민과 조회수가 폭발적인 인물들을 추천하세요. 특히 전 세계 시총 1위 AI 황제 젠슨 황(엔비디아), 일론 머스크뿐만 아니라 남대문 스카프 아저씨, 충주맨 등 숏폼/릴스에서 엄청난 조회수를 폭발시키고 있는 SNS 핫 바이럴 인물도 적극 포함하고, 셰프·가수·배우·스포츠 영웅 등 다채로운 감동 실화 인물을 조합하세요.';
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+  const timeframeLabel =
+    timeframe === '24h' ? '최근 24시간' : timeframe === '48h' ? '최근 48시간' : '최근 7일간';
 
-  const prompt = `당신은 대한민국 최고 유튜브 쇼츠 & 인스타 릴스 바이럴 트렌드 레이더입니다.
-오늘 날짜는 ${todayStr}이며, 현재 (${timeframe}) 네이버 실시간 검색, 유튜브 급상승 쇼츠, 인스타그램 릴스에서 가장 폭발적으로 조회수를 견인하는 최신 화제의 인물 16~20명을 추천하세요.
+  const prompt = `당신은 대한민국 최고 유튜브 쇼츠 & 인스타 릴스 실시간 트렌드 리서처입니다.
+오늘 날짜는 ${todayStr}(한국 시간)입니다.
+반드시 Google Search 도구로 오늘(${todayStr}) 및 ${timeframeLabel} 동안 네이버 실시간 검색, 유튜브 급상승 쇼츠, 인스타그램 릴스, 한국·글로벌 주요 뉴스에서 실제로 가장 크게 화제가 되고 있는 최신 인물 14~16명을 검색해 추천하세요.
 
-[★ 트렌드 선별 알고리즘 및 카드 브리핑 포맷 원칙]
+[★ 실시간 사실 기반 브리핑 원칙]
 1. ${categoryInstruction}
-2. ${category !== 'all' ? `요청된 카테고리(${category})에 100% 집중하여 다양한 신규 화제 인물들을 추천하고, category 필드는 반드시 '${category}'로 지정하세요.` : '전 카테고리 균형: SNS 바이럴·밈, 연예·가수, 배우·드라마, 스포츠, 경제·기업, 글로벌·셀럽, 사회·이슈 전 분야에서 화제성 높은 인물을 골고루 추천하세요.'}
-3. primaryChannel 필드는 반드시 'youtube', 'naver', 'instagram', 'multi' 중 하나의 소문자 영문 값으로만 지정하세요.
-4. 숏폼 리텐션 최우선: 단순 인지도가 아니라, "밑바닥에서 정상까지의 극적인 인생 역전(Underdog)", "3초 만에 스크롤을 멈추게 하는 충격 반전"이 있는 인물에게 viralityScore(90~100점)를 최우선 부여하세요.
-5. 100% 사실(Fact) 기반 & 구체적 숫자·시점 명시:
-   - buzzSummary에는 추상적 수식어를 빼고 **"왜 지금 화제인지 + 확인된 날짜(또는 연도·기간)·구체적 숫자(조회수·순위·기록·연봉·경력 등)"** 팩트 1~2문장을 작성하세요. (확인되지 않은 날짜·수치 날조 엄금)
-   - hookLine에는 시청자가 **첫 3초 만에 스크롤을 멈출 오프닝 훅 1줄(의문형·숫자형·반전형, 30~45자 내외)**을 작성하세요.
-6. 채널(${channel}) 및 시간대(${timeframe})의 반응 지표(channelMetrics: naverRank, youtubeViews, instaReels)를 반드시 실감나게 포함하세요.
-반드시 아래 JSON 스키마 형식의 배열로 응답하세요.`;
+2. ${category !== 'all' ? `요청된 카테고리(${category})에 집중하고 category 필드는 반드시 '${category}'로 지정하세요.` : '전 카테고리 균형: SNS 바이럴·밈, 연예·가수, 배우·드라마, 스포츠, 경제·기업, 글로벌·셀럽, 사회·이슈 전 분야에서 오늘 가장 화제성 높은 인물을 골고루 선별하세요.'}
+3. 옛날 과거 일화가 아니라 **지금(${todayStr} 기준 ${timeframeLabel}) 실제로 터진 최신 뉴스·논란·사건·스캔들·사임·경기·신곡·방송**을 반영하세요.
+4. primaryChannel 필드는 반드시 'youtube', 'naver', 'instagram', 'multi' 중 하나의 소문자 영문 값으로 지정하세요.
+5. buzzSummary에는 **"왜 지금 화제인지 + 확인된 날짜(또는 연도·기간)·구체적 숫자"** 팩트 1~2문장을 작성하세요(확인되지 않은 수치·날짜 날조 엄금).
+6. hookLine에는 **첫 3초 만에 스크롤을 멈출 오프닝 훅 1줄(30~45자 내외)**을 작성하세요.
+7. 반드시 아래와 같은 유효한 JSON 배열만 출력하세요(코드펜스 \`\`\` 나 설명 텍스트 절대 금지):
+[
+  {
+    "name": "인물명",
+    "title": "지금 왜 화제인지 한 줄 헤드라인",
+    "category": "viral | entertainment | actor | sports | economy | social | global",
+    "viralityScore": 91,
+    "timeframe": "${timeframe}",
+    "buzzSummary": "날짜·숫자 포함 실시간 화제 팩트 1~2문장",
+    "controversyOrIssue": "핵심 논란/이슈/대중 반응",
+    "suggestedAngle": "쇼츠/캐러셀 2차 창작 앵글",
+    "hookLine": "첫 3초 오프닝 훅 1줄",
+    "tags": ["태그1", "태그2", "태그3", "태그4"],
+    "primaryChannel": "multi",
+    "channelMetrics": {
+      "naverRank": "네이버 동향",
+      "youtubeViews": "유튜브 동향",
+      "instaReels": "SNS/릴스 동향"
+    }
+  }
+]`;
 
-  const candidateModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash'];
+  const extractJsonArray = (raw: string) => {
+    const cleaned = String(raw || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+    const s = cleaned.indexOf('[');
+    const e = cleaned.lastIndexOf(']');
+    if (s >= 0 && e > s) {
+      return JSON.parse(cleaned.slice(s, e + 1));
+    }
+    const parsed = JSON.parse(cleaned);
+    return Array.isArray(parsed) ? parsed : parsed?.figures || [];
+  };
+
+  const candidateModels = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.5-flash'];
   for (const mod of candidateModels) {
     try {
       const response = await ai.models.generateContent({
         model: mod,
         contents: prompt,
         config: {
-          responseMimeType: 'application/json',
-          temperature: 0.35,
-          responseSchema: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                id: { type: Type.STRING },
-                name: { type: Type.STRING },
-                title: { type: Type.STRING },
-                category: { type: Type.STRING },
-                viralityScore: { type: Type.INTEGER },
-                timeframe: { type: Type.STRING },
-                buzzSummary: { type: Type.STRING, description: '왜 지금 화제인지 날짜·연도·숫자 기반 팩트 1~2문장' },
-                controversyOrIssue: { type: Type.STRING },
-                suggestedAngle: { type: Type.STRING },
-                hookLine: { type: Type.STRING, description: '첫 3초 스크롤 정지 오프닝 훅 1줄 (30~45자 내외)' },
-                tags: {
-                  type: Type.ARRAY,
-                  items: { type: Type.STRING }
-                },
-                primaryChannel: { type: Type.STRING },
-                channelMetrics: {
-                  type: Type.OBJECT,
-                  properties: {
-                    naverRank: { type: Type.STRING },
-                    youtubeViews: { type: Type.STRING },
-                    instaReels: { type: Type.STRING }
-                  }
-                },
-                sourceArticlesCount: { type: Type.INTEGER }
-              },
-              required: ['name', 'title', 'category', 'viralityScore', 'buzzSummary', 'controversyOrIssue', 'suggestedAngle', 'hookLine', 'tags', 'primaryChannel']
-            }
-          }
-        }
+          temperature: 0.3,
+          tools: [{ googleSearch: {} }],
+        },
       });
 
-      const parsed = JSON.parse(response.text || '[]');
+      const parsed = extractJsonArray(response.text || '[]');
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return NextResponse.json(parsed);
+        return NextResponse.json(parsed.map((item: any) => ({ ...item, isLive: true })));
       }
     } catch (err: any) {
-      console.warn(`Gemini trending fetch (${mod}) failed:`, err.message);
+      console.warn(`Gemini trending fetch with googleSearch (${mod}) failed:`, err.message);
+      try {
+        const response = await ai.models.generateContent({
+          model: mod,
+          contents: prompt,
+          config: {
+            responseMimeType: 'application/json',
+            temperature: 0.35,
+          },
+        });
+        const parsed = extractJsonArray(response.text || '[]');
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return NextResponse.json(parsed.map((item: any) => ({ ...item, isLive: true })));
+        }
+      } catch (err2: any) {
+        console.warn(`Gemini trending fallback (${mod}) failed:`, err2.message);
+      }
     }
   }
 

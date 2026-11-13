@@ -249,22 +249,22 @@ export const INITIAL_TRENDING_FIGURES: TrendingFigure[] = [
   {
     id: 'fig-jensen-huang',
     name: '젠슨 황 (Jensen Huang)',
-    title: '식당 설거지 소년에서 4,000조 엔비디아 황제가 된 가죽자켓의 신화',
+    title: '연이은 불륜 스캔들 시인 후 창립 33년 만에 엔비디아 CEO 전격 사임',
     category: 'economy',
     viralityScore: 100,
     timeframe: '24h',
-    buzzSummary: '1993년 창업 후 3차례 파산 위기를 넘긴 엔비디아가 글로벌 시가총액 1위권에 오르며, 16세 데니스 식당 설거지 알바 일화가 쇼츠 8,900만 뷰를 기록 중입니다.',
-    controversyOrIssue: '창업 초기 3번의 부도 위기와 30세 청년 시절의 무모한 도전, "더 많이 살수록 더 많이 번다"는 역발상 승부수',
-    suggestedAngle: '시련은 나를 더 단단하게 만든다, 매일 실패할 각오로 일하는 60대 억만장자의 뼈 때리는 조언',
-    hookLine: '화장실 청소하던 16세 소년이 30년 뒤 시가총액 1위 황제가 된 한 마디',
-    tags: ['젠슨황', '엔비디아', 'AI혁명', '가죽자켓', '시총1위', '인생역전', 'H100'],
+    buzzSummary: '2026년 11월 메가스피드 임원 앨리스 황·사내 임원 킴벌리 파월 등 복수의 혼외 관계 스캔들이 보도된 뒤 불충실함을 시인하고, 창립 33년 만에 엔비디아 CEO·이사회직에서 전격 사임했습니다.',
+    controversyOrIssue: '국가안보·사내 윤리 논란과 함께 임시 CEO 콜레트 크레스 선임, 엔비디아 주가 급락 및 대규모 재산분할 가능성까지 전 세계 언론이 대서특필 중입니다.',
+    suggestedAngle: '세계 1위 AI 제국을 세운 황제가 사생활 스캔들 단 한 번으로 33년 왕좌에서 내려온 충격적 몰락',
+    hookLine: '엔비디아 창립 33년 만에 전격 사임한 젠슨 황, 전 세계가 뒤집힌 불륜 스캔들 전말',
+    tags: ['젠슨황', '엔비디아', 'CEO사임', '실시간이슈', 'AI반도체'],
     sourceArticlesCount: 680,
     isHot: true,
     primaryChannel: 'multi',
     channelMetrics: {
-      naverRank: '네이버 글로벌 인물 1위 (+650%)',
-      youtubeViews: '유튜브 쇼츠 누적 8,900만 뷰',
-      instaReels: '글로벌 릴스 바이럴 75만 개'
+      naverRank: '네이버 글로벌 뉴스 1위',
+      youtubeViews: '유튜브 쇼츠 이슈 급상승',
+      instaReels: '글로벌 릴스 바이럴'
     }
   },
   {

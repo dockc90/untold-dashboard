@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Client-side AI & Media Services ported cleanly from ssamtool/sinsoo architecture.
 // All API requests run directly from the user's browser using user-supplied keys stored in localStorage.
+import type { CategoryType, SourceChannel, TimeFilter, TrendingFigure } from '../types';
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com';
 const YT_BASE = 'https://www.googleapis.com/youtube/v3';
@@ -690,6 +691,7 @@ export interface GenTextOptions {
   signal?: AbortSignal;
   onNote?: (note: string) => void;
   apiKey?: string;
+  bypassSearchBlock?: boolean;
 }
 
 export async function genGeminiText(opt: GenTextOptions) {
@@ -711,7 +713,8 @@ export async function genGeminiText(opt: GenTextOptions) {
   const signal = withTimeout(opt.signal, totalTimeout);
   const perAttemptMs = opt.attemptTimeoutMs || (opt.media?.length ? 90000 : 12000);
   const state = readModelState();
-  const searchAllowed = !state.searchBlockedUntil || state.searchBlockedUntil < Date.now();
+  const searchAllowed =
+    opt.bypassSearchBlock || !state.searchBlockedUntil || state.searchBlockedUntil < Date.now();
   let useTools = searchAllowed ? opt.tools || [] : (opt.tools || []).filter((t) => t !== 'google_search');
   let lastError: unknown;
 
@@ -724,10 +727,11 @@ export async function genGeminiText(opt: GenTextOptions) {
     let generateFailedStatus = 0;
     try {
       const attemptGenerate = async (toolsForTry: string[]) => {
-        const useJson = opt.json !== false && !(legacy && toolsForTry.length > 0);
+        // NOTE: Gemini REST API rejects combining tools (e.g. google_search) with responseMimeType: 'application/json' on several models.
+        const useJson = opt.json !== false && toolsForTry.length === 0;
         const promptText =
           opt.text +
-          (opt.json !== false && !useJson ? '\n\n반드시 유효한 JSON만 출력하세요. 코드펜스(```)나 설명 금지.' : '');
+          (opt.json !== false && !useJson ? '\n\n반드시 유효한 JSON만 출력하세요. 코드펜스(```)나 부연 설명은 절대 금지.' : '');
         const body: any = {
           contents: [
             {
@@ -756,10 +760,14 @@ export async function genGeminiText(opt: GenTextOptions) {
         if (signal?.aborted) throw abortError(e0, signal) || e0;
         const e = (e0 as SinsooApiError);
         const cat = classifyGeminiError(e.status || 0, `${e.message} ${JSON.stringify(e.raw || '')}`);
-        if (useTools.includes('google_search') && (cat === 'search' || cat === 'zero' || cat === 'rate' || e.status === 400)) {
+        if (useTools.includes('google_search') && (cat === 'search' || cat === 'zero' || cat === 'rate')) {
           useTools = useTools.filter((t) => t !== 'google_search');
           writeModelState({ searchBlockedUntil: Date.now() + 12 * 3600e3 });
           opt.onNote?.('무료 키 제한으로 검색 연동 없이 진행합니다.');
+          r = await attemptGenerate(useTools);
+        } else if (useTools.includes('google_search') && e.status === 400) {
+          useTools = useTools.filter((t) => t !== 'google_search');
+          opt.onNote?.('이 모델에서 검색 도구 호환 실패 → 일반 모드로 재시도합니다.');
           r = await attemptGenerate(useTools);
         } else {
           throw e;
@@ -2043,3 +2051,201 @@ export const sinsooVault = {
     }
   },
 };
+
+/* ───────── Live Google-Search Trend Radar & Figure Analysis ───────── */
+
+function getKstDateString(): string {
+  try {
+    return new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+  } catch {
+    return new Date().toISOString().slice(0, 10);
+  }
+}
+
+export async function fetchLiveTrendingFigures(opt: {
+  timeframe: TimeFilter;
+  category: CategoryType;
+  channel: SourceChannel;
+  limit?: number;
+}): Promise<{ figures: TrendingFigure[]; usedSearch: boolean; model: string }> {
+  const settings = loadSinsooSettings();
+  if (!settings.geminiKey?.trim()) {
+    throw new SinsooApiError('gemini', 401, 'Gemini API 키가 연결되어 있지 않습니다.');
+  }
+
+  const todayKst = getKstDateString();
+  const timeframeLabel =
+    opt.timeframe === '24h' ? '최근 24시간' : opt.timeframe === '48h' ? '최근 48시간' : '최근 7일간';
+  const channelLabel =
+    opt.channel === 'youtube'
+      ? '유튜브 쇼츠·인기 급상승 동영상'
+      : opt.channel === 'naver'
+      ? '네이버 실시간 뉴스·인물 검색'
+      : opt.channel === 'instagram'
+      ? '인스타그램 릴스·SNS 바이럴'
+      : '한국 및 글로벌 주요 뉴스·유튜브·네이버·SNS 통합';
+  const categoryLabel =
+    opt.category === 'all'
+      ? '전체(연예·스포츠·정치경제·유튜버·기업·사회·해외 골고루)'
+      : opt.category;
+  const limit = opt.limit || 14;
+
+  const prompt = `당신은 대한민국 실시간 쇼츠 트렌드 리서처입니다.
+오늘 날짜는 ${todayKst}(한국 시간)입니다.
+
+[필수 작업]
+반드시 Google Search 도구로 오늘(${todayKst}) 및 ${timeframeLabel} 동안 ${channelLabel}에서 실제로 가장 크게 화제가 되고 있는 인물 ${limit}명을 검색해 정리하세요.
+- 카테고리 조건: ${categoryLabel}
+- 옛날 과거 일화(예: 수년 전 성공담, 오래된 밈)가 아니라 **지금(${todayKst} 기준 ${timeframeLabel}) 뉴스·커뮤니티·숏폼에서 실제로 뜨고 있는 최신 사건/논란/발표/기록**을 반영해야 합니다.
+  (예: 특정 인물이 최근 불륜·스캔들·사임·경기·수상·신곡 등으로 화제라면 반드시 그 최신 이슈를 반영하세요.)
+- 확인되지 않은 날짜나 숫자를 절대 지어내지 말고, 검색된 실제 날짜(예: 11월 12일, 2026년 11월)·숫자(순위·조회수·기록 등)만 쓰세요.
+
+아래 형식의 JSON 배열로만 출력하세요(설명·마크다운 금지):
+[
+  {
+    "name": "인물명 (영문명 또는 부제)",
+    "title": "지금 왜 화제인지 한 줄 헤드라인",
+    "category": "${opt.category === 'all' ? 'viral | entertainment | actor | sports | economy | social | global 중 하나' : opt.category}",
+    "viralityScore": 91~100 사이 정수,
+    "timeframe": "${opt.timeframe}",
+    "buzzSummary": "왜 지금(${timeframeLabel}) 화제인지 구체적 날짜·사건·숫자 포함 팩트를 1~2문장으로 작성",
+    "controversyOrIssue": "핵심 논란, 반전 포인트 또는 대중 반응",
+    "suggestedAngle": "쇼츠/캐러셀 2차 창작 기획 앵글 1문장",
+    "hookLine": "첫 3초 스크롤을 멈추게 하는 오프닝 훅 1줄(30~45자 내외)",
+    "tags": ["해시태그1", "해시태그2", "해시태그3", "해시태그4"],
+    "primaryChannel": "youtube | naver | instagram | multi 중 하나",
+    "channelMetrics": {
+      "naverRank": "네이버 관련 이슈/검색 동향 (선택)",
+      "youtubeViews": "유튜브 화제성 동향 (선택)",
+      "instaReels": "SNS/릴스 반응 (선택)"
+    }
+  }
+]`;
+
+  const res = await genGeminiText({
+    text: prompt,
+    json: true,
+    tools: ['google_search'],
+    bypassSearchBlock: true,
+    attemptTimeoutMs: 28000,
+    timeoutMs: 70000,
+  });
+
+  const rawParsed = parseGeminiJson<any>(res.text);
+  const rawList: any[] = Array.isArray(rawParsed)
+    ? rawParsed
+    : Array.isArray(rawParsed?.figures)
+    ? rawParsed.figures
+    : Array.isArray(rawParsed?.items)
+    ? rawParsed.items
+    : [];
+
+  const validCategories = new Set<CategoryType>([
+    'viral',
+    'entertainment',
+    'actor',
+    'sports',
+    'economy',
+    'social',
+    'global',
+  ]);
+
+  const now = Date.now();
+  const figures: TrendingFigure[] = rawList
+    .filter((item) => item && item.name && item.buzzSummary)
+    .map((item, idx) => {
+      const cat: CategoryType =
+        opt.category !== 'all'
+          ? opt.category
+          : validCategories.has(item.category)
+          ? item.category
+          : 'viral';
+      return {
+        id: `fig-live-${now}-${idx}`,
+        name: String(item.name).trim(),
+        title: String(item.title || `${item.name} 최신 이슈`).trim(),
+        category: cat,
+        viralityScore: Math.min(100, Math.max(88, Number(item.viralityScore) || 98 - Math.floor(idx / 2))),
+        timeframe: opt.timeframe,
+        buzzSummary: String(item.buzzSummary).trim(),
+        controversyOrIssue: String(item.controversyOrIssue || '').trim(),
+        suggestedAngle: String(item.suggestedAngle || '').trim(),
+        hookLine: item.hookLine ? String(item.hookLine).trim() : undefined,
+        tags: Array.isArray(item.tags) ? item.tags.map((t: any) => String(t).replace(/^#/, '')) : [String(item.name), '실시간이슈'],
+        primaryChannel:
+          item.primaryChannel === 'youtube' ||
+          item.primaryChannel === 'naver' ||
+          item.primaryChannel === 'instagram'
+            ? item.primaryChannel
+            : 'multi',
+        channelMetrics: item.channelMetrics || undefined,
+        isHot: idx < 5,
+        isLive: true,
+      };
+    });
+
+  if (figures.length === 0) {
+    throw new SinsooApiError('parse', 0, '실시간 화제 인물 목록을 파싱하지 못했습니다.');
+  }
+
+  return {
+    figures,
+    usedSearch: (res.sources?.length || 0) > 0 || (res.queries?.length || 0) > 0,
+    model: res.model,
+  };
+}
+
+export async function analyzeLiveFigure(opt: {
+  figureName: string;
+  category: CategoryType;
+}): Promise<TrendingFigure> {
+  const settings = loadSinsooSettings();
+  if (!settings.geminiKey?.trim()) {
+    throw new SinsooApiError('gemini', 401, 'Gemini API 키가 연결되어 있지 않습니다.');
+  }
+
+  const todayKst = getKstDateString();
+  const prompt = `오늘 날짜는 ${todayKst}(한국 시간)입니다.
+Google Search 도구로 인물 "${opt.figureName}"(카테고리: ${opt.category})에 대한 가장 최신 뉴스, 최근 이슈, 공식 프로필·인터뷰·보도 팩트를 검색하여 분석하세요.
+
+[원칙]
+1. 반드시 검색으로 확인된 실제 사실(Fact)만 사용하고, 허위사실·가공 에피소드 날조는 절대 금지합니다.
+2. 최근(${todayKst} 기준) 발생한 스캔들, 논란, 기록, 활동 등 "왜 지금 화제인지"를 날짜·숫자 포함 팩트로 가장 먼저 반영하세요.
+3. 아래 JSON 객체 형식으로만 응답하세요(코드펜스·설명 금지):
+{
+  "name": "인물명",
+  "title": "왜 지금 화제인지 한 줄 헤드라인",
+  "viralityScore": 90~100 정수,
+  "buzzSummary": "왜 지금 주목받는지 확인된 날짜·숫자 기반 팩트 1~2문장",
+  "controversyOrIssue": "핵심 논란, 시련, 반전 또는 대중 반응",
+  "suggestedAngle": "2차 창작 쇼츠·캐러셀 기획 방향",
+  "hookLine": "첫 3초 스크롤 정지 오프닝 훅 1줄(30~45자 내외)",
+  "tags": ["태그1", "태그2", "태그3", "태그4"]
+}`;
+
+  const res = await genGeminiText({
+    text: prompt,
+    json: true,
+    tools: ['google_search'],
+    bypassSearchBlock: true,
+    attemptTimeoutMs: 24000,
+    timeoutMs: 60000,
+  });
+
+  const data = parseGeminiJson<any>(res.text);
+  return {
+    id: `fig-custom-${Date.now()}`,
+    name: String(data.name || opt.figureName).trim(),
+    title: String(data.title || `${opt.figureName} 최신 이슈 분석`).trim(),
+    category: opt.category,
+    viralityScore: Math.min(100, Math.max(88, Number(data.viralityScore) || 96)),
+    timeframe: '24h',
+    buzzSummary: String(data.buzzSummary || '').trim(),
+    controversyOrIssue: String(data.controversyOrIssue || '').trim(),
+    suggestedAngle: String(data.suggestedAngle || '').trim(),
+    hookLine: data.hookLine ? String(data.hookLine).trim() : undefined,
+    tags: Array.isArray(data.tags) ? data.tags.map((t: any) => String(t).replace(/^#/, '')) : [opt.figureName, '화제의인물'],
+    isHot: true,
+    isLive: true,
+  };
+}

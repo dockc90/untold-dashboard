@@ -35,6 +35,8 @@ interface TrendRadarProps {
   onRefreshTrends: (timeframe: TimeFilter, category: CategoryType, channel?: SourceChannel) => Promise<void>;
   onAnalyzeCustomFigure: (figureName: string, category: CategoryType) => Promise<void>;
   isLoading: boolean;
+  isLiveData?: boolean;
+  lastLiveSyncedAt?: string | null;
 }
 
 const CATEGORIES: { id: CategoryType; label: string }[] = [
@@ -131,6 +133,8 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
   onRefreshTrends,
   onAnalyzeCustomFigure,
   isLoading,
+  isLiveData = false,
+  lastLiveSyncedAt = null,
 }) => {
   const [sourceChannel, setSourceChannel] = useState<SourceChannel>('all');
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('24h');
@@ -142,21 +146,21 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
   const [isSubmittingCustom, setIsSubmittingCustom] = useState(false);
   const [showDbInfo, setShowDbInfo] = useState(false);
   const [refreshToast, setRefreshToast] = useState<string | null>(null);
-  const [lastUpdatedTime, setLastUpdatedTime] = useState<string>('실시간');
+  const [lastUpdatedTime, setLastUpdatedTime] = useState<string | null>(null);
 
   const handleRefreshClick = async () => {
     if (isLoading) return;
-    setRefreshToast('⏳ 네이버·유튜브·인스타 3대 플랫폼 최신 화제성 인물 수집 중...');
+    setRefreshToast('⏳ Google Search로 오늘 기준 실시간 화제 인물을 검색 중...');
     try {
       await onRefreshTrends(timeFilter, categoryFilter, sourceChannel);
       const now = new Date();
-      const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+      const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
       setLastUpdatedTime(timeStr);
-      setRefreshToast('✨ 최신 화제성 인물이 실시간으로 최신화되었습니다!');
+      setRefreshToast('✨ Google Search 기반 최신 화제 인물로 갱신되었습니다!');
       setTimeout(() => setRefreshToast(null), 4000);
     } catch (err: any) {
-      setRefreshToast('✨ 최신 화제 인물 데이터로 갱신되었습니다!');
-      setTimeout(() => setRefreshToast(null), 3500);
+      setRefreshToast(`⚠️ ${err?.message || '실시간 검색 갱신에 실패했습니다. API 설정을 확인해 주세요.'}`);
+      setTimeout(() => setRefreshToast(null), 4500);
     }
   };
 
@@ -383,12 +387,22 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
       <div className="flex-1 overflow-y-auto p-4 sm:p-5 bg-[#FAF9F7]/50 space-y-3.5">
         {/* Real-time Status & 1-Click Refresh Bar */}
         <div className="flex items-center justify-between px-1 text-[11px] font-semibold text-[#787774]">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <Flame className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
             <span className="text-[#37352F] font-bold">실시간 화제 인물 랭킹 ({filteredFigures.length}명)</span>
-            <span className="px-1.5 py-0.2 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/60 text-[9px] font-bold">
-              {lastUpdatedTime}
-            </span>
+            {isLoading ? (
+              <span className="px-1.5 py-0.2 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200/70 text-[9px] font-bold">
+                실시간 검색 중...
+              </span>
+            ) : isLiveData ? (
+              <span className="px-1.5 py-0.2 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/60 text-[9px] font-bold">
+                구글 검색 실시간{lastLiveSyncedAt || lastUpdatedTime ? ` · ${lastLiveSyncedAt || lastUpdatedTime}` : ''}
+              </span>
+            ) : (
+              <span className="px-1.5 py-0.2 rounded-full bg-[#F1F1EF] text-[#787774] border border-[#E3E2DE] text-[9px] font-semibold">
+                기본 큐레이션
+              </span>
+            )}
           </div>
           <button
             type="button"
@@ -417,6 +431,9 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
             {[...filteredFigures]
               .sort((a, b) => {
+                if (Boolean(b.isLive) !== Boolean(a.isLive)) {
+                  return b.isLive ? 1 : -1;
+                }
                 if (b.viralityScore !== a.viralityScore) {
                   return b.viralityScore - a.viralityScore;
                 }
@@ -445,6 +462,11 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
                               <span className="font-bold text-sm sm:text-base text-[#191919] group-hover:text-black transition">
                                 {fig.name}
                               </span>
+                              {fig.isLive && (
+                                <span className="px-1.5 py-0.2 text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/70 rounded-md">
+                                  실시간
+                                </span>
+                              )}
                               {rank === 1 ? (
                                 <span className="px-1.5 py-0.2 text-[9px] font-bold bg-amber-50 text-amber-800 border border-amber-200/80 rounded-md">
                                   🥇 1위

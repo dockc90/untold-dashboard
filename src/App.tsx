@@ -45,6 +45,17 @@ import {
 } from './utils/indexedDb';
 import { generateClientFallbackScript } from './utils/fallbackGenerator';
 import { getSceneFallbackImage } from './utils/sceneImages';
+import { analyzeLiveFigure, fetchLiveTrendingFigures, loadSinsooSettings } from './services/sinsooApi';
+
+const LIVE_TRENDS_CACHE_KEY = 'autoshorts_live_trends_v1';
+const LIVE_TRENDS_TTL_MS = 15 * 60 * 1000;
+
+function normalizeFigureKey(name: string): string {
+  return String(name || '')
+    .replace(/\([^)]*\)/g, '')
+    .replace(/[^가-힣a-zA-Z0-9]/g, '')
+    .toLowerCase();
+}
 
 const STORAGE_KEY = 'autoshorts_saved_projects_v2';
 
@@ -106,6 +117,8 @@ export default function App() {
   const [savedProjects, setSavedProjects] = useState<ShortsProject[]>([]);
   const [draftProject, setDraftProject] = useState<ShortsProject | null>(null);
   const [isLoadingTrends, setIsLoadingTrends] = useState<boolean>(false);
+  const [isLiveTrendsLoaded, setIsLiveTrendsLoaded] = useState<boolean>(false);
+  const [lastLiveSyncedAt, setLastLiveSyncedAt] = useState<string | null>(null);
   const [isGeneratingScript, setIsGeneratingScript] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -509,100 +522,164 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // API Call: Refresh trends with Gemini from Naver, YouTube, Instagram
+  // API Call: Refresh trends with live Google Search Gemini (uses browser API key first, falls back to server API)
   const handleRefreshTrends = async (timeframe: TimeFilter, category: CategoryType, channel: SourceChannel = 'all') => {
     setIsLoadingTrends(true);
     setErrorMessage(null);
     try {
-      const res = await fetch('/api/gemini/trending', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ timeframe, category, channel }),
-      });
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || '트렌드 데이터를 불러오는 중 오류가 발생했습니다.');
+      const settings = loadSinsooSettings();
+      let newFigures: TrendingFigure[] = [];
+      let fetchedLive = false;
+
+      if (settings.geminiKey?.trim()) {
+        const liveRes = await fetchLiveTrendingFigures({ timeframe, category, channel, limit: 14 });
+        newFigures = liveRes.figures;
+        fetchedLive = newFigures.length > 0;
+      } else {
+        const res = await fetch('/api/gemini/trending', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ timeframe, category, channel }),
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || '트렌드 데이터를 불러오는 중 오류가 발생했습니다.');
+        }
+        const serverList: TrendingFigure[] = await res.json();
+        newFigures = serverList;
+        fetchedLive = Array.isArray(serverList) && serverList.some((f) => f.isLive);
       }
-      const newFigures: TrendingFigure[] = await res.json();
+
       if (Array.isArray(newFigures) && newFigures.length > 0) {
         const formatted = newFigures.map((item, idx) => {
-          const dynamicScore = item.viralityScore || Math.min(100, Math.max(91, 100 - idx + Math.floor(Math.random() * 3) - 1));
+          const dynamicScore = item.viralityScore || Math.min(100, Math.max(91, 100 - idx));
           return {
             ...item,
             id: item.id || `fig-gen-${Date.now()}-${idx}`,
-            category: (category !== 'all' ? category : item.category) as CategoryType || 'all',
+            category: ((category !== 'all' ? category : item.category) as CategoryType) || 'viral',
             timeframe: (item.timeframe as TimeFilter) || timeframe,
             primaryChannel: normalizeChannel(item.primaryChannel),
             viralityScore: dynamicScore,
-            isHot: item.isHot ?? (idx < 4),
+            isHot: item.isHot ?? (idx < 5),
+            isLive: fetchedLive || item.isLive,
           };
         });
 
-        // 새로 발굴된 실시간 트렌드 인물을 배치하고 기존 DB와 자동 병합 (실시간 점수 재계산 및 유동적 랭킹 변동)
         setFigures((prev) => {
           const baseFigures = prev && prev.length > 0 ? prev : INITIAL_TRENDING_FIGURES;
-          const newNames = new Set(formatted.map((f) => f.name.replace(/[^가-힣a-zA-Z0-9]/g, '').toLowerCase()));
-          
-          // 기존 인물들도 실시간 새로고침 시 미세 점수 변동(±1점) 반영하여 영구 고정 순위 탈피!
+          const newNames = new Set(formatted.map((f) => normalizeFigureKey(f.name)));
           const kept = baseFigures
-            .filter((p) => {
-              const cleanName = p.name.replace(/[^가-힣a-zA-Z0-9]/g, '').toLowerCase();
-              return !newNames.has(cleanName);
-            })
-            .map((fig) => {
-              const jitter = Math.floor(Math.random() * 3) - 1; // -1, 0, or +1
-              return {
-                ...fig,
-                viralityScore: Math.min(100, Math.max(90, (fig.viralityScore || 95) + jitter)),
-                isHot: Math.random() > 0.4,
-              };
-            });
+            .filter((p) => !newNames.has(normalizeFigureKey(p.name)))
+            .map((fig) => ({
+              ...fig,
+              viralityScore: fetchedLive ? Math.min(89, fig.viralityScore || 85) : fig.viralityScore,
+            }));
 
-          const merged = [...formatted, ...kept].sort((a, b) => b.viralityScore - a.viralityScore);
+          const merged = [...formatted, ...kept].sort((a, b) => {
+            if (Boolean(b.isLive) !== Boolean(a.isLive)) return b.isLive ? 1 : -1;
+            return b.viralityScore - a.viralityScore;
+          });
           return merged;
         });
         setSelectedFigure(formatted[0]);
+
+        if (fetchedLive) {
+          const now = new Date();
+          const hhmm = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+          setIsLiveTrendsLoaded(true);
+          setLastLiveSyncedAt(hhmm);
+          try {
+            sessionStorage.setItem(
+              LIVE_TRENDS_CACHE_KEY,
+              JSON.stringify({ savedAt: Date.now(), syncedAt: hhmm, figures: formatted })
+            );
+          } catch {
+            // ignore storage quota
+          }
+        }
       }
     } catch (err: any) {
-      console.error('Error refreshing trends, loading updated initial figures:', err);
-      setFigures(INITIAL_TRENDING_FIGURES);
-      setSelectedFigure(INITIAL_TRENDING_FIGURES[0]);
+      console.error('Error refreshing trends:', err);
+      throw err;
     } finally {
       setIsLoadingTrends(false);
     }
   };
 
-  // API Call: Analyze Custom Figure
+  // Auto-load fresh Google-Search trending figures once on mount when browser Gemini key is configured
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const rawCache = sessionStorage.getItem(LIVE_TRENDS_CACHE_KEY);
+      if (rawCache) {
+        const cached = JSON.parse(rawCache);
+        if (cached?.savedAt && Date.now() - cached.savedAt < LIVE_TRENDS_TTL_MS && Array.isArray(cached.figures) && cached.figures.length > 0) {
+          const cachedNames = new Set(cached.figures.map((f: TrendingFigure) => normalizeFigureKey(f.name)));
+          const kept = INITIAL_TRENDING_FIGURES
+            .filter((p) => !cachedNames.has(normalizeFigureKey(p.name)))
+            .map((p) => ({ ...p, viralityScore: Math.min(89, p.viralityScore || 85) }));
+          setFigures([...cached.figures, ...kept]);
+          setSelectedFigure(cached.figures[0]);
+          setIsLiveTrendsLoaded(true);
+          setLastLiveSyncedAt(cached.syncedAt || null);
+          return;
+        }
+      }
+    } catch {
+      // ignore cache parse errors
+    }
+
+    const settings = loadSinsooSettings();
+    if (settings.geminiKey?.trim()) {
+      handleRefreshTrends('24h', 'all', 'all').catch((e) => {
+        console.warn('Auto live trend refresh skipped:', e?.message || e);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // API Call: Analyze Custom Figure (uses live Google Search via browser Gemini key first)
   const handleAnalyzeCustomFigure = async (figureName: string, category: CategoryType) => {
     setErrorMessage(null);
     try {
-      const res = await fetch('/api/gemini/analyze-figure', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ figureName, category }),
-      });
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || '인물 분석 실패');
-      }
-      const data = await res.json();
-      const newFig: TrendingFigure = {
-        id: `fig-custom-${Date.now()}`,
-        name: data.name || figureName,
-        title: data.title || `${figureName}의 충격 비하인드`,
-        category,
-        viralityScore: data.viralityScore || 95,
-        timeframe: '24h',
-        buzzSummary: data.buzzSummary || '',
-        controversyOrIssue: data.controversyOrIssue || '',
-        suggestedAngle: data.suggestedAngle || '',
-        hookLine: data.hookLine || undefined,
-        tags: data.tags || ['쇼츠', '화제의인물'],
-        isHot: true,
-      };
+      const settings = loadSinsooSettings();
+      let newFig: TrendingFigure | null = null;
 
-      setFigures((prev) => [newFig, ...prev]);
-      setSelectedFigure(newFig);
+      if (settings.geminiKey?.trim()) {
+        newFig = await analyzeLiveFigure({ figureName, category });
+      } else {
+        const res = await fetch('/api/gemini/analyze-figure', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ figureName, category }),
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || '인물 분석 실패');
+        }
+        const data = await res.json();
+        newFig = {
+          id: `fig-custom-${Date.now()}`,
+          name: data.name || figureName,
+          title: data.title || `${figureName}의 충격 비하인드`,
+          category,
+          viralityScore: data.viralityScore || 95,
+          timeframe: '24h',
+          buzzSummary: data.buzzSummary || '',
+          controversyOrIssue: data.controversyOrIssue || '',
+          suggestedAngle: data.suggestedAngle || '',
+          hookLine: data.hookLine || undefined,
+          tags: data.tags || ['쇼츠', '화제의인물'],
+          isHot: true,
+          isLive: Boolean(data.isLive),
+        };
+      }
+
+      if (newFig) {
+        const cleanNew = normalizeFigureKey(newFig.name);
+        setFigures((prev) => [newFig!, ...prev.filter((p) => normalizeFigureKey(p.name) !== cleanNew)]);
+        setSelectedFigure(newFig);
+      }
     } catch (err: any) {
       console.error('Error analyzing custom figure:', err);
       setErrorMessage(err.message || '인물 분석 중 오류가 발생했습니다.');
@@ -1050,6 +1127,8 @@ export default function App() {
                     onRefreshTrends={handleRefreshTrends}
                     onAnalyzeCustomFigure={handleAnalyzeCustomFigure}
                     isLoading={isLoadingTrends}
+                    isLiveData={isLiveTrendsLoaded}
+                    lastLiveSyncedAt={lastLiveSyncedAt}
                   />
                 </div>
               </div>
@@ -1259,7 +1338,12 @@ export default function App() {
         <Suspense fallback={null}>
           <ApiSettingsModal
             isOpen={isApiSettingsOpen}
-            onClose={() => setIsApiSettingsOpen(false)}
+            onClose={() => {
+              setIsApiSettingsOpen(false);
+              if (!isLiveTrendsLoaded && loadSinsooSettings().geminiKey?.trim()) {
+                handleRefreshTrends('24h', 'all', 'all').catch(() => {});
+              }
+            }}
           />
         </Suspense>
       )}

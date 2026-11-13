@@ -69,6 +69,7 @@ export interface TrendingFigure {
   controversyOrIssue: string;
   suggestedAngle: string;
   hookLine?: string; // 첫 3초 스크롤 정지 오프닝 훅 1줄
+  isLive?: boolean; // Google Search 실시간 수집 여부
   tags: string[];
   imageUrl?: string;
   sourceArticlesCount?: number;

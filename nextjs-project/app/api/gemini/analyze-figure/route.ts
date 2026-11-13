@@ -37,55 +37,68 @@ export async function POST(request: Request) {
     return NextResponse.json(fallback);
   }
 
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const prompt = `당신은 대한민국 최고 유튜브 쇼츠 기획자이자 트렌드 분석가입니다.
+  const todayStr = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+  const prompt = `당신은 대한민국 최고 유튜브 쇼츠 기획자이자 실시간 트렌드 분석가입니다.
 오늘 날짜: ${todayStr}
 인물: "${figureName}" (카테고리: ${category})
 
-[★ 최우선 절대 원칙: 100% 사실(Fact) 기반 & 허위사실·날조 원천 차단]
-1. 반드시 대상 인물에 대해 공식 언론 보도, 방송 인터뷰, 공식 프로필 및 다큐멘터리 등에서 공인된 '실제 사실(Fact)'만을 바탕으로 분석하세요.
-2. 가짜 일화, 확인되지 않은 루머, 가공의 사건이나 거짓 에피소드를 지어내는 행위는 절대 엄격히 금지됩니다.
-3. buzzSummary에는 "왜 지금/왜 대중이 주목하는지 + 확인된 연도·날짜·숫자(기록·경력·성과)" 팩트를 구체적으로 담고, hookLine에는 첫 3초 스크롤을 멈추는 강력한 오프닝 멘트 1줄(30~45자 내외)을 작성하세요.
+[★ 최우선 절대 원칙: Google Search 실시간 팩트 기반 & 허위사실·날조 차단]
+1. 반드시 Google Search 도구로 대상 인물의 가장 최신 뉴스·사건·공식 보도와 공인된 '실제 사실(Fact)'을 검색해 분석하세요.
+2. 가짜 일화, 확인되지 않은 루머, 가공의 사건을 지어내는 행위는 절대 엄격히 금지됩니다.
+3. buzzSummary에는 "왜 지금 주목받는지 + 확인된 날짜·연도·숫자" 팩트를 구체적으로 담고, hookLine에는 첫 3초 스크롤을 멈추는 오프닝 훅 1줄(30~45자 내외)을 작성하세요.
+4. 반드시 아래 JSON 객체 형식으로만 응답하세요(코드펜스·부연 설명 금지):
+{
+  "name": "인물명",
+  "title": "지금 왜 화제인지 한 줄 헤드라인",
+  "viralityScore": 95,
+  "buzzSummary": "왜 지금 주목받는지 날짜·숫자 기반 팩트 1~2문장",
+  "controversyOrIssue": "핵심 논란, 시련 또는 대중 반응",
+  "suggestedAngle": "2차 창작 기획 방향",
+  "hookLine": "첫 3초 오프닝 훅 1줄",
+  "tags": ["태그1", "태그2", "태그3", "태그4"]
+}`;
 
-이 인물이 현재 왜 화제이거나, 유튜브 쇼츠로 제작했을 때 대중이 열광할 만한 핵심 비하인드 스토리, 역경 극복, 반전 서사를 분석해주세요.
-반드시 아래 JSON 스키마 형식으로 응답하세요.`;
+  const extractJsonObj = (raw: string) => {
+    const cleaned = String(raw || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+    const s = cleaned.indexOf('{');
+    const e = cleaned.lastIndexOf('}');
+    return JSON.parse(s >= 0 && e > s ? cleaned.slice(s, e + 1) : cleaned);
+  };
 
-  const candidateModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash'];
+  const candidateModels = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.5-flash'];
   for (const mod of candidateModels) {
     try {
       const response = await ai.models.generateContent({
         model: mod,
         contents: prompt,
         config: {
-          responseMimeType: 'application/json',
-          temperature: 0.35,
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              name: { type: Type.STRING },
-              title: { type: Type.STRING, description: '호기심을 자극하는 한 줄 헤드라인' },
-              viralityScore: { type: Type.INTEGER, description: '1부터 100까지의 화제성/바이럴 점수' },
-              buzzSummary: { type: Type.STRING, description: '왜 지금 주목받는지 날짜·숫자 기반 팩트 1~2문장' },
-              controversyOrIssue: { type: Type.STRING, description: '과거 역경, 시련, 논란 또는 감동 포인트' },
-              suggestedAngle: { type: Type.STRING, description: '2차 창작 스토리텔링으로 승부할 기획 방향' },
-              hookLine: { type: Type.STRING, description: '첫 3초 스크롤 정지 오프닝 훅 1줄 (30~45자 내외)' },
-              tags: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-                description: '핵심 해시태그 4~5개'
-              }
-            },
-            required: ['name', 'title', 'viralityScore', 'buzzSummary', 'controversyOrIssue', 'suggestedAngle', 'hookLine', 'tags']
-          }
-        }
+          temperature: 0.3,
+          tools: [{ googleSearch: {} }],
+        },
       });
 
-      const parsed = JSON.parse(response.text || '{}');
+      const parsed = extractJsonObj(response.text || '{}');
       if (parsed.name && parsed.title) {
-        return NextResponse.json(parsed);
+        return NextResponse.json({ ...parsed, isLive: true });
       }
     } catch (err: any) {
-      console.warn(`Gemini analyze-figure (${mod}) failed:`, err.message);
+      console.warn(`Gemini analyze-figure with search (${mod}) failed:`, err.message);
+      try {
+        const response = await ai.models.generateContent({
+          model: mod,
+          contents: prompt,
+          config: {
+            responseMimeType: 'application/json',
+            temperature: 0.35,
+          },
+        });
+        const parsed = extractJsonObj(response.text || '{}');
+        if (parsed.name && parsed.title) {
+          return NextResponse.json({ ...parsed, isLive: true });
+        }
+      } catch (err2: any) {
+        console.warn(`Gemini analyze-figure fallback (${mod}) failed:`, err2.message);
+      }
     }
   }
 
