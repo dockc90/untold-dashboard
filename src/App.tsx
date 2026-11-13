@@ -68,19 +68,31 @@ function normalizeFigureKey(name: string): string {
 
 const STORAGE_KEY = 'autoshorts_saved_projects_v2';
 
+function isValidShortsProject(p: any): p is ShortsProject {
+  return Boolean(p && !p.__system && typeof p.id === 'string' && typeof p.figureName === 'string' && Array.isArray(p.scenes));
+}
+
+function sanitizeProjectsList(list: any): ShortsProject[] {
+  if (!Array.isArray(list)) return [];
+  return list.filter(isValidShortsProject);
+}
+
 // Helper: Perfectly merges project lists while strictly preserving all user-configured photos & scene assets
 export function mergeProjectsPreservingPhotos(existingList: ShortsProject[], incomingList: ShortsProject[]): ShortsProject[] {
+  const safeExisting = sanitizeProjectsList(existingList);
+  const safeIncoming = sanitizeProjectsList(incomingList);
   const map = new Map<string, ShortsProject>();
   const existingMap = new Map<string, ShortsProject>();
-  existingList.forEach((p) => existingMap.set(p.id, p));
+  safeExisting.forEach((p) => existingMap.set(p.id, p));
 
-  incomingList.forEach((incoming) => {
+  safeIncoming.forEach((incoming) => {
     const existing = existingMap.get(incoming.id);
     if (!existing) {
       map.set(incoming.id, incoming);
     } else {
+      const incScenes = Array.isArray(incoming.scenes) ? incoming.scenes : [];
       // Merge scenes: prioritize scene with uploadedImageUrl so photos are NEVER lost!
-      const mergedScenes: SceneItem[] = incoming.scenes.map((incScene, idx) => {
+      const mergedScenes: SceneItem[] = incScenes.map((incScene, idx) => {
         const existScene = existing.scenes?.[idx];
         return {
           ...incScene,
@@ -89,8 +101,8 @@ export function mergeProjectsPreservingPhotos(existingList: ShortsProject[], inc
         };
       });
 
-      if (existing.scenes && existing.scenes.length > incoming.scenes.length) {
-        for (let i = incoming.scenes.length; i < existing.scenes.length; i++) {
+      if (existing.scenes && existing.scenes.length > incScenes.length) {
+        for (let i = incScenes.length; i < existing.scenes.length; i++) {
           mergedScenes.push(existing.scenes[i]);
         }
       }
@@ -108,7 +120,7 @@ export function mergeProjectsPreservingPhotos(existingList: ShortsProject[], inc
     }
   });
 
-  existingList.forEach((local) => {
+  safeExisting.forEach((local) => {
     if (!map.has(local.id)) {
       map.set(local.id, local);
     }
@@ -297,10 +309,15 @@ export default function App() {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setSavedProjects(parsed);
+        const clean = sanitizeProjectsList(parsed);
+        if (clean.length > 0) {
+          setSavedProjects(clean);
+          if (Array.isArray(parsed) && clean.length !== parsed.length) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(clean));
+          }
         } else {
           setSavedProjects([SAMPLE_PROJECT]);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify([SAMPLE_PROJECT]));
         }
       } else {
         setSavedProjects([SAMPLE_PROJECT]);
@@ -312,8 +329,12 @@ export default function App() {
 
     // 1-B. IndexedDB retrieval (Restores high-res photo assets without localStorage quota limits)
     getAllProjectsFromIDB().then((idbProjects) => {
-      if (idbProjects && idbProjects.length > 0) {
-        setSavedProjects((prev) => mergeProjectsPreservingPhotos(prev, idbProjects));
+      const cleanIdb = sanitizeProjectsList(idbProjects);
+      if (cleanIdb.length > 0) {
+        setSavedProjects((prev) => mergeProjectsPreservingPhotos(prev, cleanIdb));
+      }
+      if (Array.isArray(idbProjects) && cleanIdb.length !== idbProjects.length) {
+        saveProjectsToIDB(cleanIdb).catch(console.warn);
       }
     }).catch(console.warn);
 

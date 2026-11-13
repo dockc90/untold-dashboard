@@ -84,10 +84,10 @@ function toTrendingFigure(item: NewsletterBriefItem, isUpcoming = false): Trendi
     viralityScore: item.viralityScore || 95,
     timeframe: '24h',
     buzzSummary: item.whyNow,
-    controversyOrIssue: item.facts.join(' · ') || item.whyNow,
+    controversyOrIssue: (item.facts || []).join(' · ') || item.whyNow,
     suggestedAngle: item.shortsIdea || item.hookLine,
     hookLine: item.hookLine,
-    tags: item.tags || [item.name, '오전7시브리핑'],
+    tags: Array.isArray(item.tags) ? item.tags : [item.name, '오전7시브리핑'],
     primaryChannel: 'multi',
     isHot: item.rank <= 3,
     isLive: true,
@@ -406,7 +406,7 @@ export const NewsletterModal: React.FC<NewsletterModalProps> = ({
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {issue.items.map((item) => {
+                {(issue.items || []).map((item) => {
                   const fig = toTrendingFigure(item, false);
                   return (
                     <div
@@ -438,7 +438,7 @@ export const NewsletterModal: React.FC<NewsletterModalProps> = ({
                         </div>
 
                         <div className="flex items-center flex-wrap gap-1">
-                          {item.tags.slice(0, 4).map((t) => {
+                          {(item.tags || []).slice(0, 4).map((t) => {
                             const k = `${item.rank}-${t}`;
                             return (
                               <button
@@ -495,13 +495,13 @@ export const NewsletterModal: React.FC<NewsletterModalProps> = ({
                 })}
               </div>
 
-              {issue.upcoming.length > 0 && (
+              {(issue.upcoming || []).length > 0 && (
                 <div className="bg-violet-50/70 border border-violet-200/80 rounded-2xl p-4 space-y-2.5">
                   <div className="text-xs font-bold text-violet-900">
                     🔭 내일({issue.tomorrowKst}) 예고 · 선점 추천 소재
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                    {issue.upcoming.map((u) => {
+                    {(issue.upcoming || []).map((u) => {
                       const upFig = toTrendingFigure(u, true);
                       return (
                         <div

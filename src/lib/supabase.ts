@@ -62,7 +62,9 @@ export async function fetchProjectsFromSupabase(): Promise<ShortsProject[] | nul
       .order('created_at', { ascending: false });
 
     if (!untoldErr && untoldData && untoldData.length > 0) {
-      return untoldData.map((row: any) => row.data).filter(Boolean);
+      return untoldData
+        .map((row: any) => row.data)
+        .filter((d: any) => d && !d.__system && typeof d.id === 'string' && typeof d.figureName === 'string' && Array.isArray(d.scenes));
     }
 
     // Try relational shorts_projects table
