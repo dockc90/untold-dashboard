@@ -596,6 +596,7 @@ export default function App() {
         buzzSummary: data.buzzSummary || '',
         controversyOrIssue: data.controversyOrIssue || '',
         suggestedAngle: data.suggestedAngle || '',
+        hookLine: data.hookLine || undefined,
         tags: data.tags || ['쇼츠', '화제의인물'],
         isHot: true,
       };
@@ -644,6 +645,7 @@ export default function App() {
             buzzSummary: selectedFigure.buzzSummary,
             controversyOrIssue: selectedFigure.controversyOrIssue,
             suggestedAngle: selectedFigure.suggestedAngle,
+            hookLine: selectedFigure.hookLine,
             targetPersona,
             targetDuration: duration,
             videoTone,
@@ -888,8 +890,8 @@ export default function App() {
                           hooks: [
                             {
                               type: 'question',
-                              label: '질문형 후킹',
-                              text: `여러분은 ${fig.name} 님이 가장 절망적이었던 순간을 어떻게 이겨냈는지 아십니까?`
+                              label: fig.hookLine ? '첫 3초 훅 추천' : '질문형 후킹',
+                              text: fig.hookLine || `여러분은 ${fig.name} 님이 가장 절망적이었던 순간을 어떻게 이겨냈는지 아십니까?`
                             },
                             {
                               type: 'provocative',
@@ -911,12 +913,12 @@ export default function App() {
                           hashtags: ['#shorts', `#${fig.name}`, '#인생역전', '#비하인드'],
                           description: `${fig.name}의 비하인드 스토리와 역경 극복 드라마를 2차 창작으로 조명한 감동 숏폼입니다.`,
                           pinnedComment: `여러분도 포기하고 싶은 순간이 있으셨나요? ${fig.name} 님의 이야기를 보고 느낀 점을 댓글로 나눠주세요!`,
-                          fullScript: `여러분은 ${fig.name} 님이 가장 밑바닥에 있던 순간을 아십니까?\n\n화려한 지금의 모습 뒤에는, 끝없는 거절과 차가운 냉대를 견뎌낸 10년의 긴 무명이 있었습니다.\n\n"너는 절대 안 된다"는 주변의 비수 같은 말들이 가슴을 후벼팠지만, 그는 결코 물러서지 않았습니다.\n\n남들이 모두 잠든 새벽, 차가운 연습실에서 하루 3시간만 자며 피나는 연습을 거듭했습니다.\n\n단돈 몇 푼이 없어 컵라면으로 끼니를 때우면서도, 가슴 속 꿈의 불꽃만은 꺼뜨리지 않았습니다.\n\n포기하고 싶어 무너져 내리던 날 밤, 낡은 가족사진을 보며 눈물을 훔치고 다시 일어섰습니다.\n\n기회는 예고 없이 찾아왔고, 그는 지난 10년간 갈고닦은 모든 것을 그 한 무대에 쏟아부었습니다.\n\n마침내 단 한 번의 무대로 대한민국 대중들의 시선을 단숨에 사로잡았습니다.\n\n모두가 불가능하다고 손가락질했던 그 청년이, 지금은 수많은 이들의 롤모델이 되었습니다.\n\n정상에 오른 지금도 그는 "그때의 눈물과 땀방울이 없었다면 오늘의 나는 없었다"고 고백합니다.\n\n진정한 승리는 결코 요행이나 우연으로 완성되지 않는다는 것을 그는 온몸으로 증명했습니다.\n\n오늘 홀로 버티고 있는 당신의 땀방울도 결코 헛되지 않을 것입니다. 당신의 꿈을 진심으로 응원합니다.`,
+                          fullScript: `${fig.hookLine || `여러분은 ${fig.name} 님이 가장 밑바닥에 있던 순간을 아십니까?`}\n\n화려한 지금의 모습 뒤에는, 끝없는 거절과 차가운 냉대를 견뎌낸 10년의 긴 무명이 있었습니다.\n\n"너는 절대 안 된다"는 주변의 비수 같은 말들이 가슴을 후벼팠지만, 그는 결코 물러서지 않았습니다.\n\n남들이 모두 잠든 새벽, 차가운 연습실에서 하루 3시간만 자며 피나는 연습을 거듭했습니다.\n\n단돈 몇 푼이 없어 컵라면으로 끼니를 때우면서도, 가슴 속 꿈의 불꽃만은 꺼뜨리지 않았습니다.\n\n포기하고 싶어 무너져 내리던 날 밤, 낡은 가족사진을 보며 눈물을 훔치고 다시 일어섰습니다.\n\n기회는 예고 없이 찾아왔고, 그는 지난 10년간 갈고닦은 모든 것을 그 한 무대에 쏟아부었습니다.\n\n마침내 단 한 번의 무대로 대한민국 대중들의 시선을 단숨에 사로잡았습니다.\n\n모두가 불가능하다고 손가락질했던 그 청년이, 지금은 수많은 이들의 롤모델이 되었습니다.\n\n정상에 오른 지금도 그는 "그때의 눈물과 땀방울이 없었다면 오늘의 나는 없었다"고 고백합니다.\n\n진정한 승리는 결코 요행이나 우연으로 완성되지 않는다는 것을 그는 온몸으로 증명했습니다.\n\n오늘 홀로 버티고 있는 당신의 땀방울도 결코 헛되지 않을 것입니다. 당신의 꿈을 진심으로 응원합니다.`,
                           scenes: [
                             {
                               sceneNumber: 1,
                               timeRange: '00:00 - 00:05',
-                              narration: `여러분은 ${fig.name} 님이 가장 밑바닥에 있던 순간을 아십니까?`,
+                              narration: fig.hookLine || `여러분은 ${fig.name} 님이 가장 밑바닥에 있던 순간을 아십니까?`,
                               visualGuide: `${fig.name}의 대표 사진 클로즈업과 임팩트 있는 타이틀`,
                               imageSearchKeyword: `${fig.name} 고화질`,
                               visualEffect: '슬로우 줌인 + 사운드 컷',

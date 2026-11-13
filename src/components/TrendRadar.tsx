@@ -503,20 +503,33 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
                         </div>
                       )}
 
-                      {/* Buzz Summary */}
-                      <p className="text-xs text-[#787774] line-clamp-2 mb-2.5 leading-relaxed font-normal">
+                      {/* Buzz Summary (왜 지금 · 핵심 팩트) */}
+                      <p className="text-xs text-[#5C5A54] line-clamp-3 mb-2.5 leading-relaxed font-normal">
                         {fig.buzzSummary}
                       </p>
 
-                      {/* Suggested Angle */}
-                      <div className="p-2.5 rounded-xl bg-[#F1F1EF] border border-[#E3E2DE] mb-2.5">
-                        <div className="flex items-center space-x-1 text-[11px] font-semibold text-[#37352F] mb-0.5">
-                          <TrendingUp className="w-3 h-3 text-amber-600" />
-                          <span>추천 기획 방향</span>
+                      {/* Hook Line & Suggested Angle */}
+                      <div className="p-2.5 rounded-xl bg-[#F1F1EF] border border-[#E3E2DE] mb-2.5 space-y-1">
+                        <div className="flex items-center space-x-1 text-[11px] font-semibold text-[#37352F]">
+                          <TrendingUp className="w-3 h-3 text-amber-600 shrink-0" />
+                          <span>{fig.hookLine ? '첫 3초 훅 · 기획 포인트' : '추천 기획 방향'}</span>
                         </div>
-                        <p className="text-[11px] text-[#787774] leading-snug line-clamp-2 font-normal">
-                          "{fig.suggestedAngle}"
-                        </p>
+                        {fig.hookLine ? (
+                          <>
+                            <p className="text-[11px] text-[#191919] leading-snug line-clamp-2 font-semibold">
+                              “{fig.hookLine}”
+                            </p>
+                            {fig.suggestedAngle && (
+                              <p className="text-[10px] text-[#787774] leading-snug line-clamp-1 font-normal">
+                                앵글: {fig.suggestedAngle}
+                              </p>
+                            )}
+                          </>
+                        ) : (
+                          <p className="text-[11px] text-[#787774] leading-snug line-clamp-2 font-normal">
+                            "{fig.suggestedAngle}"
+                          </p>
+                        )}
                       </div>
 
                       {/* Tags */}

@@ -68,6 +68,7 @@ export interface TrendingFigure {
   buzzSummary: string;
   controversyOrIssue: string;
   suggestedAngle: string;
+  hookLine?: string; // 첫 3초 스크롤 정지 오프닝 훅 1줄
   tags: string[];
   imageUrl?: string;
   sourceArticlesCount?: number;

@@ -30,9 +30,10 @@ export async function POST(request: Request) {
       category: 'viral',
       viralityScore: 100,
       timeframe,
-      buzzSummary: '유튜브 쇼츠와 릴스에서 "한 번 보면 홀린 듯 끝까지 보게 되는 마성의 스카프 매기"로 수천만 뷰를 폭발시키며 외국인 관광객들의 서울 필수 성지가 된 화제의 장인',
+      buzzSummary: '30년 경력 노점상의 스카프 매기 영상이 유튜브·릴스 합산 6,500만 뷰, 글로벌 패러디 45만 건을 돌파하며 남대문시장 외국인 필수 코스로 등극했습니다.',
       controversyOrIssue: '스카프 한 장으로 10가지 스타일을 10초 만에 만들어내는 신의 손기술, "사모님 이거 하나면 파리 패션위크 갑니다"라는 중독성 강한 멘트',
       suggestedAngle: '단순한 노점상이 아니라 30년의 내공으로 완성된 길거리 쇼맨십의 정점, 진정한 세일즈의 마법사',
+      hookLine: '10초 만에 스카프 10종을 묶는 남대문 아저씨, 6,500만 뷰 터진 진짜 이유',
       tags: ['남대문스카프', '스카프아저씨', '남대문시장', '쇼츠바이럴', '장사의신', '세일즈달인', '마성의손기술'],
       primaryChannel: 'youtube',
       channelMetrics: {
@@ -48,9 +49,10 @@ export async function POST(request: Request) {
       category: 'viral',
       viralityScore: 98,
       timeframe,
-      buzzSummary: '예산 0원으로 기안서 결재도 없이 만든 초단기 쇼츠로 충주시 인구의 3배가 넘는 구독자를 모은 혁신의 아이콘',
+      buzzSummary: '예산 0원·B급 감성 숏폼으로 충주시 인구(약 21만 명)의 3배를 넘는 구독자와 누적 1.5억 뷰를 기록하며 9급에서 6급 초고속 특진 신화를 썼습니다.',
       controversyOrIssue: '보수적인 공직 사회의 편견과 반대를 뚫고 특진까지 이뤄낸 파격적인 홍보 성공 신화',
       suggestedAngle: '틀을 깨면 세상이 바뀐다, 9급 공무원에서 대한민국 최고의 기획자가 된 충주맨의 반란',
+      hookLine: '예산 0원 영상 하나로 9급에서 6급 특진까지, 공무원 유튜브 판을 깬 남자',
       tags: ['충주맨', '김선태', '충주시', '공무원혁신', 'B급감성', '숏폼장인'],
       primaryChannel: 'youtube',
       channelMetrics: {
@@ -66,9 +68,10 @@ export async function POST(request: Request) {
       category: 'economy',
       viralityScore: 100,
       timeframe,
-      buzzSummary: '전 세계 시가총액 1위 등극! 10대 시절 화장실 청소와 접시 닦기로 시작해 30년간 버텨낸 끝에 AI 혁명을 지배한 가죽자켓 CEO의 전설적 실화',
+      buzzSummary: '1993년 창업 후 3차례 파산 위기를 넘긴 엔비디아가 글로벌 시가총액 1위권에 오르며, 10대 시절 데니스 식당 설거지 알바 일화가 다시 8,900만 뷰를 기록 중입니다.',
       controversyOrIssue: '창업 초기 3번의 부도 위기와 30세 청년 시절의 무모한 도전, "더 많이 살수록 더 많이 번다"는 역발상 승부수',
       suggestedAngle: '시련은 나를 더 단단하게 만든다, 매일 실패할 각오로 일하는 60대 억만장자의 뼈 때리는 조언',
+      hookLine: '화장실 청소하던 16세 소년이 30년 뒤 시가총액 1위 황제가 된 한 마디',
       tags: ['젠슨황', '엔비디아', 'AI혁명', '가죽자켓', '시총1위', '인생역전', 'H100'],
       primaryChannel: 'multi',
       channelMetrics: {
@@ -84,9 +87,10 @@ export async function POST(request: Request) {
       category: 'global',
       viralityScore: 99,
       timeframe,
-      buzzSummary: '스페이스X 우주선 발사대 젓가락 포획 성공과 테슬라 로보택시, xAI 슈퍼컴퓨터로 전 세계 숏폼 알고리즘을 독식 중인 혁신의 아이콘',
+      buzzSummary: '스페이스X 로켓 부스터 젓가락 포획 성공과 테슬라 자율주행 이슈로 쇼츠 9,500만 뷰를 기록하며, 2008년 파산 직전 3연속 발사 실패 비화가 재조명되고 있습니다.',
       controversyOrIssue: '2008년 크리스마스 이브 파산 직전까지 몰렸던 극한의 공포와 주변의 조롱을 극복한 집념',
       suggestedAngle: '모두가 미쳤다고 비웃었지만 결국 인류의 미래를 바꾼 불굴의 멘탈',
+      hookLine: '로켓 3번 연속 폭발 후 파산 직전, 마지막 돈으로 기적을 쏜 밤',
       tags: ['일론머스크', '테슬라', '스페이스X', 'xAI', '로보택시', '도전정신'],
       primaryChannel: 'youtube',
       channelMetrics: {
@@ -102,9 +106,10 @@ export async function POST(request: Request) {
       category: 'global',
       viralityScore: 99,
       timeframe,
-      buzzSummary: '브루노 마스와 협업한 아파트(APT.)가 전 세계 음원 차트 1위를 휩쓸며 K-컬처 신기록 달성',
+      buzzSummary: '브루노 마스와 협업한 〈APT.〉가 릴스 음원 120만 건·유튜브 1.8억 뷰 이상을 돌파하며 한국 술자리 게임이 글로벌 챌린지 1위에 올랐습니다.',
       controversyOrIssue: '전통적인 K팝 공식을 깨고 가장 한국적인 놀이를 가장 힙한 팝 음악으로 재창조한 감각',
       suggestedAngle: '한국 술자리 게임 하나로 전 세계를 춤추게 만든 소녀의 번뜩이는 감각',
+      hookLine: '한국 술자리 게임 단 두 글자로 빌보드와 전 세계 릴스 120만 개를 덮친 비결',
       tags: ['로제', '아파트', '브루노마스', '빌보드', 'K컬처'],
       primaryChannel: 'multi',
       channelMetrics: {
@@ -120,9 +125,10 @@ export async function POST(request: Request) {
       category: 'sports',
       viralityScore: 99,
       timeframe,
-      buzzSummary: '전 세계 e스포츠 역사상 유일무이한 롤드컵 5회 우승 달성! 슬럼프와 은퇴 권유를 비웃듯 정점에 선 살아있는 전설',
-      controversyOrIssue: '손목 통증으로 키보드를 치지 못했던 순간에도 팀원들을 이끌며 다시 일어선 눈물겨운 집념',
+      buzzSummary: '7년의 우승 공백과 2023년 심각한 손목 부상을 딛고 롤드컵 통산 5회 우승·결승 MVP를 달성하며 유튜브 하이라이트 4,500만 뷰를 돌파했습니다.',
+      controversyOrIssue: '손목 통증으로 키보드를 치지 못했던 순간에도 팀원들을 믿고 다시 정상에 선 헌신',
       suggestedAngle: '"모든 길은 저를 통합니다." 10년 넘게 정상에서 자신을 증명한 거인의 품격',
+      hookLine: '연봉 수백억 제안을 거절하고 손목 통증 속에서 쓴 롤드컵 5회 우승 실화',
       tags: ['페이커', 'T1', '롤드컵우승', '대마왕', '불사대마왕', 'e스포츠'],
       primaryChannel: 'youtube',
       channelMetrics: {
@@ -366,15 +372,19 @@ export async function POST(request: Request) {
       ? '손흥민, 페이커, 오타니 쇼헤이, 이강인, 김민재 등 역경을 딛고 세계 정상에 오른 스포츠 영웅을 추천하세요.'
       : '현재 전 세계와 대한민국 숏폼(유튜브 쇼츠, 릴스, 틱톡)에서 가장 도파민과 조회수가 폭발적인 인물들을 추천하세요. 특히 전 세계 시총 1위 AI 황제 젠슨 황(엔비디아), 일론 머스크뿐만 아니라 남대문 스카프 아저씨, 충주맨 등 숏폼/릴스에서 엄청난 조회수를 폭발시키고 있는 SNS 핫 바이럴 인물도 적극 포함하고, 셰프·가수·배우·스포츠 영웅 등 다채로운 감동 실화 인물을 조합하세요.';
 
-  const prompt = `당신은 대한민국 최고 유튜브 쇼츠 & 인스타 릴스 바이럴 트렌드 레이더입니다.
-현재 (${timeframe}) 네이버 실시간 검색, 유튜브 급상승 쇼츠, 인스타그램 릴스에서 가장 폭발적으로 조회수를 견인하는 최신 화제의 인물 16~20명을 추천하세요.
+  const todayStr = new Date().toISOString().slice(0, 10);
 
-[★ 트렌드 선별 알고리즘 및 가중치 원칙]
+  const prompt = `당신은 대한민국 최고 유튜브 쇼츠 & 인스타 릴스 바이럴 트렌드 레이더입니다.
+오늘 날짜는 ${todayStr}이며, 현재 (${timeframe}) 네이버 실시간 검색, 유튜브 급상승 쇼츠, 인스타그램 릴스에서 가장 폭발적으로 조회수를 견인하는 최신 화제의 인물 16~20명을 추천하세요.
+
+[★ 트렌드 선별 알고리즘 및 카드 브리핑 포맷 원칙]
 1. ${categoryInstruction}
 2. ${category !== 'all' ? `요청된 카테고리(${category})에 100% 집중하여 다양한 신규 화제 인물들을 추천하고, category 필드는 반드시 '${category}'로 지정하세요.` : '전 카테고리 균형: SNS 바이럴·밈, 연예·가수, 배우·드라마, 스포츠, 경제·기업, 글로벌·셀럽, 사회·이슈 전 분야에서 화제성 높은 인물을 골고루 추천하세요.'}
 3. primaryChannel 필드는 반드시 'youtube', 'naver', 'instagram', 'multi' 중 하나의 소문자 영문 값으로만 지정하세요.
 4. 숏폼 리텐션 최우선: 단순 인지도가 아니라, "밑바닥에서 정상까지의 극적인 인생 역전(Underdog)", "3초 만에 스크롤을 멈추게 하는 충격 반전"이 있는 인물에게 viralityScore(90~100점)를 최우선 부여하세요.
-5. 100% 사실(Fact) 기반: 공인된 실제 인터뷰, 보도, 일화만을 다루고 절대 허위사실을 창작하지 마세요.
+5. 100% 사실(Fact) 기반 & 구체적 숫자·시점 명시:
+   - buzzSummary에는 추상적 수식어를 빼고 **"왜 지금 화제인지 + 확인된 날짜(또는 연도·기간)·구체적 숫자(조회수·순위·기록·연봉·경력 등)"** 팩트 1~2문장을 작성하세요. (확인되지 않은 날짜·수치 날조 엄금)
+   - hookLine에는 시청자가 **첫 3초 만에 스크롤을 멈출 오프닝 훅 1줄(의문형·숫자형·반전형, 30~45자 내외)**을 작성하세요.
 6. 채널(${channel}) 및 시간대(${timeframe})의 반응 지표(channelMetrics: naverRank, youtubeViews, instaReels)를 반드시 실감나게 포함하세요.
 반드시 아래 JSON 스키마 형식의 배열로 응답하세요.`;
 
@@ -398,9 +408,10 @@ export async function POST(request: Request) {
                 category: { type: Type.STRING },
                 viralityScore: { type: Type.INTEGER },
                 timeframe: { type: Type.STRING },
-                buzzSummary: { type: Type.STRING },
+                buzzSummary: { type: Type.STRING, description: '왜 지금 화제인지 날짜·연도·숫자 기반 팩트 1~2문장' },
                 controversyOrIssue: { type: Type.STRING },
                 suggestedAngle: { type: Type.STRING },
+                hookLine: { type: Type.STRING, description: '첫 3초 스크롤 정지 오프닝 훅 1줄 (30~45자 내외)' },
                 tags: {
                   type: Type.ARRAY,
                   items: { type: Type.STRING }
@@ -416,7 +427,7 @@ export async function POST(request: Request) {
                 },
                 sourceArticlesCount: { type: Type.INTEGER }
               },
-              required: ['name', 'title', 'category', 'viralityScore', 'buzzSummary', 'controversyOrIssue', 'suggestedAngle', 'tags', 'primaryChannel']
+              required: ['name', 'title', 'category', 'viralityScore', 'buzzSummary', 'controversyOrIssue', 'suggestedAngle', 'hookLine', 'tags', 'primaryChannel']
             }
           }
         }
