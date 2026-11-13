@@ -24,13 +24,15 @@ export async function POST(request: Request) {
 
   const fallback = {
     name: figureName,
-    title: `${figureName}의 아무도 몰랐던 충격적 비하인드와 인생 역전`,
+    title: `${figureName}의 아무도 몰랐던 긍정 미담과 통 큰 결단 스토리`,
     viralityScore: 95,
-    buzzSummary: `${figureName}의 공식 활동 이력과 반전 에피소드가 숏폼·검색에서 다시 급상승하며 48시간 화제 인물로 주목받고 있습니다.`,
-    controversyOrIssue: '모두가 불가능하다고 여겼던 위기 속에서도 묵묵히 자신의 길을 개척해낸 치열했던 무명 시절',
-    suggestedAngle: '화려한 성공 이면에 숨겨진 피와 땀, 인간 승리의 헌정 스토리텔링',
-    hookLine: `대중이 미처 몰랐던 ${figureName}의 결정적 한 장면, 진짜 시작은 여기였습니다`,
-    tags: [figureName, '쇼츠', '인생역전', '감동실화', '비하인드']
+    trendingReason: `${figureName}의 공식 어록, 최근 행보 및 리더십 미담이 쇼츠에서 재조명`,
+    relatedFigures: category === 'economy' ? ['동반 주목 업계 리더', '연관 협력사 대표'] : [],
+    buzzSummary: `${figureName}의 공식 활동 이력과 소탈한 반전 에피소드가 숏폼·검색에서 급상승하며 화제 인물로 주목받고 있습니다.`,
+    controversyOrIssue: '위기 속에서도 원칙과 사람을 지켜낸 통 큰 결단과 인간미',
+    suggestedAngle: '홍보팀 관점의 긍정 미담, 소탈한 반전 매력, 통 큰 결단 스토리텔링',
+    hookLine: `대중이 미처 몰랐던 ${figureName}의 진짜 한 장면, 숫자가 증명합니다`,
+    tags: [figureName, '쇼츠', '미담', '리더십', '반전매력']
   };
 
   if (!apiKey) {
@@ -38,22 +40,25 @@ export async function POST(request: Request) {
   }
 
   const todayStr = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
-  const prompt = `당신은 대한민국 최고 유튜브 쇼츠 기획자이자 실시간 트렌드 분석가입니다.
+  const prompt = `당신은 대한민국 최고 기업인·화제 인물 전문 쇼츠 기획자입니다.
 오늘 날짜: ${todayStr}
 인물: "${figureName}" (카테고리: ${category})
 
-[★ 최우선 절대 원칙: Google Search 실시간 팩트 기반 & 허위사실·날조 차단]
-1. 반드시 Google Search 도구로 대상 인물의 가장 최신 뉴스·사건·공식 보도와 공인된 '실제 사실(Fact)'을 검색해 분석하세요.
-2. 가짜 일화, 확인되지 않은 루머, 가공의 사건을 지어내는 행위는 절대 엄격히 금지됩니다.
-3. buzzSummary에는 "왜 지금 주목받는지 + 확인된 날짜·연도·숫자" 팩트를 구체적으로 담고, hookLine에는 첫 3초 스크롤을 멈추는 오프닝 훅 1줄(30~45자 내외)을 작성하세요.
-4. 반드시 아래 JSON 객체 형식으로만 응답하세요(코드펜스·부연 설명 금지):
+[★ 최우선 절대 원칙: 홍보팀 마인드 긍정 서사 & 실시간 팩트]
+1. Google Search 도구로 대상 인물의 가장 최신 뉴스·주가/실적·어록·방한·미담 등 공인된 '실제 사실(Fact)'을 검색해 분석하세요.
+2. 비난·악인전·미검증 루머는 초상권 고소 위험이 있으므로 제외하고, 긍정적 미담·위기 극복·소박한 인간미·통 큰 결단에 집중하세요.
+3. trendingReason에는 "왜 지금 화제인지(주가 급등, 어록, 방한, 신제품 등)" 1줄을 작성하고, relatedFigures에는 같이 올리면 동반 떡상하는 파생 인물 2~3명(예: 젠슨 황 이슈 시 이재용·깐부치킨 대표)을 배열로 묶어 추천하세요.
+4. hookLine에는 출생연도 나열 대신 충격적 숫자나 반전 질문으로 첫 0~3초에 꽂는 오프닝 훅 1줄(20~38자)을 작성하세요.
+5. 반드시 아래 JSON 객체 형식으로만 응답하세요(코드펜스·부연 설명 금지):
 {
   "name": "인물명",
-  "title": "지금 왜 화제인지 한 줄 헤드라인",
+  "title": "지금 왜 화제인지(미담/반전 포인트) 한 줄 헤드라인",
   "viralityScore": 95,
+  "trendingReason": "최근 화제가 된 이유(주가 급등, 어록, 방한 등)",
+  "relatedFigures": ["동반 떡상 파생 인물1", "동반 떡상 파생 인물2"],
   "buzzSummary": "왜 지금 주목받는지 날짜·숫자 기반 팩트 1~2문장",
-  "controversyOrIssue": "핵심 논란, 시련 또는 대중 반응",
-  "suggestedAngle": "2차 창작 기획 방향",
+  "controversyOrIssue": "핵심 위기 극복 포인트, 소탈한 인간미 또는 통 큰 결단",
+  "suggestedAngle": "홍보팀 마인드 긍정 서사 기획 방향",
   "hookLine": "첫 3초 오프닝 훅 1줄",
   "tags": ["태그1", "태그2", "태그3", "태그4"]
 }`;

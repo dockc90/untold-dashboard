@@ -28,7 +28,7 @@ const StudioLoadingFallback: React.FC<{ label?: string }> = ({ label = '스튜�
 );
 import { INITIAL_TRENDING_FIGURES } from './data/initialTrends';
 import { SAMPLE_PROJECT } from './data/sampleProject';
-import { TrendingFigure, ShortsProject, CategoryType, TimeFilter, TargetPersona, VideoMoodTone, SourceChannel, SceneItem, YoutubeBreakoutMetric } from './types';
+import { TrendingFigure, ShortsProject, CategoryType, TimeFilter, TargetPersona, VideoMoodTone, ScriptFormatType, ScriptSpeechTone, SourceChannel, SceneItem, YoutubeBreakoutMetric } from './types';
 import { AlertCircle, X, ArrowLeft, Flame, Sparkles } from 'lucide-react';
 import { 
   fetchProjectsFromSupabase, 
@@ -765,13 +765,15 @@ export default function App() {
   const [refreshCounter, setRefreshCounter] = useState(0);
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
-  // API Call: Generate Complete Shorts Package (Supports Story Angles and Refresh)
+  // API Call: Generate Complete Shorts Package (Supports Formats, Speech Tones, Story Angles and Refresh)
   const handleGenerateScript = async (
     targetPersona: TargetPersona,
     duration: 45 | 60,
     videoTone: VideoMoodTone = 'Cinematic',
     storyAngle: string = 'random',
-    customKeyword: string = ''
+    customKeyword: string = '',
+    scriptFormat: ScriptFormatType = 'overcoming_story',
+    speechTone: ScriptSpeechTone = 'friendly_story'
   ) => {
     if (!selectedFigure) return;
     setIsGeneratingScript(true);
@@ -784,7 +786,7 @@ export default function App() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
         controller.abort();
-      }, 15000);
+      }, 25000);
 
       try {
         const res = await fetch('/api/gemini/generate-shorts', {
@@ -802,8 +804,11 @@ export default function App() {
             targetDuration: duration,
             videoTone,
             storyAngle,
+            scriptFormat,
+            speechTone,
             customKeyword,
             refreshCounter: nextCount,
+            geminiApiKey: loadSinsooSettings().geminiKey || '',
           }),
         });
 
@@ -813,7 +818,7 @@ export default function App() {
         }
       } catch (fetchErr: any) {
         if (fetchErr.name === 'AbortError') {
-          console.warn('API call to /api/gemini/generate-shorts timed out after 8s, using instant high-speed generator.');
+          console.warn('API call to /api/gemini/generate-shorts timed out after 25s, using instant high-speed generator.');
         } else {
           console.warn('API call to /api/gemini/generate-shorts failed, using fallback:', fetchErr);
         }
@@ -823,7 +828,16 @@ export default function App() {
 
       // If API was unavailable or returned empty data, use robust client fallback generator
       if (!data || !data.scenes || data.scenes.length === 0) {
-        data = generateClientFallbackScript(selectedFigure.name, duration, nextCount, storyAngle, targetPersona, customKeyword);
+        data = generateClientFallbackScript(
+          selectedFigure.name,
+          duration,
+          nextCount,
+          storyAngle,
+          targetPersona,
+          customKeyword,
+          scriptFormat,
+          speechTone
+        );
       }
       const charCount = (data.fullScript || '').replace(/\s+/g, '').length;
       const estimatedSeconds = Math.round(charCount / 6.5);
@@ -846,6 +860,9 @@ export default function App() {
         targetPersona,
         targetDuration: duration,
         videoTone,
+        scriptFormat,
+        speechTone,
+        safetyCheck: data.safetyCheck,
         hooks: data.hooks || [],
         selectedHookIndex: 0,
         titles: data.titles || [],
@@ -871,15 +888,13 @@ export default function App() {
       // Auto-save newly generated Untold Shorts project to Supabase Cloud & LocalStorage
       handleSaveProject(newProject);
 
-      const angleLabel = 
-        storyAngle === 'adversity' ? '💧 역경 극복 감동 실화' :
-        storyAngle === 'twist' ? '⚡ 충격 반전 비하인드' :
-        storyAngle === 'success' ? '💼 성공 스토리 & 원칙' :
-        storyAngle === 'legend' ? '🏆 전설의 결정적 명장면' :
-        storyAngle === 'ceo_hero' ? '🏛️ CEO 혁신 서사' :
-        storyAngle === 'corporate_pr' ? '💎 기업 홍보 & 비전' : '🎲 새로운 스토리 각도';
+      const formatLabel =
+        scriptFormat === 'overcoming_story' ? '역경극복·감동미담형' :
+        scriptFormat === 'humble_twist' ? '소박한 반전매력형' :
+        scriptFormat === 'life_timeline' ? '인생변천사형' :
+        '기업인+스포츠/비즈니스형';
 
-      setSuccessToast(`✨ [${angleLabel}] 맞춤 대본 생성이 완료되었습니다!`);
+      setSuccessToast(`✨ [${formatLabel}] 맞춤 쇼츠 대본 생성이 완료되었습니다!`);
       setTimeout(() => setSuccessToast(null), 3500);
     } catch (err: any) {
       console.error('Error generating script:', err);

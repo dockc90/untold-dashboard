@@ -2320,22 +2320,26 @@ export async function fetchLiveTrendingFigures(opt: {
   const categoryLabel =
     opt.category === 'upcoming'
       ? `🔭 [내일 예고·선점] 오늘(${todayKst}) 밤부터 내일(${tomorrowKst})·이번 주 사이 공개/개봉/컴백/경기/선발대결/발표/개막 등이 예정되어 있어 지금 올리면 내일 검색량 폭발을 선점할 수 있는 인물 ${limit}명 (모든 인물의 category를 'upcoming', isUpcoming을 true로 지정하고 scheduledDate에 "내일(M/D)" 등 예정 시점 표기)`
+      : opt.category === 'economy'
+      ? `💼 [국내외 기업인·부자 전문 경제/기업 소재 발굴 모드] 반드시 국내외 주요 기업인·창업가·부자·구단주 ${limit}명(category: "economy")을 선별하세요. 비난·악인전·범죄·미검증 루머는 배제하고, 철저히 홍보팀 마인드로 다룰 수 있는 긍정 미담·위기 극복·소박한 반전매력·통 큰 결단·주가 급등·어록·방한 이슈만 다루세요. 모든 항목에 반드시 (1) "trendingReason": 최근 화제가 된 이유(주가 급등, 어록, 방한 등), (2) "relatedFigures": 같이 올리면 동반 떡상하는 파생 인물 2~3명 배열(예: 젠슨 황 이슈 시 ["이재용 삼성전자 회장", "깐부치킨 대표", "최태원 SK그룹 회장"])을 세트로 묶어 채우세요!`
       : opt.category === 'all'
-      ? `7개 분야 균형 배분 (viral·entertainment·actor·sports·economy·social·global 각 분야 최소 2~3명씩 골고루) + 그중 내일(${tomorrowKst}) 예정 이슈로 선점이 유리한 인물 2~3명에는 "isUpcoming": true, "scheduledDate": "내일·예정" 표기`
+      ? `7개 분야 균형 배분 (viral·entertainment·actor·sports·economy·social·global 각 분야 최소 2~3명씩 골고루) + 특히 economy/기업인 인물에는 trendingReason(최근 화제 이유)과 relatedFigures(동반 떡상 파생 인물 2~3명)를 반드시 세트로 포함하세요.`
       : `요청 카테고리 '${opt.category}' 전용 (모든 인물의 category 필드를 '${opt.category}'로 지정)`;
 
   const liveSignalsSection = liveBrief
     ? `\n[★ 방금 수집된 실시간 구글 급상승 검색어 & 분야별 최신 뉴스 헤드라인]\n${liveBrief}\n`
     : '';
 
-  const prompt = `당신은 대한민국 실시간 쇼츠 트렌드 리서처입니다.
+  const prompt = `당신은 대한민국 실시간 쇼츠 트렌드 리서처이자 국내외 기업인·부자 전문 쇼츠 기획자입니다.
 오늘 날짜는 ${todayKst}(한국 시간), 내일은 ${tomorrowKst}입니다.
 ${liveSignalsSection}
 [필수 작업]
 1. 위 실시간 뉴스·급상승 검색어에 포착된 인물들을 최우선으로 반영하고, 추가로 Google Search 도구로 오늘(${todayKst}) 및 ${timeframeLabel} 동안 ${channelLabel}에서 새롭게 급부상한 화제의 인물(또는 내일 예고·선점 이슈)까지 총 ${limit}명을 선정하세요.
 2. 카테고리 조건: ${categoryLabel}
-3. **절대 금지**: 과거 수년 전 성공담, 오래된 드라마/음원, 예전 밈 등 낡은 내용을 오늘 화제인 것처럼 쓰지 마세요. 반드시 **지금(${todayKst} 기준 ${timeframeLabel}) 뉴스·커뮤니티·숏폼에서 실제로 뜨고 있는 최신 사건 또는 내일(${tomorrowKst}) 확정 예정 일정**으로 모든 인물을 업데이트하세요.
-4. 확인되지 않은 날짜나 숫자를 절대 지어내지 말고, 검색·뉴스로 확인된 실제 날짜(예: 11월 12일, 11월 13일, 내일 11월 14일)·숫자만 쓰세요.
+3. **경제·기업(economy) 및 인물 발굴 세트 규칙**:
+   - 단순 인물명만 주지 말고 반드시 **"최근 화제가 된 이유(주가 급등, 어록, 방한, 통 큰 결단 등)"(trendingReason)**와 **"같이 올리면 동반 떡상하는 파생 인물 2~3명"(relatedFigures, 예: 젠슨 황 이슈 시 이재용·깐부치킨 대표)**을 세트로 묶어서 추천하세요.
+   - 기업인·부자는 홍보팀이 자랑스러워할 **긍정 서사(미담·소탈함·역경극복·스포츠 구단주/비즈니스 결단)** 중심으로 앵글을 잡으세요.
+4. 확인되지 않은 날짜나 숫자를 절대 지어내지 말고, 검색·뉴스로 확인된 실제 날짜·숫자만 쓰세요.
 
 아래 형식의 JSON 배열로만 출력하세요(설명·마크다운 금지):
 [
@@ -2347,10 +2351,12 @@ ${liveSignalsSection}
     "timeframe": "${opt.timeframe}",
     "isUpcoming": false,
     "scheduledDate": "내일 예정 일정이 있을 때만 예: 내일(11/14), 없으면 빈 문자열",
+    "trendingReason": "최근 화제가 된 이유 (주가 급등, 어록, 방한 등)",
+    "relatedFigures": ["동반 떡상 파생 인물1", "동반 떡상 파생 인물2"],
     "buzzSummary": "왜 지금(${timeframeLabel}) 화제인지(또는 내일 예정 일정) 구체적 날짜·사건·숫자 포함 팩트를 1~2문장으로 작성",
-    "controversyOrIssue": "핵심 논란, 반전 포인트, 관전 포인트 또는 대중 반응",
+    "controversyOrIssue": "핵심 미담, 위기 극복 포인트 또는 소탈한 반전 매력",
     "suggestedAngle": "쇼츠/캐러셀 2차 창작 기획 앵글 1문장",
-    "hookLine": "첫 3초 스크롤을 멈추게 하는 오프닝 훅 1줄(30~45자 내외)",
+    "hookLine": "출생연도 나열 없이 충격 숫자·반전 질문으로 시작하는 첫 3초 오프닝 훅 1줄(20~38자)",
     "tags": ["해시태그1", "해시태그2", "해시태그3", "해시태그4"],
     "primaryChannel": "youtube | naver | instagram | multi 중 하나",
     "channelMetrics": {
@@ -2412,6 +2418,10 @@ ${liveSignalsSection}
         controversyOrIssue: String(item.controversyOrIssue || '').trim(),
         suggestedAngle: String(item.suggestedAngle || '').trim(),
         hookLine: item.hookLine ? String(item.hookLine).trim() : undefined,
+        trendingReason: item.trendingReason ? String(item.trendingReason).trim() : undefined,
+        relatedFigures: Array.isArray(item.relatedFigures)
+          ? item.relatedFigures.map((r: any) => String(r).trim()).filter(Boolean).slice(0, 4)
+          : undefined,
         tags: Array.isArray(item.tags) ? item.tags.map((t: any) => String(t).replace(/^#/, '')) : [String(item.name), '실시간이슈'],
         primaryChannel:
           item.primaryChannel === 'youtube' ||
@@ -2453,16 +2463,18 @@ Google Search 도구로 인물 "${opt.figureName}"(카테고리: ${opt.category}
 
 [원칙]
 1. 반드시 검색으로 확인된 실제 사실(Fact)만 사용하고, 허위사실·가공 에피소드 날조는 절대 금지합니다.
-2. 최근(${todayKst} 기준) 발생한 스캔들, 논란, 기록, 활동 등 "왜 지금 화제인지"를 날짜·숫자 포함 팩트로 가장 먼저 반영하세요.
+2. 홍보팀 마인드로 긍정적 미담, 위기 극복, 소박한 인간미, 통 큰 결단, 최근(${todayKst} 기준) 주가/실적·어록·방한 이슈 중심으로 분석하세요(비난·악성 루머 배제).
 3. 아래 JSON 객체 형식으로만 응답하세요(코드펜스·설명 금지):
 {
   "name": "인물명",
   "title": "왜 지금 화제인지 한 줄 헤드라인",
   "viralityScore": 90~100 정수,
+  "trendingReason": "최근 화제가 된 이유 (주가 급등, 어록, 방한 등)",
+  "relatedFigures": ["동반 떡상 파생 인물1", "동반 떡상 파생 인물2"],
   "buzzSummary": "왜 지금 주목받는지 확인된 날짜·숫자 기반 팩트 1~2문장",
-  "controversyOrIssue": "핵심 논란, 시련, 반전 또는 대중 반응",
-  "suggestedAngle": "2차 창작 쇼츠·캐러셀 기획 방향",
-  "hookLine": "첫 3초 스크롤 정지 오프닝 훅 1줄(30~45자 내외)",
+  "controversyOrIssue": "핵심 위기 극복 포인트, 소탈한 인간미 또는 통 큰 결단",
+  "suggestedAngle": "홍보팀 마인드 2차 창작 쇼츠·캐러셀 기획 방향",
+  "hookLine": "첫 3초 스크롤 정지 오프닝 훅 1줄(20~38자)",
   "tags": ["태그1", "태그2", "태그3", "태그4"]
 }`;
 
@@ -2487,6 +2499,10 @@ Google Search 도구로 인물 "${opt.figureName}"(카테고리: ${opt.category}
     controversyOrIssue: String(data.controversyOrIssue || '').trim(),
     suggestedAngle: String(data.suggestedAngle || '').trim(),
     hookLine: data.hookLine ? String(data.hookLine).trim() : undefined,
+    trendingReason: data.trendingReason ? String(data.trendingReason).trim() : undefined,
+    relatedFigures: Array.isArray(data.relatedFigures)
+      ? data.relatedFigures.map((r: any) => String(r).trim()).filter(Boolean).slice(0, 4)
+      : undefined,
     tags: Array.isArray(data.tags) ? data.tags.map((t: any) => String(t).replace(/^#/, '')) : [opt.figureName, '화제의인물'],
     isHot: true,
     isLive: true,

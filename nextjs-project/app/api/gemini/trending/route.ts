@@ -65,18 +65,20 @@ export async function POST(request: Request) {
     {
       id: `fig-fall-${Date.now()}-1`,
       name: '젠슨 황 (Jensen Huang)',
-      title: '연이은 불륜 스캔들 시인 후 창립 33년 만에 엔비디아 CEO 전격 사임',
+      title: '16살 접시닦이에서 시총 1위 황제까지, 한국 치맥·어록으로 다시 뜬 가죽자켓 CEO',
       category: 'economy',
       viralityScore: 100,
       timeframe,
-      buzzSummary: '2026년 11월 메가스피드 임원 앨리스 황·사내 임원 킴벌리 파월 등 복수의 혼외 관계 스캔들이 보도된 뒤 불충실함을 시인하고, 창립 33년 만에 엔비디아 CEO·이사회직에서 전격 사임했습니다.',
-      controversyOrIssue: '국가안보·사내 윤리 논란과 함께 임시 CEO 콜레트 크레스 선임, 엔비디아 주가 급락 및 대규모 재산분할 가능성까지 전 세계 언론이 대서특필 중입니다.',
-      suggestedAngle: '세계 1위 AI 제국을 세운 황제가 사생활 스캔들 단 한 번으로 33년 왕좌에서 내려온 충격적 몰락',
-      hookLine: '엔비디아 창립 33년 만에 전격 사임한 젠슨 황, 전 세계가 뒤집힌 불륜 스캔들 전말',
-      tags: ['젠슨황', '엔비디아', 'CEO사임', '실시간이슈', 'AI반도체'],
+      trendingReason: '글로벌 AI 반도체 실적·주가 급등 및 방한·국내 깐부치킨·이재용 회동 소탈 행보 화제',
+      relatedFigures: ['이재용 삼성전자 회장', '깐부치킨 대표', '최태원 SK그룹 회장'],
+      buzzSummary: '글로벌 AI 반도체 랠리 속에서도 30년 전 덴니스 식당 접시닦이 시절과 방한·소탈한 어록이 재조명되며 전 세계 비즈니스 숏폼 조회수를 휩쓸고 있습니다.',
+      controversyOrIssue: '파산 직전 세가(SEGA) 500만 달러 담판과 낡은 가죽자켓만 고집하는 소탈한 인간미·통 큰 결단',
+      suggestedAngle: '세계 시총 1위를 이끈 황제의 소박한 인간미와 파산 직전 30일 치 월급에서 일군 통 큰 결단',
+      hookLine: '시총 1위 회장이 직원 80% 내보낸 날, 30일 치 월급만 남고 던진 승부수',
+      tags: ['젠슨황', '엔비디아', '이재용', 'CEO미담', '비즈니스쇼츠'],
       primaryChannel: 'multi',
       channelMetrics: {
-        naverRank: '네이버 글로벌 뉴스 1위',
+        naverRank: '네이버 글로벌/경제 1위',
         youtubeViews: '유튜브 쇼츠 이슈 급상승',
         instaReels: '글로벌 릴스 화제'
       }
@@ -212,20 +214,23 @@ export async function POST(request: Request) {
     },
     {
       id: `fig-fall-${Date.now()}-9`,
-      name: '샘 알트만 (Sam Altman)',
-      title: 'ChatGPT로 인류의 지능을 바꾼 OpenAI 창립자의 거침없는 승부수',
+      name: '이재용 (삼성전자 회장)',
+      title: '부산 깡통시장 어묵 먹방부터 파격 인재 영입까지, 소탈한 반전 매력의 재계 리더',
       category: 'economy',
-      viralityScore: 97,
+      viralityScore: 98,
       timeframe,
-      buzzSummary: '이사회의 기습 해임 쿠데타를 5일 만에 뒤집고 완벽하게 복귀한 실리콘밸리의 실세',
-      controversyOrIssue: '인류를 위협할 수 있는 초지능(AGI) 개발과 기업 상업화 사이의 살얼음판 갈등',
-      suggestedAngle: '모두가 안 된다고 할 때 전 재산과 미래를 베팅하는 빅테크 거물의 결단력',
-      tags: ['샘알트만', 'OpenAI', 'ChatGPT', '인공지능', '실리콘밸리'],
+      trendingReason: '글로벌 반도체 동맹·방한 회동 및 깡통시장 어묵·구내식당 소탈 행보 바이럴',
+      relatedFigures: ['젠슨 황 CEO', '정의선 현대차 회장', '최태원 SK 회장'],
+      buzzSummary: '수백조 기업을 이끌면서도 시민들과 길거리 어묵을 먹고 셀카를 찍어주는 소탈한 모습이 숏폼에서 폭발적인 호감 댓글을 이끌어내고 있습니다.',
+      controversyOrIssue: '격의 없는 현장 소통과 미래 반도체를 향한 통 큰 투자 결단',
+      suggestedAngle: '재벌 총수가 시장 길거리에서 어묵을 들며 웃었던 소박한 반전 매력과 통 큰 리더십',
+      hookLine: '재벌 총수가 부산 깡통시장서 길거리 어묵 먹다 남긴 뜻밖의 한마디',
+      tags: ['이재용', '삼성전자', '소탈한매력', '어묵먹방', '기업인미담'],
       primaryChannel: 'youtube',
       channelMetrics: {
-        naverRank: '네이버 IT/테크 1위',
-        youtubeViews: '유튜브 인터뷰 3,400만 뷰',
-        instaReels: '테크 릴스 20만 개'
+        naverRank: '네이버 경제 인물 1위',
+        youtubeViews: '유튜브 쇼츠 3,800만 뷰',
+        instaReels: '릴스 25만 개'
       }
     },
     {
@@ -302,18 +307,21 @@ export async function POST(request: Request) {
     },
     {
       id: `fig-fall-${Date.now()}-14`,
-      name: '워런 버핏 (Warren Buffett)',
-      title: '94세 오마하의 현인이 전하는 "가장 중요한 인생의 1가지 원칙"',
+      name: '이재현 (CJ그룹 회장)',
+      title: '만들수록 적자인 햇반 저단백밥을 17년간 포기하지 않은 기업인의 약속',
       category: 'economy',
-      viralityScore: 96,
+      viralityScore: 97,
       timeframe,
-      buzzSummary: '현금 보유액 사상 최대치 경신! 단 하루도 일희일비하지 않고 80년간 세계 부호 1위를 지킨 투자 황제',
-      controversyOrIssue: '남들이 탐욕을 부릴 때 두려워하고, 남들이 두려워할 때 탐욕을 부리는 역발상 가치투자',
-      suggestedAngle: '돈보다 중요한 것은 평생을 지킬 평판이다, 90대 거인이 청년들에게 전하는 뼈 때리는 조언',
-      tags: ['워런버핏', '버크셔해서웨이', '가치투자', '오마하의현인', '인생교훈'],
+      trendingReason: '누적 생산량 290만 개 돌파한 햇반 저단백밥 17년 미담 재조명 및 기업 브랜디드 사례 1순위',
+      relatedFigures: ['이부진 호텔신라 사장', '정의선 현대차 회장', '정용진 신세계 회장'],
+      buzzSummary: '희귀 질환을 앓는 임직원 딸의 사연을 듣고 적자를 감수하며 17년간 누적 290만 개를 생산한 감동 실화가 다시 화제를 모으고 있습니다.',
+      controversyOrIssue: '수익성보다 환우의 일상을 지킨 기업의 존재 이유와 17년 지속 생산 결단',
+      suggestedAngle: '적자가 쌓여도 단 한 명의 환우를 위해 17년을 멈추지 않은 기업인의 따뜻한 약속',
+      hookLine: '만들수록 적자인 햇반을 17년째 290만 개 찍어낸 회장의 진짜 이유',
+      tags: ['이재현', 'CJ그룹', '저단백밥', '기업미담', '브랜디드쇼츠'],
       primaryChannel: 'naver',
       channelMetrics: {
-        naverRank: '네이버 경제 인물 1위',
+        naverRank: '네이버 경제 미담 화제',
         youtubeViews: '유튜브 다큐/쇼츠 2,500만 뷰',
         instaReels: '릴스 18만 개'
       }
@@ -358,10 +366,14 @@ export async function POST(request: Request) {
 
   const liveSignals = await collectLiveTrendSignals({ timeframe, category, channel }).catch(() => null);
 
-  if (!apiKey) {
+  const runtimeKey = String(body.geminiApiKey || apiKey || '').trim();
+  if (!runtimeKey) {
     const rssFallback = buildSignalFallbackFigures(liveSignals, timeframe, category);
     return NextResponse.json(rssFallback.length > 0 ? rssFallback : fallbackList);
   }
+  const runtimeAi = runtimeKey === apiKey
+    ? ai
+    : new GoogleGenAI({ apiKey: runtimeKey, httpOptions: { headers: { 'User-Agent': 'aistudio-build' } } });
 
   const targetCount = category === 'all' ? '18~20명' : '12~14명';
   const todayStr = liveSignals?.todayKst || new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
@@ -369,8 +381,10 @@ export async function POST(request: Request) {
   const categoryInstruction =
     category === 'upcoming'
       ? `🔭 [내일 예고·선점 모드] 오늘(${todayStr}) 밤부터 내일(${tomorrowStr})·이번 주 사이 공개/개봉/컴백/경기/선발대결/판결/발표/개막 등이 예정되어 있어 **지금 미리 쇼츠·캐러셀을 올리면 내일 검색량 폭발을 선점할 수 있는 인물** 12~14명을 선정하세요. 모든 항목의 category는 'upcoming', isUpcoming은 true로 지정하고 scheduledDate에 "내일(M/D)" 또는 예정 일정을 적으세요.`
+      : category === 'economy'
+      ? `💼 [국내외 기업인·부자 전문 경제/기업 소재 발굴 모드] 반드시 국내외 주요 기업인·창업가·부자·구단주 12~14명(category: "economy")을 선별하되, **비난/악인전/범죄/루머는 배제하고 홍보팀 마인드로 다룰 수 있는 긍정 미담·소박한 인간미·통 큰 결단·주가 급등/어록/방한 이슈** 중심으로 선정하세요. 모든 항목에 반드시 (1) "trendingReason": 최근 화제가 된 이유(예: 주가 급등, 화제의 어록, 방한, 신기록 등), (2) "relatedFigures": 같이 올리면 동반 떡상하는 파생 인물 2~3명 배열(예: 젠슨 황 이슈 시 ["이재용 삼성전자 회장", "깐부치킨 대표", "최태원 SK그룹 회장"])을 세트로 묶어 채우세요!`
       : category === 'all'
-      ? `전 카테고리 균형: SNS 바이럴·밈(viral), 연예·가수(entertainment), 배우·드라마(actor), 스포츠(sports), 경제·기업(economy), 사회·이슈(social), 글로벌·셀럽(global) 7개 분야에서 각각 2~3명씩 골고루 선별하고, 그중 내일(${tomorrowStr})·곧 예정된 대형 일정으로 선점이 유리한 인물 2~3명에는 "isUpcoming": true, "scheduledDate": "내일·예정 일정"을 함께 표기하세요.`
+      ? `전 카테고리 균형: SNS 바이럴·밈(viral), 연예·가수(entertainment), 배우·드라마(actor), 스포츠(sports), 경제·기업(economy), 사회·이슈(social), 글로벌·셀럽(global) 7개 분야에서 각각 2~3명씩 골고루 선별하고, 특히 economy/기업인 인물에는 trendingReason(최근 화제 이유)과 relatedFigures(동반 떡상 파생 인물 2~3명)를 반드시 세트로 포함하세요.`
       : `요청된 카테고리('${category}')에 100% 집중하여 오늘 실제로 화제인 인물들을 선별하고, 모든 인물의 category 필드는 반드시 '${category}'로 지정하세요.`;
 
   const timeframeLabel =
@@ -380,28 +394,32 @@ export async function POST(request: Request) {
     ? `\n[★ 방금 수집된 실시간 구글 급상승 검색어 & 분야별 뉴스 헤드라인]\n${liveSignals.formattedBrief}\n`
     : '';
 
-  const prompt = `당신은 대한민국 최고 유튜브 쇼츠 & 인스타 릴스 실시간 트렌드 리서처입니다.
+  const prompt = `당신은 대한민국 최고 유튜브 쇼츠 & 인스타 릴스 실시간 트렌드 리서처이자 국내외 기업인·부자 전문 쇼츠 기획자입니다.
 오늘 날짜는 ${todayStr}(한국 시간), 내일은 ${tomorrowStr}입니다.
 ${signalsSection}
 [필수 지시]
 1. 위 실시간 뉴스·급상승 검색어에 등장한 화제의 인물들을 최우선으로 반영하고, 추가로 Google Search 도구로 오늘(${todayStr}) 및 ${timeframeLabel} 동안 네이버 실시간 뉴스·유튜브 쇼츠·인스타 릴스에서 새롭게 급부상한 인물(또는 내일 예고·선점 이슈)까지 총 ${targetCount}을 선정하세요.
 2. ${categoryInstruction}
-3. **절대 금지**: 옛날 과거 일화(예: 몇 년 전 성공담, 오래된 드라마/유행가, 과거 밈)를 오늘 이슈인 것처럼 재활용하지 마세요. 모든 인물은 **지금(${todayStr} 기준 ${timeframeLabel}) 실제로 터진 최신 뉴스 또는 내일(${tomorrowStr}) 확정 예정 일정**을 반영해야 합니다.
+3. **경제·기업(economy) 및 인물 발굴 세트 규칙**:
+   - 단순 인물명만 나열하지 말고 반드시 **"최근 화제가 된 이유(주가 급등, 어록, 방한, 통 큰 결단 등)"(trendingReason)**와 **"같이 올리면 동반 떡상하는 파생 인물 2~3명"(relatedFigures, 예: 젠슨 황 이슈 시 이재용·깐부치킨 대표)**을 세트로 묶어서 추천하세요.
+   - 기업인·부자는 홍보팀이 자랑스러워할 **긍정 서사(미담·소탈함·역경극복·스포츠 구단주/비즈니스 결단)** 관점으로 앵글을 잡으세요(미검증 악성 루머·비난 배제).
 4. primaryChannel 필드는 반드시 'youtube', 'naver', 'instagram', 'multi' 중 하나의 소문자 영문 값으로 지정하세요.
-5. buzzSummary에는 **"왜 지금 화제인지(또는 내일 어떤 일정이 있는지) + 확인된 날짜(월·일 또는 연도)·구체적 숫자"** 팩트 1~2문장을 작성하세요(확인되지 않은 수치·날짜 날조 엄금).
-6. hookLine에는 **첫 3초 만에 스크롤을 멈출 오프닝 훅 1줄(30~45자 내외)**을 작성하세요.
+5. buzzSummary에는 **"왜 지금 화제인지 + 확인된 날짜(월·일 또는 연도)·구체적 숫자"** 팩트 1~2문장을 작성하세요.
+6. hookLine에는 **출생연도 소개 없이 충격적 숫자나 반전 질문으로 첫 0~3초에 꽂는 오프닝 훅 1줄(20~38자)**을 작성하세요.
 7. 반드시 아래와 같은 유효한 JSON 배열만 출력하세요(코드펜스 \`\`\` 나 설명 텍스트 절대 금지):
 [
   {
     "name": "인물명",
-    "title": "지금 왜 화제인지(또는 내일 무슨 일정인지) 한 줄 헤드라인",
+    "title": "지금 왜 화제인지(또는 미담/반전매력) 한 줄 헤드라인",
     "category": "${category === 'upcoming' ? 'upcoming' : 'viral | entertainment | actor | sports | economy | social | global | upcoming'}",
     "viralityScore": 91,
     "timeframe": "${timeframe}",
     "isUpcoming": false,
     "scheduledDate": "내일 예정 일정이 있을 때만 예: 내일(11/14) 밤 9시, 없으면 빈 문자열",
+    "trendingReason": "최근 화제가 된 이유 (예: 엔비디아 실적·주가 급등 및 방한 치맥 회동)",
+    "relatedFigures": ["동반 떡상 파생 인물1", "동반 떡상 파생 인물2"],
     "buzzSummary": "날짜·숫자 포함 실시간 화제 팩트 1~2문장",
-    "controversyOrIssue": "핵심 논란/이슈/관전 포인트",
+    "controversyOrIssue": "핵심 미담/반전 포인트/관전 포인트",
     "suggestedAngle": "쇼츠/캐러셀 2차 창작 앵글",
     "hookLine": "첫 3초 오프닝 훅 1줄",
     "tags": ["태그1", "태그2", "태그3", "태그4"],
@@ -425,10 +443,19 @@ ${signalsSection}
     return Array.isArray(parsed) ? parsed : parsed?.figures || [];
   };
 
+  const normalizeItem = (item: any) => ({
+    ...item,
+    trendingReason: item.trendingReason ? String(item.trendingReason).trim() : undefined,
+    relatedFigures: Array.isArray(item.relatedFigures)
+      ? item.relatedFigures.map((r: any) => String(r).trim()).filter(Boolean).slice(0, 4)
+      : undefined,
+    isLive: true,
+  });
+
   const candidateModels = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.5-flash'];
   for (const mod of candidateModels) {
     try {
-      const response = await ai.models.generateContent({
+      const response = await runtimeAi.models.generateContent({
         model: mod,
         contents: prompt,
         config: {
@@ -439,12 +466,12 @@ ${signalsSection}
 
       const parsed = extractJsonArray(response.text || '[]');
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return NextResponse.json(parsed.map((item: any) => ({ ...item, isLive: true })));
+        return NextResponse.json(parsed.map(normalizeItem));
       }
     } catch (err: any) {
       console.warn(`Gemini trending fetch with googleSearch (${mod}) failed:`, err.message);
       try {
-        const response = await ai.models.generateContent({
+        const response = await runtimeAi.models.generateContent({
           model: mod,
           contents: prompt,
           config: {
@@ -454,7 +481,7 @@ ${signalsSection}
         });
         const parsed = extractJsonArray(response.text || '[]');
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return NextResponse.json(parsed.map((item: any) => ({ ...item, isLive: true })));
+          return NextResponse.json(parsed.map(normalizeItem));
         }
       } catch (err2: any) {
         console.warn(`Gemini trending fallback (${mod}) failed:`, err2.message);

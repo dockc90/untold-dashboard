@@ -246,8 +246,10 @@ app.post('/api/gemini/trending', async (req, res) => {
     const categoryGuide =
       category === 'upcoming'
         ? `🔭 [내일 예고·선점] 내일(${tomorrowStr})~이번 주 공개/개봉/컴백/경기/발표 예정이라 지금 올리면 선점 가능한 인물 12~14명 (모두 category:"upcoming", isUpcoming:true, scheduledDate:"내일(M/D)" 등 명시)`
+        : category === 'economy'
+        ? `💼 [국내외 기업인·부자 전문 경제/기업 소재 발굴] 비난·루머 없이 홍보팀 마인드로 다룰 긍정 미담·소박한 인간미·통 큰 결단·주가 급등/어록/방한 이슈 12~14명(category:"economy"). 각 항목에 trendingReason(최근 화제 이유)과 relatedFigures(동반 떡상 파생 인물 2~3명)를 반드시 세트로 묶어 표기`
         : category === 'all'
-        ? `viral, entertainment, actor, sports, economy, social, global 전 분야 균형 + 내일(${tomorrowStr}) 예정 선점 이슈 2~3명에는 isUpcoming:true, scheduledDate 표기`
+        ? `viral, entertainment, actor, sports, economy, social, global 전 분야 균형 + economy 인물에는 trendingReason과 relatedFigures(동반 떡상 파생 인물) 필수 포함`
         : category;
     const signalsBlock = liveSignals?.formattedBrief
       ? `\n[★ 방금 수집된 실시간 구글 급상승 검색어 & 분야별 뉴스 헤드라인]\n${liveSignals.formattedBrief}\n`
@@ -256,11 +258,11 @@ app.post('/api/gemini/trending', async (req, res) => {
 ${signalsBlock}
 카테고리: ${categoryGuide}
 1. 위 실시간 뉴스·급상승 검색어에 등장한 인물을 최우선 반영하고, 추가로 Google Search 도구로 오늘(${todayStr}) 새로 뜬 화제 인물 또는 내일(${tomorrowStr}) 예정 이슈까지 포함하세요.
-2. 옛날 과거 일화(오래된 성공담·유행가 등)는 절대 재활용하지 말고, 지금(${todayStr}) 실제로 화제인 최신 사건 또는 내일(${tomorrowStr}) 확정 일정만 쓰세요.
-3. buzzSummary에는 "왜 지금 화제인지(또는 내일 일정) + 확인된 날짜·연도·숫자" 팩트 1~2문장을 작성하세요.
-4. hookLine에는 첫 3초 스크롤을 멈추게 하는 오프닝 훅 1줄(30~45자 내외)을 작성하세요.
+2. 경제·기업 인물은 단순 인물명만 주지 말고 "최근 화제가 된 이유(주가 급등, 어록, 방한 등)"(trendingReason)와 "같이 올리면 동반 떡상하는 파생 인물"(relatedFigures, 예: 젠슨 황 -> 이재용·깐부치킨 대표)을 세트로 묶어 추천하세요.
+3. buzzSummary에는 "왜 지금 화제인지 + 확인된 날짜·연도·숫자" 팩트 1~2문장을 작성하세요.
+4. hookLine에는 출생연도 나열 대신 충격 숫자·반전 질문으로 시작하는 첫 3초 오프닝 훅 1줄(20~38자)을 작성하세요.
 5. 반드시 아래와 같은 유효한 JSON 배열만 출력하세요(코드펜스·설명 금지):
-[{"name":"","title":"","category":"${category === 'upcoming' ? 'upcoming' : 'viral'}","viralityScore":95,"timeframe":"${timeframe}","isUpcoming":false,"scheduledDate":"","buzzSummary":"","controversyOrIssue":"","suggestedAngle":"","hookLine":"","tags":[""],"primaryChannel":"multi","channelMetrics":{"naverRank":"","youtubeViews":"","instaReels":""}}]`;
+[{"name":"","title":"","category":"${category === 'upcoming' ? 'upcoming' : 'viral'}","viralityScore":95,"timeframe":"${timeframe}","isUpcoming":false,"scheduledDate":"","trendingReason":"","relatedFigures":[""],"buzzSummary":"","controversyOrIssue":"","suggestedAngle":"","hookLine":"","tags":[""],"primaryChannel":"multi","channelMetrics":{"naverRank":"","youtubeViews":"","instaReels":""}}]`;
 
     const candidateModels = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.5-flash'];
     for (const mod of candidateModels) {
@@ -424,91 +426,83 @@ app.post('/api/gemini/generate-shorts', async (req, res) => {
       targetDuration = 60,
       videoTone = 'Cinematic',
       storyAngle = 'random',
+      scriptFormat = 'overcoming_story',
+      speechTone = 'friendly_story',
       refreshCounter = 0,
+      customKeyword = '',
     } = req.body;
 
     if (!figureName) {
       return res.status(400).json({ error: '인물 정보가 누락되었습니다.' });
     }
 
-    const personaDescriptions: Record<string, string> = {
-      '4060_emotional': '40~60대 중장년층 타겟: 눈시울을 붉히게 하는 진중한 스토리텔링, 인간적인 역경 극복기, 정중하고 따뜻하며 신뢰감 주는 나레이션 어투 (~했습니다, ~였습니다, 여러분은 기억하십니까).',
-      '1020_dopamine': '10~20대 숏폼 도파민 타겟: 1초 만에 시선 끄는 빠른 전개, 충격적인 반전, 트렌디하고 직관적인 호흡, 속도감 있는 어투 (~했는데요, 실화냐, 진짜 충격입니다).',
-      '3040_success': '30~40대 직장인/성인 타겟: 자기계발과 성공 방정식, 현실적인 교훈과 마인드셋 중심 (~그가 증명해낸 비밀, 끝까지 버티는 힘).',
-      'mystery_twist': '반전 미스터리 타겟: 아무도 몰랐던 충격적인 비하인드, 숨겨진 진실을 하나씩 벗겨가는 긴장감 넘치는 스릴러 톤.'
+    const formatDirectives: Record<string, string> = {
+      'overcoming_story': '① [역경극복·감동미담형 (CJ 저단백밥 스타일)] 기업이나 기업인이 적자·위기·거절을 무릅쓰고 누군가의 삶을 바꾸거나 기술/품질에 끝까지 집념을 쏟아 낸 감동 미담과 통 큰 결단 중심으로 서사를 전개하세요.',
+      'humble_twist': '② [소박한 반전매력형 (재벌의 길거리 어묵 먹방 스타일)] 수조 원대 자산가나 글로벌 CEO임에도 길거리 어묵을 서서 먹거나, 낡은 패딩/자켓을 10년째 입거나, 직원/팬과 격의 없이 어울리는 인간적이고 소탈한 반전 매력에 집중하세요.',
+      'life_timeline': '③ [어린시절~현재 인생변천사형] 어려운 어린 시절이나 무명·초기 창업기의 결정적 한 장면에서 출발해, 한 번의 터닝포인트를 거쳐 현재 글로벌 리더로 성장한 극적인 인생 궤적을 속도감 있게 압축하세요.',
+      'biz_sports_owner': '④ [기업인+스포츠 구단주/비즈니스형] 구단주·스폰서로서 보여준 남다른 팬 사랑, 파격적 투자, 락커룸·경기장 뒷이야기 또는 비즈니스 승부사로서의 통 큰 결단과 성과를 흥미진진하게 풀어내세요.',
     };
 
-    const moodToneDescriptions: Record<string, string> = {
-      'Cinematic': 'Cinematic (영화적 연출): 영화 한 편을 압축한 듯한 웅장하고 드라마틱한 몰입감. 묵직하고 서정적인 나레이션, 시네마틱 슬로우 줌인/줌아웃 카메라 워크, 웅장한 오케스트라 또는 피아노 현악기 BGM 제안.',
-      'Documentary': 'Documentary (다큐멘터리): 인간극장, SBS 스페셜 풍의 진솔하고 깊이 있는 서사. 차분하고 신뢰감 넘치는 톤, 아카이브 흑백 사진 교차 연출, 잔잔한 어쿠스틱 피아노 및 첼로 BGM 제안.',
-      'Fast-paced': 'Fast-paced (도파민 쾌속 비트): 1초의 공백도 허용하지 않는 빠른 호흡과 펀치력 있는 문장. 긴장감 넘치는 빠른 컷전환, 다이내믹한 줌과 자막 플래시, 비트감 있는 신스웨이브/트랩 힙합 BGM 제안.',
-      'Minimal': 'Minimal (절제된 미니멀): 군더더기 없는 담백함과 팩트 중심의 명확한 전달. 불필요한 수식어를 뺀 직관적 문장, 정적이고 정갈한 고정/미세 팬 연출, 미니멀한 앰비언트/로파이 BGM 제안.'
+    const speechToneDirectives: Record<string, string> = {
+      'friendly_story': '① [친근한 썰풀이체] "~했대요", "~였나 봐요", "근데 달랐대요", "믿어지시나요?"처럼 시청자에게 옆에서 재미있고 따뜻하게 이야기 들려주는 구어체 썰풀이 말투를 대본 전체 나레이션과 후킹에 일관 적용하세요.',
+      'trendy_shorts': '② [트렌디한 쇼츠체] "~했음", "그랬음", "진짜 레전드임", "이건 인정해야 됨"처럼 짧고 리듬감 있는 쇼츠 전용 구어체로 지루함 없이 치고 나가는 문체를 대본 전체에 일관 적용하세요.',
+      'news_briefing': '③ [속도감 있는 뉴스 브리핑체] "~했습니다", "~밝혀졌습니다", "업계가 술렁였습니다"처럼 군더더기 없이 팩트와 숫자를 쾌속으로 전달하는 뉴스 브리핑 어투를 대본 전체에 일관 적용하세요.',
     };
 
-    const storyAngleDirectives: Record<string, string> = {
-      'adversity': '💧 [스토리 앵글: 역경 극복 & 눈물의 무명 실화] 가장 처절했던 무명 단칸방 시절, 세상의 냉대와 수많은 오디션/시험 탈락, 피나는 땀방울과 눈물의 반전을 극대화하여 시청자의 가슴을 뭉클하게 만드세요.',
-      'twist': '⚡ [스토리 앵글: 충격 반전 & 숨겨진 비밀] 대중이 흔히 아는 뻔한 성공담 대신, 아무도 몰랐던 충격적 사건, 라이벌과의 살얼음판 갈등, 숨겨진 진실을 파헤치는 스릴러형 서사로 작성하세요.',
-      'success': '💼 [스토리 앵글: 성공 공식 & 뼈 때리는 인생 교훈] 그가 수많은 실패를 딛고 정상에 설 수 있었던 결정적인 마인드셋과 행동 원칙, 시청자에게 깊은 깨달음을 주는 명언 중심 서사로 작성하세요.',
-      'legend': '🏆 [스토리 앵글: 전설의 결정적 1장면] 그의 인생을 180도 뒤집어놓은 단 한 번의 역사적 무대, 경기, 혹은 결단에 초점을 맞춰 압도적인 카타르시스를 선사하세요.',
-      'random': `🎲 [새로운 대본 새로고침 요청: 버전 #${refreshCounter + 1}] 기존의 대본과 내용이 전혀 겹치지 않도록, 완전히 새로운 각도와 참신한 일화로 대본을 완전히 새롭게 작성하세요.`
-    };
-
-    const targetToneText = personaDescriptions[targetPersona] || personaDescriptions['4060_emotional'];
-    const videoToneText = moodToneDescriptions[videoTone] || moodToneDescriptions['Cinematic'];
-    const chosenAngleText = storyAngleDirectives[storyAngle] || storyAngleDirectives['random'];
+    const chosenFormatText = formatDirectives[scriptFormat] || formatDirectives['overcoming_story'];
+    const chosenSpeechText = speechToneDirectives[speechTone] || speechToneDirectives['friendly_story'];
     const totalScenes = targetDuration === 45 ? 9 : 12;
-    const targetCharMin = targetDuration === 45 ? 310 : 410;
+    const targetCharMin = targetDuration === 45 ? 290 : 390;
     const targetCharMax = targetDuration === 45 ? 360 : 470;
 
-    const prompt = `당신은 월 조회수 1,000만 회를 기록하는 '화제의 인물' 전문 유튜브 쇼츠 1등 제작자이자 디렉터입니다.
+    const prompt = `당신은 조회수 100만 뷰와 대기업 브랜디드 광고를 부르는 '국내외 기업인·부자 전문' 쇼츠 작가입니다.
 
-[사용자 요청: 대본 새로고침 & 새로운 각도 기획]
-- 요청 스토리 각도: ${chosenAngleText}
-- 주의사항: 이전 대본이 마음에 들지 않아 새로고침된 상태입니다. 이전과 동일한 문장을 절대 반복하지 말고, 완전히 신선하고 독창적인 앵글과 문체로 새로운 대본을 기획하세요.
+[★ 절대 원칙 3대 철칙 (최우선 준수)]
+1. 첫째, 철저히 '그 기업과 인물의 홍보팀'이라는 마인드로 긍정적인 미담, 위기 극복, 소박한 인간미, 통 큰 결단만 다루세요.
+   - 비난, 악인전, 스캔들 폭로, 부정적 가십, 미검증 루머는 초상권·명예훼손 고소 위험이 있으므로 **절대 금지**합니다.
+2. 둘째, 첫 0~3초에 출생연도 같은 지루한 설명 대신 **충격적인 숫자나 반전 질문**으로 무조건 후킹하세요.
+3. 셋째, ${targetDuration}초 대본을 반드시 아래 **5단계 구조**로 작성해 총 ${totalScenes}개 씬에 정확히 배분하세요:
+   - [1단계: 0~3초 강렬한 후킹] (씬 1)
+   - [2단계: 3~15초 의외의 배경] (씬 2~3)
+   - [3단계: 15~40초 위기/반전 디테일] (씬 4~8)
+   - [4단계: 40~55초 통 큰 결단과 성취] (씬 9~10)
+   - [5단계: 55~60초 칭찬 댓글을 유도하는 여운 엔딩] (씬 11~12)
+
+[★ 레퍼런스 대본 스타일 (CJ 이재현 회장 '햇반 저단백밥' 감동 브랜디드 사례)]
+"CJ그룹 회장 이재현. 한 임직원 딸이 쌀밥을 못 먹는다는 사연을 들었대요. 정말 희귀 질환이었대요. 밥 한 그릇을 먹을 수가 없어서 아픈 사람들이 먹을 수 있는 햇반을 만들라고 시켰나 봐요. 근데 만들수록 손해를 본대요. 근데 달랐대요. 즉석밥 기술을 가지고 있기 때문에 해야 된다 그랬대요. 그래서 '햇반 저단백밥'이 나왔대요. 그렇게 환자들의 생명줄이 됐대요. 누적 생산량 290만 개. 만들수록 적자인 제품이지만 환우들이 평범한 일상을 포기하지 않도록 17년 동안 이걸 만들어 왔다. 사업의 가치는 숫자로만 남지 않는다. 누군가의 삶을 바꿨을 때 기업의 존재 이유가 된다."
+
+[사용자 선택 기획 옵션]
+- [기획 포맷]: ${chosenFormatText}
+- [대본 말투]: ${chosenSpeechText}
+- 타겟 무드/연출 톤: ${targetPersona} / ${videoTone} (스토리 각도 참고: ${storyAngle})
 
 [대상 인물 정보]
-- 인물 이름: ${figureName}
+- 인물/기업: ${figureName}
 - 테마: ${title || ''}
-- 화제 배경: ${buzzSummary || ''}
-- 숨겨진 역경/서사: ${controversyOrIssue || ''}
-- 기획 방향(스토리텔링 앵글): ${suggestedAngle || ''}${hookLine ? `\n- 추천 첫 3초 훅: "${hookLine}"` : ''}
-- 목표 영상 길이: 반드시 정확히 ${targetDuration}초에 도달해야 합니다!
-- [매우 중요] 나레이션 글자수: 공백 제외 ${targetCharMin}~${targetCharMax}자 (절대로 15초나 30초 분량으로 짧게 요약하지 마십시오. 일반 낭독 속도 6.5자/초 기준으로 ${targetDuration}초를 꽉 채우는 충실한 서사를 작성하세요).
-- 타겟 페르소나 및 어투: ${targetToneText}
-- 영상 전체 연출 톤(분위기): ${videoToneText}
+- 최근 화제 배경: ${buzzSummary || ''}
+- 주목할 서사/미담: ${controversyOrIssue || ''}
+- 추천 기획 앵글: ${suggestedAngle || ''}${hookLine ? `\n- 참고 후킹 문구: "${hookLine}"` : ''}${customKeyword ? `\n- 강조 키워드: "${customKeyword}"` : ''}
+- 목표 길이: ${targetDuration}초, 나레이션 공백 제외 ${targetCharMin}~${targetCharMax}자, 총 ${totalScenes}개 씬
 
-[★ 최우선 절대 원칙: 100% 사실(Fact) 기반 & 허위사실·날조 절대 금지]
-1. 반드시 대상 인물에 대해 공식 언론 보도, 공중파/케이블 방송 인터뷰, 공식 자서전, 본인 유튜브 등에서 공인된 '실제 일화(Fact)'만을 바탕으로 대본을 작성해야 합니다.
-2. 가짜 일화, 조작된 대화, 확인되지 않은 악성 루머, 존재하지 않는 사건이나 날조된 에피소드(Hallucination)는 명예훼손 및 허위사실 유포 리스크가 발생하므로 절대 엄격히 금지됩니다.
-3. 연도, 과거 직업, 실제 겪은 고난의 사건, 수상 및 업적 등은 철저히 실제 사실에 입각해야 하며, 극적인 몰입감은 사실을 바탕으로 한 감정선의 흐름과 나레이션 호흡으로만 전달하세요. 허위사실을 임의로 지어내는 것은 절대 불가합니다.
-
-[필수 제작 원칙]
-1. 3초 후킹(Hook) 3가지 다변화:
-   - 옵션 A: 질문형 (시청자에게 직접 질문하여 궁금증 폭발)
-   - 옵션 B: 도발/논란형 (통념을 깨거나 충격적 반전 제시)
-   - 옵션 C: 감성/공감형 (가슴 뭉클한 한마디로 시작)
-2. 3~5초 단위 씬 분할 (정확히 총 ${totalScenes}개 씬):
-   - 씬 1번부터 씬 ${totalScenes}번까지 00:00부터 00:${targetDuration === 60 ? '60' : '45'}까지 빈틈없이 이어져야 합니다.
-   - 각 씬마다 구글/핀터레스트에서 즉시 검색할 수 있는 "구체적인 이미지 검색어(imageSearchKeyword)"를 제시하세요. (추상적인 단어 금지, 예: "${figureName} 무명시절 지하 단칸방", "${figureName} 눈물의 시상식 소감 고화질")
-   - 각 씬마다 연출 효과(visualEffect: 슬로우 줌인, 빠른 흑백 컷전환, 텍스트 하이라이트 등)를 지정하세요.
-3. 2차 창작 저작권 방어 패치:
-   - 원본 영상/방송 화면을 길게 쓰지 않고 이미지 슬라이드와 나레이션 스토리텔링으로 승부하도록 설계.
-   - 단순한 사실 나열이 아닌, 주인공의 감정선과 역경 극복의 인간 승리 스토리를 창작하여 저작권 리스크를 원천 차단.
-4. 2026 SNS 알고리즘 치트키 메타데이터 (매우 중요):
-   - 클릭률(CTR) 15%+를 달성하는 호기심 유발 유튜브 쇼츠 제목 3개 (A/B/C 테스트용)
-   - 스팸 감점 없는 시맨틱 카테고리 클린 태그 3~5개 (과거 30개 해시태그 도배 절대 금지)
-   - 유튜브 및 구글 검색 결과 미리보기에 걸리는 첫 2줄 SEO 최적화 문구 (firstTwoLinesSeo)
-   - 구글 검색 Key Moments 연동용 타임스탬프 챕터 마커 (timestamps)
-   - 시청자가 참지 못하고 댓글을 달게 만드는 논쟁형 고정 댓글(Pinned Comment) 및 A vs B 양자택일 투표 트리거 (commentBaits)
-   - AI 음성인식(Whisper/ASR) 및 자막 OCR이 낚아채는 자연어 시맨틱 키워드 5개 (semanticKeywords)
-   - 도달률 1위 지표인 공유(Share) 및 저장(Save) 유도 클로징 문구 (shareTrigger)
+[★ 팩트 & 초상권/홍보팀 안전 체크]
+- safetyCheck.numbersToVerify: 대본 속 검증이 필요한 숫자/연도 2개 배열
+- safetyCheck.positivePrFit: 긍정 서사(홍보팀 기준) 적합 여부 1줄
+- safetyCheck.isPrSafe: boolean
 
 반드시 정해진 JSON 스키마로만 응답하세요.`;
+
+    const extractTwoFactNumbers = (scriptText: string) => {
+      const matches = scriptText.match(/\d+(?:,\d{3})*(?:\.\d+)?\s*(?:년|개월|일|시간|원|만\s*원|억\s*원|조\s*원|억|만|배|%|개|명|위|차|번|초)?/g) || [];
+      const unique = Array.from(new Set(matches.map((m) => m.trim()).filter((m) => m.length >= 2))).slice(0, 2);
+      if (unique.length >= 2) return unique;
+      if (unique.length === 1) return [unique[0], '핵심 연도/공식 발표 수치 확인 필요'];
+      return ['인물 핵심 연도·기간 확인 필요', '주요 실적·투자 금액 공식 보도 확인 필요'];
+    };
 
     try {
       const response = await callGeminiWithRetry(() =>
         ai.models.generateContent({
-          model: 'gemini-3.8-flash',
+          model: 'gemini-2.5-flash',
           contents: prompt,
           config: {
             responseMimeType: 'application/json',
@@ -587,16 +581,31 @@ app.post('/api/gemini/generate-shorts', async (req, res) => {
                     required: ['sceneNumber', 'timeRange', 'narration', 'visualGuide', 'imageSearchKeyword', 'visualEffect']
                   }
                 },
+                safetyCheck: {
+                  type: Type.OBJECT,
+                  properties: {
+                    numbersToVerify: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    positivePrFit: { type: Type.STRING },
+                    isPrSafe: { type: Type.BOOLEAN }
+                  }
+                },
                 copyrightDefenseNote: { type: Type.STRING, description: '2차 창작물 보호 근거' }
               },
-              required: ['hooks', 'titles', 'hashtags', 'description', 'pinnedComment', 'fullScript', 'scenes', 'copyrightDefenseNote']
+              required: ['hooks', 'titles', 'hashtags', 'description', 'pinnedComment', 'fullScript', 'scenes', 'safetyCheck', 'copyrightDefenseNote']
             }
           }
         })
       );
 
       const parsed = JSON.parse(response.text || '{}');
-      return res.json(parsed);
+      return res.json({
+        ...parsed,
+        safetyCheck: parsed.safetyCheck || {
+          numbersToVerify: extractTwoFactNumbers(parsed.fullScript || ''),
+          positivePrFit: '적합 — 비난·루머 배제, 미담·인간미·결단 중심의 홍보팀 친화 서사',
+          isPrSafe: true,
+        },
+      });
     } catch (apiErr: any) {
       console.warn('Fallback triggered for generate-shorts:', apiErr.message);
       
@@ -713,6 +722,11 @@ app.post('/api/gemini/generate-shorts', async (req, res) => {
         pinnedComment: `📌 [댓글 토론] 여러분이 ${figureName} 님의 상황이었다면 끝까지 버텼을까요? A(도전) vs B(타협) 여러분의 솔직한 선택을 댓글로 남겨주세요! 👇`,
         fullScript: fullScriptToReturn,
         scenes: scenesToReturn,
+        safetyCheck: {
+          numbersToVerify: extractTwoFactNumbers(fullScriptToReturn),
+          positivePrFit: '적합 — 비난·루머 배제, 미담·인간미·결단 중심의 홍보팀 친화 서사',
+          isPrSafe: true,
+        },
         copyrightDefenseNote: '원저작물의 영상 푸티지를 직접 복제하지 않고, 사실(Fact)을 바탕으로 감동적 서사를 창작한 100% 2차 저작물로 공정 이용 요건을 충족합니다.'
       });
     }

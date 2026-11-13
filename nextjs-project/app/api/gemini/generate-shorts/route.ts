@@ -31,135 +31,140 @@ export async function POST(request: Request) {
     targetDuration = 60,
     videoTone = 'Cinematic',
     storyAngle = 'random',
+    scriptFormat = 'overcoming_story',
+    speechTone = 'friendly_story',
     refreshCounter = 0,
     customKeyword = '',
   } = body;
 
+  const formatDirectives: Record<string, string> = {
+    'overcoming_story': '① [역경극복·감동미담형 (CJ 저단백밥 스타일)] 기업이나 기업인이 적자·위기·거절을 무릅쓰고 누군가의 삶을 바꾸거나 기술/품질에 끝까지 집념을 쏟아 낸 감동 미담과 통 큰 결단 중심으로 서사를 전개하세요.',
+    'humble_twist': '② [소박한 반전매력형 (재벌의 길거리 어묵 먹방 스타일)] 수조 원대 자산가나 글로벌 CEO임에도 길거리 어묵을 서서 먹거나, 낡은 패딩/자켓을 10년째 입거나, 직원/팬과 격의 없이 어울리는 인간적이고 소탈한 반전 매력에 집중하세요.',
+    'life_timeline': '③ [어린시절~현재 인생변천사형] 어려운 어린 시절이나 무명·초기 창업기의 결정적 한 장면에서 출발해, 한 번의 터닝포인트를 거쳐 현재 글로벌 리더로 성장한 극적인 인생 궤적을 속도감 있게 압축하세요.',
+    'biz_sports_owner': '④ [기업인+스포츠 구단주/비즈니스형] 구단주·스폰서로서 보여준 남다른 팬 사랑, 파격적 투자, 락커룸·경기장 뒷이야기 또는 비즈니스 승부사로서의 통 큰 결단과 성과를 흥미진진하게 풀어내세요.',
+  };
+
+  const speechToneDirectives: Record<string, string> = {
+    'friendly_story': '① [친근한 썰풀이체] "~했대요", "~였나 봐요", "근데 달랐대요", "믿어지시나요?"처럼 시청자에게 옆에서 재미있고 따뜻하게 이야기 들려주는 구어체 썰풀이 말투를 대본 전체 나레이션과 후킹에 일관 적용하세요.',
+    'trendy_shorts': '② [트렌디한 쇼츠체] "~했음", "그랬음", "진짜 레전드임", "이건 인정해야 됨"처럼 짧고 리듬감 있는 쇼츠 전용 구어체로 지루함 없이 치고 나가는 문체를 대본 전체에 일관 적용하세요.',
+    'news_briefing': '③ [속도감 있는 뉴스 브리핑체] "~했습니다", "~밝혀졌습니다", "업계가 술렁였습니다"처럼 군더더기 없이 팩트와 숫자를 쾌속으로 전달하는 뉴스 브리핑 어투를 대본 전체에 일관 적용하세요.',
+  };
+
   const personaDescriptions: Record<string, string> = {
-    '4060_emotional': '40~60대 중장년층 타겟: 눈시울을 붉히게 하는 진중한 스토리텔링, 인간적인 역경 극복기, 정중하고 따뜻하며 신뢰감 주는 나레이션 어투 (~했습니다, ~였습니다, 여러분은 기억하십니까).',
-    '1020_dopamine': '10~20대 숏폼 도파민 타겟: 1초 만에 시선 끄는 빠른 전개, 충격적인 반전, 트렌디하고 직관적인 호흡, 속도감 있는 어투 (~했는데요, 실화냐, 진짜 충격입니다).',
-    '3040_success': '30~40대 직장인/성인 타겟: 자기계발과 성공 방정식, 현실적인 교훈과 마인드셋 중심 (~그가 증명해낸 비밀, 끝까지 버티는 힘).',
-    'mystery_twist': '반전 미스터리 타겟: 아무도 몰랐던 충격적인 비하인드, 숨겨진 진실을 하나씩 벗겨가는 긴장감 넘치는 스릴러 톤.',
-    'ceo_branding': '🏛️ 기업인/CEO 브랜드 스토리 (기업 홍보 의뢰 유치 전용): 포브스/블룸버그 인터뷰 및 명품 다큐멘터리 스타일. 자극적인 어그로 대신 독보적인 기업 철학, 시장의 모순을 해결한 혁신 기술, 위기 극복의 결단과 미래 비전을 공신력 있고 품격 넘치는 정중한 다큐 톤으로 전달 (~그가 바꾼 세상, 타협하지 않은 원칙, 000 기업이 그리는 미래).'
+    '4060_emotional': '40~60대 중장년층 타겟: 가슴을 울리는 진정성, 기업인의 묵직한 책임감과 따뜻한 인간미 강조.',
+    '1020_dopamine': '10~20대 숏폼 타겟: 빠른 템포, 반전 디테일, 소셜에서 바로 공유하고 싶은 흥미진진한 전개.',
+    '3040_success': '30~40대 직장인/투자자 타겟: 비즈니스 인사이트, 위기 돌파 결단력, 일과 삶의 태도에 대한 영감.',
+    'mystery_twist': '반전 스토리 타겟: 의외의 숫자와 예상 밖의 선행/행보로 끝까지 시선을 붙잡는 전개.',
+    'ceo_branding': '기업인/CEO 브랜드 스토리: 대기업 홍보팀도 탐낼 품격 있는 미담, 기술 혁신, 사회공헌 서사.'
   };
 
   const moodToneDescriptions: Record<string, string> = {
-    'Cinematic': 'Cinematic (영화적 연출): 영화 한 편을 압축한 듯한 웅장하고 드라마틱한 몰입감. 묵직하고 서정적인 나레이션, 시네마틱 슬로우 줌인/줌아웃 카메라 워크, 웅장한 오케스트라 또는 피아노 현악기 BGM 제안.',
-    'Documentary': 'Documentary (다큐멘터리): 인간극장, SBS 스페셜 풍의 진솔하고 깊이 있는 서사. 차분하고 신뢰감 넘치는 톤, 아카이브 흑백 사진 교차 연출, 잔잔한 어쿠스틱 피아노 및 첼로 BGM 제안.',
-    'Fast-paced': 'Fast-paced (도파민 쾌속 비트): 1초의 공백도 허용하지 않는 빠른 호흡과 펀치력 있는 문장. 긴장감 넘치는 빠른 컷전환, 다이내믹한 줌과 자막 플래시, 비트감 있는 신스웨이브/트랩 힙합 BGM 제안.',
-    'Minimal': 'Minimal (절제된 미니멀): 군더더기 없는 담백함과 팩트 중심의 명확한 전달. 불필요한 수식어를 뺀 직관적 문장, 정적이고 정갈한 고정/미세 팬 연출, 미니멀한 앰비언트/로파이 BGM 제안.',
-    'CorporatePR': 'CorporatePR (기업인/CEO 프리미엄 다큐 브랜딩): 글로벌 테크 컨퍼런스 기조연설 및 프리미엄 비즈니스 다큐멘터리 풍. 흔들림 없는 신뢰감과 권위를 주는 어조, 브랜드 세이프티 준수(과장 광고 배제, 팩트 중심), 세련된 기업 키 컬러 및 미래지향적 앰비언트 신스 사운드 제안.'
+    'Cinematic': 'Cinematic (영화적 연출): 묵직하고 드라마틱한 몰입감, 슬로우 줌과 감정선을 살리는 피아노/스트링 BGM 제안.',
+    'Documentary': 'Documentary (다큐멘터리): 아카이브 사진과 현장감을 살린 진솔한 연출, 담백한 어쿠스틱 BGM 제안.',
+    'Fast-paced': 'Fast-paced (쾌속 비트): 빠른 컷전환, 핵심 숫자 강조 자막, 속도감 있는 비트 BGM 제안.',
+    'Minimal': 'Minimal (절제된 미니멀): 팩트와 숫자가 또렷이 보이는 정갈한 연출, 미니멀한 앰비언트 BGM 제안.',
+    'CorporatePR': 'CorporatePR (기업 브랜딩): 포브스/블룸버그 다큐 풍의 신뢰감과 품격을 살린 세련된 비즈니스 톤.'
   };
 
   const storyAngleDirectives: Record<string, string> = {
-    'choice': '❓ [질문형 앵글: 왜 그런 무모한 선택을 했을까?] 모두가 결사반대했던 결정적 갈림길, 인생을 건 단 한 번의 베팅과 그 숨은 이유를 추적하세요.',
-    'adversity': '💧 [질문형 앵글: 절망의 밑바닥에서 어떻게 일어섰을까?] 뼈아픈 좌절과 통장 잔고 0원, 무명 시절 들었던 모욕을 딛고 역전 드라마를 쓴 기적의 분투기를 전개하세요.',
-    'twist': '⚡ [질문형 앵글: 세상이 몰랐던 충격적 반전은 무엇일까?] 겉으로 알려진 뻔한 성공담 뒤에 감춰진 비밀과 살얼음판 위기, 아무도 예상 못한 반전 실화로 작성하세요.',
-    'success': '💼 [질문형 앵글: 어떻게 혼자서 시장의 판도를 바꿨을까?] 그가 수많은 실패 끝에 찾아낸 절대적인 성공 원칙과 시청자가 당장 배울 수 있는 행동 강령을 제시하세요.',
-    'legend': '🏆 [질문형 앵글: 그날 밤, 그 3초 동안 무슨 일이 있었을까?] 그의 운명을 180도 뒤집어놓은 단 한 번의 결정적 무대와 결단의 순간에 모든 초점을 맞춰 긴박하게 전개하세요.',
-    'routine': '🔥 [질문형 앵글: 남들과 무엇이 달랐기에 정상에 올랐을까?] 타협하지 않는 지독한 몰입, 30년간 지켜온 철저한 자기관리와 비밀 루틴을 조명하세요.',
-    'rival': '⚔️ [질문형 앵글: 거대한 라이벌과의 대결에서 어떻게 승리했을까?] 99% 패배할 것이라던 승부에서 치밀한 전략으로 판을 뒤흔든 역전의 한 방을 작성하세요.',
-    'quote': '💬 [질문형 앵글: 그의 심장을 뛰게 만든 단 한마디는 무엇이었을까?] 좌절의 순간 인생을 180도 바꿔놓은 운명적인 한마디와 신념의 울림을 전개하세요.',
-    'ceo_hero': '🏛️ [질문형 앵글: 거대 독점 기업에 맞서 어떻게 살아남았을까?] 창업 초기 파산 직전의 R&D실에서 시장을 뒤흔든 기술 혁신의 승부수를 웅장하게 조명하세요.',
-    'corporate_pr': '💎 [질문형 앵글: 어떤 철학으로 사람들의 삶을 바꿨을까?] 시장의 오랜 모순을 해결한 혁신 기술과 고객의 신뢰, 미래를 향한 독보적 비전을 작성하세요.',
-    'corporate_tech': '🚀 [질문형 앵글: 혁신 기술 & 독점 솔루션] 기존 시장의 고질적인 모순을 찾아내고, 기술 혁신으로 고객의 삶을 180도 바꾼 기업의 기술력을 각인시키세요.',
-    'vision_ir': '💎 [질문형 앵글: 기업 가치 & 미래 비전 (IR)] 단순 상품 판매가 아니라 세상에 미치는 선한 영향력과 차세대 비전을 제시하세요.',
-    'random': `🎲 [질문형 앵글: 새로운 각도의 참신한 일화 #${refreshCounter + 1}] 기존의 대본과 내용이 전혀 겹치지 않도록, 완전히 새로운 각도의 사건과 참신한 일화로 대본을 작성하세요.`
+    'overcoming_story': formatDirectives['overcoming_story'],
+    'humble_twist': formatDirectives['humble_twist'],
+    'life_timeline': formatDirectives['life_timeline'],
+    'biz_sports_owner': formatDirectives['biz_sports_owner'],
+    'choice': '결정적 결단 앵글: 남들이 주저할 때 내린 통 큰 결단과 긍정적 성과에 집중하세요.',
+    'adversity': formatDirectives['overcoming_story'],
+    'twist': formatDirectives['humble_twist'],
+    'success': formatDirectives['biz_sports_owner'],
+    'legend': formatDirectives['life_timeline'],
+    'random': `새로운 앵글 버전 #${refreshCounter + 1}: 선택한 기획 포맷을 충실히 따르되 신선한 디테일과 숫자로 구성하세요.`
   };
 
+  const chosenFormatText = formatDirectives[scriptFormat] || formatDirectives['overcoming_story'];
+  const chosenSpeechText = speechToneDirectives[speechTone] || speechToneDirectives['friendly_story'];
   const targetToneText = personaDescriptions[targetPersona] || personaDescriptions['4060_emotional'];
   const videoToneText = moodToneDescriptions[videoTone] || moodToneDescriptions['Cinematic'];
-  const chosenAngleText = storyAngleDirectives[storyAngle] || storyAngleDirectives['random'];
+  const chosenAngleText = storyAngleDirectives[storyAngle] || chosenFormatText;
   const totalScenes = targetDuration === 45 ? 9 : 12;
-  const targetCharMin = targetDuration === 45 ? 310 : 410;
+  const targetCharMin = targetDuration === 45 ? 290 : 390;
   const targetCharMax = targetDuration === 45 ? 360 : 470;
 
-  const prompt = `당신은 월 조회수 1,000만 회를 기록하는 '화제의 인물' 전문 유튜브 쇼츠 1등 제작자이자 디렉터입니다.
+  const prompt = `당신은 조회수 100만 뷰와 대기업 브랜디드 광고를 부르는 '국내외 기업인·부자 전문' 쇼츠 작가입니다.
 
-[사용자 요청: 대본 컨셉 & 스토리 각도 지정 기획]
-- 요청 스토리 각도: ${chosenAngleText}
-- 주의사항: 사용자가 선택한 컨셉("${storyAngle}")에 맞추어 대본의 전개, 사건, 톤앤매너를 180도 완전히 바꾸어야 합니다. 이전과 동일한 문장을 절대 반복하지 말고, 완전히 신선하고 독창적인 앵글과 문체로 새로운 대본을 기획하세요.
+[★ 절대 원칙 3대 철칙 (최우선 준수)]
+1. 첫째, 철저히 '그 기업과 인물의 홍보팀'이라는 마인드로 긍정적인 미담, 위기 극복, 소박한 인간미, 통 큰 결단만 다루세요.
+   - 비난, 악인전, 스캔들 폭로, 부정적 가십, 미검증 루머는 초상권·명예훼손 고소 위험이 있으므로 **절대 금지**합니다.
+2. 둘째, 첫 0~3초에 "19XX년에 태어난...", "오늘은 ~를 소개합니다" 같은 출생연도·지루한 인물 설명 대신 **충격적인 숫자(액수·기간·수량)나 반전 질문**으로 무조건 후킹하세요.
+3. 셋째, 60초(또는 ${targetDuration}초) 대본을 반드시 아래 **5단계 구조**로 작성해 총 ${totalScenes}개 씬에 정확히 배분하세요:
+   - [1단계: 0~3초 강렬한 후킹] (씬 1): 충격적 숫자 또는 반전 질문 1~2단문 (20~35자)
+   - [2단계: 3~15초 의외의 배경] (씬 2~3): 예상을 뒤엎는 출발점/소박한 계기/인간적인 배경
+   - [3단계: 15~40초 위기/반전 디테일] (씬 4~8): 구체적인 숫자·기간·적자·현장 디테일이 담긴 위기 또는 반전 포인트
+   - [4단계: 40~55초 통 큰 결단과 성취] (씬 9~10): 홍보팀이 자랑스러워할 통 큰 결단, 선행, 기술/사업적 성취
+   - [5단계: 55~60초 칭찬 댓글을 유도하는 여운 엔딩] (씬 11~12): 기업의 존재 이유와 인물의 품격이 남아 시청자가 자연스럽게 존경·칭찬 댓글을 달게 만드는 묵직한 여운
+
+[★ 레퍼런스 대본 스타일 (CJ 이재현 회장 '햇반 저단백밥' 감동 브랜디드 사례)]
+"CJ그룹 회장 이재현. 한 임직원 딸이 쌀밥을 못 먹는다는 사연을 들었대요. 정말 희귀 질환이었대요. 밥 한 그릇을 먹을 수가 없어서 아픈 사람들이 먹을 수 있는 햇반을 만들라고 시켰나 봐요. 근데 만들수록 손해를 본대요. 근데 달랐대요. 즉석밥 기술을 가지고 있기 때문에 해야 된다 그랬대요. 그래서 '햇반 저단백밥'이 나왔대요. 그렇게 환자들의 생명줄이 됐대요. 누적 생산량 290만 개. 만들수록 적자인 제품이지만 환우들이 평범한 일상을 포기하지 않도록 17년 동안 이걸 만들어 왔다. 사업의 가치는 숫자로만 남지 않는다. 누군가의 삶을 바꿨을 때 기업의 존재 이유가 된다."
+-> 위 사례처럼 짧은 호흡, 구체적 숫자(예: 290만 개, 17년), 인간적 사연, 뭉클한 엔딩 리듬을 참고하세요!
+
+[사용자 선택 기획 옵션 (반드시 100% 반영)]
+- [기획 포맷]: ${chosenFormatText}
+- [대본 말투]: ${chosenSpeechText}
+- 보조 앵글 참고: ${chosenAngleText}
+- 시청자 타겟 무드: ${targetToneText}
+- 영상 연출 톤: ${videoToneText}
 
 [대상 인물 정보]
-- 인물 이름: ${figureName}
+- 인물/기업: ${figureName}
 - 테마: ${title || ''}
-- 화제 배경: ${buzzSummary || ''}
-- 숨겨진 역경/서사: ${controversyOrIssue || ''}
-- 기획 방향(스토리텔링 앵글): ${suggestedAngle || ''}${hookLine ? `\n- 추천 첫 3초 훅: "${hookLine}"` : ''}
-${customKeyword ? `\n[★ 사용자 지정 최우선 강조 키워드 / 핵심 주제: "${customKeyword}"]\n- 대본 전체의 전개와 3초 후킹 문구, 씬별 나레이션에 반드시 위 키워드("${customKeyword}")의 내용과 교훈, 의미를 핵심 주제로 깊이 녹여내어 스토리를 극적으로 풀어내세요.` : ''}
-- 목표 영상 길이: 반드시 정확히 ${targetDuration}초에 도달해야 합니다!
-- [매우 중요] 나레이션 글자수: 공백 제외 ${targetCharMin}~${targetCharMax}자 (절대로 짧게 요약하지 마십시오. 일반 낭독 속도 6.5자/초 기준으로 ${targetDuration}초를 꽉 채우는 충실한 서사를 작성하세요).
-- 타겟 페르소나 및 어투: ${targetToneText}
-- 영상 전체 연출 톤(분위기): ${videoToneText}
+- 최근 화제 배경: ${buzzSummary || ''}
+- 주목할 서사/미담 포인트: ${controversyOrIssue || ''}
+- 추천 기획 앵글: ${suggestedAngle || ''}${hookLine ? `\n- 참고 후킹 문구: "${hookLine}"` : ''}
+${customKeyword ? `\n[★ 사용자 지정 핵심 키워드: "${customKeyword}"]\n- 3초 후킹과 핵심 씬에 반드시 "${customKeyword}" 키워드를 자연스럽게 녹여내세요.` : ''}
+- 목표 영상 길이: ${targetDuration}초 (총 ${totalScenes}개 씬, 나레이션 공백 제외 ${targetCharMin}~${targetCharMax}자)
 
-[★ 초핵심 절대 규칙: 뜬구름 잡는 포괄적 이야기 전면 금지 & 극사실주의 팩트 디테일]
-시청자가 1초 만에 몰입하지 못하고 이탈하는 가장 큰 이유는 "열심히 노력했습니다", "시련을 이겨냈습니다", "포기하지 않는 열정으로 성공했습니다" 같은 뜬구름 잡는 뻔한 클리셰 때문입니다. 이런 모호하고 추상적인 문장은 엄격히 금지합니다!
-
-반드시 다음 4가지 '극사실주의 디테일'을 매 씬마다 촘촘하게 박아 넣으세요:
-1. 구체적인 장소, 상황, 팩트:
-   - 나쁜 예: "그는 과거 밑바닥에서 고생했습니다." (X - 절대 금지)
-   - 좋은 예: "덴니스 식당에서 시급 몇 푼을 받으며 기름때 묻은 접시와 화장실 변기를 닦던 열여섯 소년." (O)
-2. 구체적인 숫자, 연도, 액수:
-   - 나쁜 예: "많은 빚을 졌지만 버텨냈습니다." (X)
-   - 좋은 예: "첫 칩 NV1의 처참한 실패로 직원 80%를 해고하고, 회사 통장에 남은 건 단 30일 치 월급뿐이었습니다." (O)
-3. 결정적인 실제 대화와 승부수의 순간:
-   - 나쁜 예: "투자자를 설득해 위기를 넘겼습니다." (X)
-   - 좋은 예: "세가(SEGA) 사장실 문을 두드려 '우리 설계는 틀렸지만 회사를 살려달라'며 500만 달러를 받아낸 눈물의 담판." (O)
-4. 시청자의 심장을 울리는 구체적인 명언과 행동:
-   - 나쁜 예: "그의 철학은 훌륭합니다." (X)
-   - 좋은 예: "월가 모두가 미쳤다고 비웃던 2006년, 엔비디아의 전 재산 10조 원을 쿠다(CUDA)에 쏟아부었던 젠슨 황의 결단." (O)
-
-[★ 최우선 절대 원칙: 100% 사실(Fact) 기반 & 허위사실·날조 절대 금지]
-1. 반드시 대상 인물에 대해 공식 언론 보도, 공중파/케이블 방송 인터뷰, 공식 자서전, 본인 유튜브 등에서 공인된 '실제 일화(Fact)'만을 바탕으로 대본을 작성해야 합니다.
-2. 가짜 일화, 조작된 대화, 확인되지 않은 악성 루머, 존재하지 않는 사건이나 날조된 에피소드(Hallucination)는 명예훼손 및 허위사실 유포 리스크가 발생하므로 절대 엄격히 금지됩니다.
-3. 연도, 과거 직업, 실제 겪은 고난의 사건, 수상 및 업적 등은 철저히 실제 사실에 입각해야 하며, 극적인 몰입감은 사실을 바탕으로 한 감정선의 흐름과 나레이션 호흡으로만 전달하세요. 허위사실을 임의로 지어내는 것은 절대 불가합니다.
-
-[★ 기업인/CEO 브랜딩 & 브랜드 세이프티(Brand Safety) 특수 알고리즘]
-만약 타겟 페르소나가 'ceo_branding'이거나 기업 앵글(ceo_hero, corporate_tech, vision_ir)인 경우:
-1. '업계 최초 1위', '무조건적인 성공', '100% 수익' 등 공정거래위원회 허위·과장 광고 제재 위험이 있는 저급한 홍보 문구를 엄격히 배제하세요.
-2. 대신 '철저한 데이터 검증', '타협하지 않은 품질과 기술 혁신', '기존 시장의 고질적 모순 해결', '집념과 도전의 철학' 등 공신력과 품격 있는 정통 다큐멘터리 어휘를 구사하세요.
-3. 3초 후킹 또한 자극적 루머나 비방이 아닌, "모두가 불가능하다고 했던 시장에 던진 승부수", "단 한 명의 창업가가 바꾼 업계의 판도" 등 시청자에게 경외감과 지적 호기심을 주는 품격 있는 후킹을 제시하세요.
-4. 마지막 엔딩 씬은 단순 제품 구매 유도가 아닌, 기업의 철학과 다음 세대를 향한 미래 비전 메시지로 마무리하여 시청자에게 깊은 신뢰와 존경을 심어주세요.
-
-[★ 60초 인물 쇼츠 황금 서사 5단계 구조 공식 (반드시 총 ${totalScenes}개 씬에 배분)]
-1. [1단계] 00:00 ~ 00:03 (씬 1) - 【후킹: 사건 질문 / 충격 반전】
-   - 장황한 인물 소개나 출생, 어린 시절은 절대 금지!
-   - 시청자가 스크롤을 즉시 멈추게 하는 날카로운 질문이나 충격적 사건 단 한 문장 제시 ("왜 세계 1위 부자가 된 그는 낡은 자켓만 고집했을까?", "모두가 망했다고 비웃었던 그날 밤")
-2. [2단계] 00:03 ~ 00:15 (씬 2~3) - 【상황: 최소 배경 압축】
-   - 긴 일대기 생략! 사건 직전의 절박한 상황과 인물이 처했던 밑바닥 현실을 압축 묘사
-3. [3단계] 00:15 ~ 00:40 (씬 4~8) - 【갈등: 생사를 가르는 핵심 위기와 장애물】
-   - 전 재산 탕진, 100번의 퇴짜, 살얼음판 위기, 누구도 도와주지 않던 벼랑 끝의 고통을 생생한 팩트와 숫자로 전개
-4. [4단계] 00:40 ~ 00:55 (씬 9~10) - 【전환: 목숨을 건 단 한 번의 승부수와 반전】
-   - 모든 것을 걸고 던진 결정적 결단, 상식을 파괴한 전략, 드라마틱한 역전의 결과
-5. [5단계] 00:55 ~ 01:00 (씬 11~12) - 【해소: 첫 질문의 해답과 뼈 때리는 여운】
-   - 씬 1에서 던진 질문에 명쾌하게 답을 내리며, 시청자의 가슴을 울리는 진한 인생 명언과 깊은 여운으로 마무리
-
-[★ 쇼츠 3초 킬링 후킹 3대 유형 절대 규칙 - 공백 포함 20자~30자 이내 초단문 펀치 강제]
-쇼츠 시청자는 1.5초 만에 다음 영상으로 넘어가므로, 3초 후킹 문구는 성우가 2.5초 만에 읽을 수 있도록 **반드시 공백 포함 20자~30자 이내의 강력한 단문 펀치**로 작성해야 합니다! 35자를 초과하는 긴 만연체나 설명조 문장은 절대 금지합니다!
-- 1. 사건형 후킹 (20~30자): 사건이나 충격적 팩트 단문 (예: "남대문 한복판에서 외국인 200명이 무릎 꿇은 이유.")
-- 2. 반전형 후킹 (20~30자): 상식을 뒤집는 반전 단문 (예: "단돈 5천 원짜리 스카프로 전 세계를 홀린 남자.")
-- 3. 질문형 후킹 (20~30자): 뇌리에 박히는 의문형 단문 (예: "하루 매출 0원에서 어떻게 파리 패션계를 뒤흔들었을까?")
-
-[2차 창작 저작권 방어 패치]
-- 사실(Fact)을 바탕으로 감동적 서사를 창작한 100% 2차 저작물로 공정 이용 요건을 충족하도록 구성.
+[★ 사실 검증 & 초상권/홍보팀 안전 체크 출력 필수]
+- 대본에 등장하는 핵심 숫자·연도 중 팩트체크가 필요한 2개 항목을 safetyCheck.numbersToVerify 배열(길이 2)에 정확히 적으세요 (예: ["누적 생산량 290만 개 (공식 보도 확인 필요)", "17년 지속 생산 (2009년 출시 기준 연도 확인)"]).
+- safetyCheck.positivePrFit에는 홍보팀 기준 긍정 서사 적합 여부 1줄을 작성하세요 (예: "적합 — 비난·루머 없이 사회적 가치와 소탈한 리더십만 다룬 홍보팀 친화 서사").
+- safetyCheck.isPrSafe는 긍정 서사 원칙을 완벽히 준수했으면 true로 지정하세요.
 
 [2026 SNS 알고리즘 치트키 메타데이터]
-- 클릭률(CTR) 15%+ 유튜브 쇼츠 제목 3개
-- 스팸 감점 없는 시맨틱 카테고리 클린 태그 3~5개
-- 첫 2줄 SEO 최적화 문구 (firstTwoLinesSeo)
-- 타임스탬프 챕터 마커 (timestamps)
-- 댓글 토론 트리거 (commentBaits)
-- 시맨틱 키워드 5개 (semanticKeywords)
-- 공유/저장 유도 클로징 문구 (shareTrigger)
+- 클릭률(CTR) 높은 쇼츠 제목 3개 (제목 역시 출생연도 나열 금지, 긍정적 미담/반전 호기심 자극)
+- 클린 해시태그 3~5개, 첫 2줄 SEO 문구(firstTwoLinesSeo), 타임스탬프(timestamps), 댓글 칭찬/토론 유도(commentBaits), 시맨틱 키워드 5개, 공유 유도(shareTrigger)
+- 씬별 imageSearchKeyword는 구글 이미지 검색 시 바로 과거/기사 사진이 나오는 구체적 한국어+인물명 키워드로 작성하세요 (예: "이재용 어묵 부산 깡통시장", "젠슨황 가죽자켓 기조연설").
 
 반드시 정해진 JSON 스키마로만 응답하세요.`;
 
-  if (apiKey) {
-    // Attempt Gemini Pro first (User requested for deep storytelling), then fast fallback
-    const candidateModels = ['gemini-3.1-pro-preview', 'gemini-3.5-flash-lite', 'gemini-3.5-flash'];
+  const extractTwoFactNumbers = (scriptText: string) => {
+    const matches = scriptText.match(/\d+(?:,\d{3})*(?:\.\d+)?\s*(?:년|개월|일|시간|원|만\s*원|억\s*원|조\s*원|억|만|배|%|개|명|위|차|번|초)?/g) || [];
+    const unique = Array.from(new Set(matches.map((m) => m.trim()).filter((m) => m.length >= 2))).slice(0, 2);
+    if (unique.length >= 2) return unique;
+    if (unique.length === 1) return [unique[0], '핵심 연도/공식 발표 수치 확인 필요'];
+    return ['인물 핵심 연도·기간 확인 필요', '주요 실적·투자 금액 공식 보도 확인 필요'];
+  };
+
+  const buildNormalizedSafetyCheck = (parsedSafety: any, scriptText: string) => {
+    const fallbackNums = extractTwoFactNumbers(scriptText);
+    const nums = Array.isArray(parsedSafety?.numbersToVerify) && parsedSafety.numbersToVerify.length > 0
+      ? parsedSafety.numbersToVerify.slice(0, 2)
+      : fallbackNums;
+    return {
+      numbersToVerify: nums.length >= 2 ? nums : [nums[0] || fallbackNums[0], fallbackNums[1]],
+      positivePrFit: parsedSafety?.positivePrFit || '적합 — 비난·루머 배제, 미담·인간미·결단 중심의 홍보팀 친화 서사',
+      isPrSafe: parsedSafety?.isPrSafe !== false,
+    };
+  };
+
+  const runtimeKey = String(body.geminiApiKey || apiKey || '').trim();
+  if (runtimeKey) {
+    const runtimeAi = runtimeKey === apiKey
+      ? ai
+      : new GoogleGenAI({
+          apiKey: runtimeKey,
+          httpOptions: { headers: { 'User-Agent': 'aistudio-build' } },
+        });
+    const candidateModels = ['gemini-3.1-pro-preview', 'gemini-2.5-flash', 'gemini-flash-latest'];
     for (const mod of candidateModels) {
       try {
-        const response = await ai.models.generateContent({
+        const response = await runtimeAi.models.generateContent({
           model: mod,
           contents: prompt,
           config: {
@@ -241,16 +246,35 @@ ${customKeyword ? `\n[★ 사용자 지정 최우선 강조 키워드 / 핵심 �
                     required: ['sceneNumber', 'timeRange', 'narration', 'visualGuide', 'imageSearchKeyword', 'visualEffect']
                   }
                 },
+                safetyCheck: {
+                  type: Type.OBJECT,
+                  properties: {
+                    numbersToVerify: {
+                      type: Type.ARRAY,
+                      items: { type: Type.STRING },
+                      description: '대본 속 검증이 필요한 핵심 숫자/연도 2개'
+                    },
+                    positivePrFit: {
+                      type: Type.STRING,
+                      description: '긍정 서사(홍보팀 기준) 적합 여부 한 줄 요약'
+                    },
+                    isPrSafe: { type: Type.BOOLEAN }
+                  },
+                  required: ['numbersToVerify', 'positivePrFit', 'isPrSafe']
+                },
                 copyrightDefenseNote: { type: Type.STRING, description: '2차 창작물 보호 근거' }
               },
-              required: ['hooks', 'titles', 'hashtags', 'description', 'pinnedComment', 'fullScript', 'scenes', 'copyrightDefenseNote']
+              required: ['hooks', 'titles', 'hashtags', 'description', 'pinnedComment', 'fullScript', 'scenes', 'safetyCheck', 'copyrightDefenseNote']
             }
           }
         });
 
         const parsed = JSON.parse(response.text || '{}');
         if (parsed.fullScript && parsed.scenes && parsed.scenes.length > 0) {
-          return NextResponse.json(parsed);
+          return NextResponse.json({
+            ...parsed,
+            safetyCheck: buildNormalizedSafetyCheck(parsed.safetyCheck, parsed.fullScript),
+          });
         }
       } catch (err: any) {
         console.warn(`Gemini model ${mod} call failed:`, err.message);
@@ -369,6 +393,7 @@ ${customKeyword ? `\n[★ 사용자 지정 최우선 강조 키워드 / 핵심 �
     pinnedComment: `📌 [댓글 토론] 여러분이 ${figureName} 님의 상황이었다면 끝까지 버텼을까요? A(도전) vs B(타협) 여러분의 솔직한 선택을 댓글로 남겨주세요! 👇`,
     fullScript: fullScriptToReturn,
     scenes: scenesToReturn,
-    copyrightDefenseNote: '원저작물의 영상 푸티지를 직접 복제하지 않고, 공인된 사실(Fact)을 바탕으로 감동적 서사를 창작한 100% 2차 저작물로 공정 이용 요건을 충족합니다.'
+    safetyCheck: buildNormalizedSafetyCheck(null, fullScriptToReturn),
+    copyrightDefenseNote: '공인된 사실(Fact)과 긍정적 미담·리더십을 바탕으로 창작한 100% 브랜드 세이프 2차 저작물입니다.'
   });
 }

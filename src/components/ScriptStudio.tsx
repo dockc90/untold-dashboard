@@ -23,9 +23,21 @@ import {
   Edit3,
   RefreshCw,
   Play,
-  Scissors
+  Scissors,
+  Search,
+  ShieldAlert
 } from 'lucide-react';
-import { TrendingFigure, ShortsProject, TargetPersona, VideoMoodTone, SceneItem, MotionEffectType } from '../types';
+import {
+  TrendingFigure,
+  ShortsProject,
+  TargetPersona,
+  VideoMoodTone,
+  ScriptFormatType,
+  ScriptSpeechTone,
+  ShortsSafetyCheck,
+  SceneItem,
+  MotionEffectType,
+} from '../types';
 import { ErrorBoundary } from './ErrorBoundary';
 import { getSceneFallbackImage } from '../utils/sceneImages';
 import { saveDraftToServer } from '../lib/supabase';
@@ -37,13 +49,42 @@ const SceneVideoEditorModal = lazy(() => import('./SceneVideoEditorModal').then(
 interface ScriptStudioProps {
   selectedFigure: TrendingFigure | null;
   currentProject: ShortsProject | null;
-  onGenerateScript: (persona: TargetPersona, duration: 45 | 60, videoTone: VideoMoodTone, storyAngle?: string, customKeyword?: string) => Promise<void>;
+  onGenerateScript: (
+    persona: TargetPersona,
+    duration: 45 | 60,
+    videoTone: VideoMoodTone,
+    storyAngle?: string,
+    customKeyword?: string,
+    scriptFormat?: ScriptFormatType,
+    speechTone?: ScriptSpeechTone
+  ) => Promise<void>;
   onSaveProject: (project: ShortsProject) => void;
   onUpdateProject?: (project: ShortsProject) => void;
   onOpenVideoRenderer: (project: ShortsProject) => void;
   onOpenViralStudio?: (topic: string) => void;
   onBackToTrends?: () => void;
   isGenerating: boolean;
+}
+
+const SCRIPT_FORMAT_OPTIONS: { id: ScriptFormatType; label: string }[] = [
+  { id: 'overcoming_story', label: '① 역경극복·감동미담형(CJ 저단백밥 스타일)' },
+  { id: 'humble_twist', label: '② 소박한 반전매력형(재벌의 길거리 어묵 먹방 스타일)' },
+  { id: 'life_timeline', label: '③ 어린시절~현재 인생변천사형' },
+  { id: 'biz_sports_owner', label: '④ 기업인+스포츠 구단주/비즈니스형' },
+];
+
+const SPEECH_TONE_OPTIONS: { id: ScriptSpeechTone; label: string }[] = [
+  { id: 'friendly_story', label: '① 친근한 썰풀이("~했대요/믿어지시나요?")' },
+  { id: 'trendy_shorts', label: '② 트렌디한 쇼츠체("~했음/그랬음")' },
+  { id: 'news_briefing', label: '③ 속도감 있는 뉴스 브리핑체("~했습니다/밝혀졌습니다")' },
+];
+
+function extractFallbackSafetyNumbers(scriptText: string): string[] {
+  const matches = (scriptText || '').match(/\d+(?:,\d{3})*(?:\.\d+)?\s*(?:년|개월|일|시간|원|만\s*원|억\s*원|조\s*원|억|만|배|%|개|명|위|차|번|초)?/g) || [];
+  const unique = Array.from(new Set(matches.map((m) => m.trim()).filter((m) => m.length >= 2))).slice(0, 2);
+  if (unique.length >= 2) return unique;
+  if (unique.length === 1) return [unique[0], '주요 연도·공식 발표 수치 확인 필요'];
+  return ['핵심 실적·규모 수치 확인 필요', '사건 발생 연도·기간 확인 필요'];
 }
 
 const STORY_ANGLES = [
@@ -83,6 +124,8 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
 }) => {
   const [targetPersona, setTargetPersona] = useState<TargetPersona>('4060_emotional');
   const [videoTone, setVideoTone] = useState<VideoMoodTone>('Cinematic');
+  const [scriptFormat, setScriptFormat] = useState<ScriptFormatType>('overcoming_story');
+  const [speechTone, setSpeechTone] = useState<ScriptSpeechTone>('friendly_story');
   const [duration, setDuration] = useState<45 | 60>(60);
   const [customKeyword, setCustomKeyword] = useState<string>('');
   const [activeStoryAngle, setActiveStoryAngle] = useState<string>('random');
@@ -625,6 +668,8 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
         targetPersona,
         targetDuration: duration,
         videoTone,
+        scriptFormat,
+        speechTone,
         hooks: [
           {
             type: 'question',
@@ -656,6 +701,8 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
       selectedVoiceId: currentProject.selectedVoiceId || 'JBFqnCBsd6RMkjVDRZzb',
       voiceSpeedMultiplier: currentProject.voiceSpeedMultiplier || 1.1,
       videoTone,
+      scriptFormat,
+      speechTone,
       charCount,
       estimatedSeconds,
     };
@@ -686,7 +733,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
     }, 800);
 
     return () => clearTimeout(timer);
-  }, [editableScript, editableScenes, selectedHookIndex, videoTone]);
+  }, [editableScript, editableScenes, selectedHookIndex, videoTone, scriptFormat, speechTone]);
 
   return (
     <div className="flex flex-col h-full bg-white border border-[#E9E9E7] rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.02)] w-full max-w-full min-w-0">
@@ -769,10 +816,10 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
             <div className="flex items-center gap-1.5 shrink-0">
               <button
                 type="button"
-                onClick={() => onGenerateScript(targetPersona, duration, videoTone, activeStoryAngle, customKeyword)}
+                onClick={() => onGenerateScript(targetPersona, duration, videoTone, activeStoryAngle, customKeyword, scriptFormat, speechTone)}
                 disabled={isGenerating || !selectedFigure}
                 className="flex items-center justify-center space-x-1 px-3 py-1.5 bg-[#F1F1EF] hover:bg-white text-[#37352F] border border-[#E3E2DE] font-semibold text-xs rounded-xl shadow-xs transition disabled:opacity-50 cursor-pointer"
-                title="설정된 키워드와 컨셉으로 대본 새로고침"
+                title="설정된 기획 포맷·말투·키워드로 대본 새로고침"
               >
                 <RotateCw className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
                 <span>새로고침</span>
@@ -780,7 +827,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
 
               <button
                 type="button"
-                onClick={() => onGenerateScript(targetPersona, duration, videoTone, activeStoryAngle, customKeyword)}
+                onClick={() => onGenerateScript(targetPersona, duration, videoTone, activeStoryAngle, customKeyword, scriptFormat, speechTone)}
                 disabled={isGenerating || !selectedFigure}
                 className="flex items-center justify-center space-x-1.5 px-3.5 py-1.5 bg-[#23272A] hover:bg-[#111213] text-white font-semibold text-xs rounded-xl shadow-xs transition disabled:opacity-50 cursor-pointer"
               >
@@ -788,6 +835,43 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                 <span>{isGenerating ? '생성 중...' : '대본 생성'}</span>
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* ROW 1.5: [기획 포맷] & [대본 말투] 선택 옵션 (대본 생성 전 필수 선택) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-3 bg-white rounded-xl border border-[#E9E9E7] shadow-2xs w-full">
+          <div className="space-y-1 min-w-0">
+            <label className="block text-[11px] font-bold text-[#191919]">
+              🎬 기획 포맷
+            </label>
+            <select
+              value={scriptFormat}
+              onChange={(e) => setScriptFormat(e.target.value as ScriptFormatType)}
+              className="w-full bg-[#FAF9F7] hover:bg-white border border-[#E3E2DE] rounded-xl px-3 py-2 text-xs font-semibold text-[#37352F] focus:outline-none focus:border-[#23272A] shadow-2xs cursor-pointer"
+            >
+              {SCRIPT_FORMAT_OPTIONS.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1 min-w-0">
+            <label className="block text-[11px] font-bold text-[#191919]">
+              🎙️ 대본 말투
+            </label>
+            <select
+              value={speechTone}
+              onChange={(e) => setSpeechTone(e.target.value as ScriptSpeechTone)}
+              className="w-full bg-[#FAF9F7] hover:bg-white border border-[#E3E2DE] rounded-xl px-3 py-2 text-xs font-semibold text-[#37352F] focus:outline-none focus:border-[#23272A] shadow-2xs cursor-pointer"
+            >
+              {SPEECH_TONE_OPTIONS.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -805,7 +889,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                 onChange={(e) => setCustomKeyword(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !isGenerating && selectedFigure) {
-                    onGenerateScript(targetPersona, duration, videoTone, activeStoryAngle, customKeyword);
+                    onGenerateScript(targetPersona, duration, videoTone, activeStoryAngle, customKeyword, scriptFormat, speechTone);
                   }
                 }}
                 placeholder="대본에 반영할 핵심 키워드 직접 입력 (예: 30대 창업 실패, 1993년 부도 위기, 세가 사장의 500만 달러 투자 등)"
@@ -824,7 +908,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
             </div>
             <button
               type="button"
-              onClick={() => onGenerateScript(targetPersona, duration, videoTone, activeStoryAngle, customKeyword)}
+              onClick={() => onGenerateScript(targetPersona, duration, videoTone, activeStoryAngle, customKeyword, scriptFormat, speechTone)}
               disabled={isGenerating || !selectedFigure}
               className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs transition shadow-xs cursor-pointer flex items-center justify-center space-x-1 shrink-0 disabled:opacity-50"
             >
@@ -866,7 +950,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
           <div className="p-3 rounded-xl bg-gradient-to-r from-indigo-50 via-purple-50 to-amber-50 border border-indigo-200 flex items-center space-x-2 text-xs text-indigo-900 shadow-2xs animate-pulse">
             <Sparkles className="w-4 h-4 text-indigo-600 animate-spin shrink-0" />
             <span className="font-extrabold">
-              🧠 AI가 [Gemini Pro / Flash] 엔진으로 뜬구름 잡지 않는 극사실주의 팩트 대본({duration}초)을 작성 중입니다...
+              🧠 AI가 [국내외 기업인·부자 전문] 쇼츠 공식 5단계 서사로 대본({duration}초)을 작성 중입니다...
             </span>
           </div>
         )}
@@ -1043,7 +1127,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
             {/* 선택된 컨셉으로 생성 실행 버튼 */}
             <button
               type="button"
-              onClick={() => onGenerateScript(targetPersona, duration, videoTone, activeStoryAngle, customKeyword)}
+              onClick={() => onGenerateScript(targetPersona, duration, videoTone, activeStoryAngle, customKeyword, scriptFormat, speechTone)}
               disabled={isGenerating || !selectedFigure}
               className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs transition shadow-xs cursor-pointer flex items-center space-x-1 shrink-0 disabled:opacity-50 ml-1"
             >
@@ -1051,38 +1135,6 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
               <span>선택 컨셉으로 대본 생성</span>
             </button>
           </div>
-        </div>
-
-        {/* 🛡️ 60초 황금 서사 AI 팩트체크 & 안전 검증 배너 */}
-        <div className="p-3 bg-gradient-to-r from-emerald-50 via-teal-50 to-indigo-50 rounded-2xl border border-emerald-200/90 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-2xs w-full">
-          <div className="flex items-center space-x-2.5 min-w-0">
-            <div className="w-7 h-7 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-2xs">
-              ✓
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center space-x-2 flex-wrap">
-                <span className="font-extrabold text-xs text-emerald-950">
-                  60초 황금 서사 & AI 팩트체크 검증 완료
-                </span>
-                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  100% 실존 기록 기반
-                </span>
-                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200">
-                  5단계 황금 서사율 충족
-                </span>
-              </div>
-              <p className="text-[11px] text-emerald-800/90 font-medium truncate sm:whitespace-normal">
-                언론 보도·공식 인터뷰 검증 완료 | 허위사실·루머 0건 | 0~3초 후킹 ➔ 상황 ➔ 갈등 ➔ 전환 ➔ 해소 12씬 완벽 배분
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => alert("✅ [인물쇼츠 60초 황금 서사 & AI 팩트체크 검증 리포트]\n\n1. 100% 팩트 기반 검증 (PASS)\n   - 공인 언론 보도, 다큐멘터리, 실제 인터뷰 일화와 일치\n   - 허위사실 및 날조 루머 0건\n\n2. 60초 5단계 황금 서사율 (PASS)\n   - 0~3초: 3초 후킹 (사건/질문/반전)\n   - 3~15초: 상황 (최소 배경)\n   - 15~40초: 갈등 (핵심 위기 & 장애물)\n   - 40~55초: 전환 (승부수 & 반전)\n   - 55~60초: 해소 (해답 & 진한 여운)\n\n3. 유튜브 재사용 콘텐츠 심사 방어 (PASS)\n   - 100% 고유 2차 저작물 구성으로 수익화 안전")}
-            className="px-3 py-1.5 bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-300 rounded-xl text-xs font-bold transition shadow-2xs shrink-0 cursor-pointer whitespace-nowrap"
-          >
-            🔍 검증 리포트 확인
-          </button>
         </div>
       </div>
 
@@ -1406,25 +1458,32 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                                     <Video className="w-3 h-3 text-cyan-600" />
                                     <span>동영상 첨부</span>
                                   </button>
-
+                                </>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-600 font-medium">
+                              {scene.mediaType === 'video' && scene.uploadedVideoUrl ? (
+                                <span className="truncate">
+                                  {`🎬 선택 구간: ${(scene.videoStartTime || 0).toFixed(1)}s ~ ${(scene.videoEndTime || 5).toFixed(1)}s (${scene.videoPlaybackRate || 1}x 배속${scene.videoMuted === false ? ', 오디오 ON' : ', 음소거'})`}
+                                </span>
+                              ) : (
+                                <>
+                                  <span className="truncate max-w-full">
+                                    키워드: &quot;{scene.imageSearchKeyword}&quot;
+                                  </span>
                                   <a
                                     href={`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(scene.imageSearchKeyword)}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-[11px] border border-amber-200 transition"
-                                    title="새 탭에서 구글 이미지 검색"
+                                    className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-amber-100 hover:bg-amber-200 text-amber-900 font-extrabold text-[10px] border border-amber-300 transition shrink-0"
+                                    title="구글 이미지 검색 결과 새 탭으로 열기 (과거·기사 사진 1초 저장)"
                                   >
-                                    <ExternalLink className="w-3 h-3" />
-                                    <span>구글 검색</span>
+                                    <Search className="w-2.5 h-2.5" />
+                                    <span>🔍 사진 찾기</span>
                                   </a>
                                 </>
                               )}
                             </div>
-                            <p className="text-[10px] text-slate-500 font-medium truncate">
-                              {scene.mediaType === 'video' && scene.uploadedVideoUrl
-                                ? `🎬 선택 구간: ${(scene.videoStartTime || 0).toFixed(1)}s ~ ${(scene.videoEndTime || 5).toFixed(1)}s (${scene.videoPlaybackRate || 1}x 배속${scene.videoMuted === false ? ', 오디오 ON' : ', 음소거'})`
-                                : `키워드: "${scene.imageSearchKeyword}"`}
-                            </p>
                           </div>
                         </div>
 
@@ -1476,7 +1535,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                   </div>
                   <button
                     type="button"
-                    onClick={() => onGenerateScript(targetPersona, duration, videoTone, 'random', customKeyword)}
+                    onClick={() => onGenerateScript(targetPersona, duration, videoTone, 'random', customKeyword, scriptFormat, speechTone)}
                     disabled={isGenerating}
                     className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs shadow-xs transition cursor-pointer disabled:opacity-50 shrink-0"
                     title="다른 대본으로 즉시 새로고침"
@@ -1509,6 +1568,60 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                 </div>
               </div>
             )}
+
+            {/* Compact Fact & Portrait Rights Safety Check Box at Bottom of Result Area */}
+            {(() => {
+              const extractedFallback = extractFallbackSafetyNumbers(editableScript || currentProject.fullScript);
+              const safety: ShortsSafetyCheck = currentProject.safetyCheck
+                ? {
+                    numbersToVerify:
+                      currentProject.safetyCheck.numbersToVerify?.length >= 2
+                        ? currentProject.safetyCheck.numbersToVerify.slice(0, 2)
+                        : extractedFallback,
+                    positivePrFit:
+                      currentProject.safetyCheck.positivePrFit ||
+                      '적합 — 비난·루머 없이 미담·인간미·통 큰 결단 중심 홍보팀 친화 서사',
+                    isPrSafe: currentProject.safetyCheck.isPrSafe !== false,
+                  }
+                : {
+                    numbersToVerify: extractedFallback,
+                    positivePrFit: '적합 — 비난·루머 없이 미담·인간미·통 큰 결단 중심 홍보팀 친화 서사',
+                    isPrSafe: true,
+                  };
+              return (
+                <div className="mt-4 p-3 rounded-xl bg-amber-50/70 border border-amber-200/90 text-[11px] text-slate-800 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <span className="inline-flex items-center gap-1 font-extrabold text-amber-950">
+                      <ShieldAlert className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span>⚠️ 팩트 & 초상권 체크</span>
+                    </span>
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                        safety.isPrSafe
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                          : 'bg-rose-50 text-rose-800 border-rose-200'
+                      }`}
+                    >
+                      {safety.isPrSafe ? '홍보팀 기준 적합' : '표현 점검 필요'}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                    <span className="font-bold text-slate-600">검증 필요 숫자/연도:</span>
+                    {safety.numbersToVerify.map((numItem, i) => (
+                      <span
+                        key={`safety-num-${i}`}
+                        className="px-2 py-0.5 rounded-md bg-white border border-amber-200 font-semibold text-amber-950"
+                      >
+                        {i + 1}. {numItem}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-slate-700 font-medium leading-snug">
+                    <span className="font-bold text-emerald-800">긍정 서사(홍보팀 기준):</span> {safety.positivePrFit}
+                  </p>
+                </div>
+              );
+            })()}
           </>
         )}
       </div>

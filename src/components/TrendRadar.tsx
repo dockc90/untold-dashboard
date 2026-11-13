@@ -19,7 +19,9 @@ import {
   Mail,
   Copy,
   Check,
-  ExternalLink
+  ExternalLink,
+  Briefcase,
+  Users
 } from 'lucide-react';
 import { TrendingFigure, CategoryType, TimeFilter, SourceChannel, YoutubeBreakoutMetric } from '../types';
 import {
@@ -213,6 +215,24 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
     }
   };
 
+  const handleEconomyDiscoveryClick = async () => {
+    setCategoryFilter('economy');
+    if (isLoading) return;
+    setRefreshToast('💼 국내외 기업인·부자 화제 이유 + 동반 떡상 파생 인물 세트를 발굴 중...');
+    try {
+      fetchedSlicesRef.current.set(`${timeFilter}:economy:${sourceChannel}`, Date.now());
+      await onRefreshTrends(timeFilter, 'economy', sourceChannel);
+      const now = new Date();
+      const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+      setLastUpdatedTime(timeStr);
+      setRefreshToast('✨ [경제/기업 소재 발굴] 화제 이유 & 동반 떡상 파생 인물 세트가 준비되었습니다!');
+      setTimeout(() => setRefreshToast(null), 4500);
+    } catch (err: any) {
+      setRefreshToast(`⚠️ ${err?.message || '경제/기업 소재 발굴에 실패했습니다. API 설정을 확인해 주세요.'}`);
+      setTimeout(() => setRefreshToast(null), 4500);
+    }
+  };
+
   // Filter figures
   const filteredFigures = figures.filter((fig) => {
     const norm = normalizeChannel(fig.primaryChannel);
@@ -301,6 +321,22 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
                 <span className="sm:hidden">07시</span>
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={handleEconomyDiscoveryClick}
+              disabled={isLoading}
+              className={`flex items-center space-x-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition shadow-2xs cursor-pointer disabled:opacity-50 active:scale-95 border ${
+                categoryFilter === 'economy'
+                  ? 'bg-slate-800 text-white border-slate-800'
+                  : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200/80'
+              }`}
+              title="국내외 기업인·부자 소재 + 최근 화제 이유 + 동반 떡상 파생 인물 세트 발굴"
+            >
+              <Briefcase className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">경제/기업 소재 발굴</span>
+              <span className="sm:hidden">기업발굴</span>
+            </button>
 
             <button
               type="button"
@@ -726,6 +762,41 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
                       <p className="text-xs text-[#5C5A54] line-clamp-3 mb-2.5 leading-relaxed font-normal">
                         {fig.buzzSummary}
                       </p>
+
+                      {/* Economy / Trending Reason + Co-trending Companion Figures Bundle */}
+                      {(fig.trendingReason || (fig.relatedFigures && fig.relatedFigures.length > 0)) && (
+                        <div className="mb-2.5 p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                          {fig.trendingReason && (
+                            <p className="text-[11px] text-slate-800 font-semibold leading-snug">
+                              🔥 화제 이유: <span className="font-medium text-slate-700">{fig.trendingReason}</span>
+                            </p>
+                          )}
+                          {fig.relatedFigures && fig.relatedFigures.length > 0 && (
+                            <div className="flex items-center flex-wrap gap-1">
+                              <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-indigo-700 mr-0.5 shrink-0">
+                                <Users className="w-3 h-3" />
+                                동반 떡상 세트:
+                              </span>
+                              {fig.relatedFigures.map((rel) => (
+                                <button
+                                  key={`${fig.id}-rel-${rel}`}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setCustomName(rel);
+                                    setCustomCategory('economy');
+                                    setIsCustomModalOpen(true);
+                                  }}
+                                  className="text-[10px] px-1.5 py-0.5 rounded-md bg-white hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 font-semibold transition cursor-pointer"
+                                  title={`클릭하여 '${rel}' 바로 쇼츠 소재 분석하기`}
+                                >
+                                  + {rel}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       {/* Hook Line & Suggested Angle */}
                       <div className="p-2.5 rounded-xl bg-[#F1F1EF] border border-[#E3E2DE] mb-2.5 space-y-1">

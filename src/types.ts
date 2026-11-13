@@ -74,6 +74,23 @@ export type VideoMoodTone =
   | 'Minimal'      // 군더더기 없는 절제와 담백하고 명확한 전달
   | 'CorporatePR'; // 기업인/CEO 프리미엄 다큐 브랜딩 (포브스/블룸버그 스타일 신뢰 서사)
 
+export type ScriptFormatType =
+  | 'overcoming_story'  // ① 역경극복·감동미담형(CJ 저단백밥 스타일)
+  | 'humble_twist'      // ② 소박한 반전매력형(재벌의 길거리 어묵 먹방 스타일)
+  | 'life_timeline'     // ③ 어린시절~현재 인생변천사형
+  | 'biz_sports_owner'; // ④ 기업인+스포츠 구단주/비즈니스형
+
+export type ScriptSpeechTone =
+  | 'friendly_story'    // ① 친근한 썰풀이("~했대요/믿어지시나요?")
+  | 'trendy_shorts'     // ② 트렌디한 쇼츠체("~했음/그랬음")
+  | 'news_briefing';    // ③ 속도감 있는 뉴스 브리핑체("~했습니다/밝혀졌습니다")
+
+export interface ShortsSafetyCheck {
+  numbersToVerify: string[]; // 검증이 필요한 숫자/연도 2개
+  positivePrFit: string;     // 긍정 서사(홍보팀 기준) 적합 여부 한 줄 요약
+  isPrSafe?: boolean;        // 긍정 홍보팀 기준 적합 여부
+}
+
 export interface TrendingFigure {
   id: string;
   name: string;
@@ -85,6 +102,8 @@ export interface TrendingFigure {
   controversyOrIssue: string;
   suggestedAngle: string;
   hookLine?: string; // 첫 3초 스크롤 정지 오프닝 훅 1줄
+  trendingReason?: string; // 최근 화제가 된 이유(주가 급등, 어록, 방한 등)
+  relatedFigures?: string[]; // 같이 올리면 동반 떡상하는 파생 인물
   isLive?: boolean; // Google Search 실시간 수집 여부
   isUpcoming?: boolean; // 내일 예고·선점(예정 이벤트) 여부
   scheduledDate?: string; // 예정 시점 라벨 (예: "내일(11/14)", "주말 예정")
@@ -272,6 +291,9 @@ export interface ShortsProject {
   photoAspectRatio?: PhotoAspectRatio; // 동영상 제작 시 사진 프레이밍 비율
   backdropStyle?: BackdropStyle; // 사진 뒤 배경 스타일
   videoTone?: VideoMoodTone; // 영상 전체 분위기 톤 (Cinematic, Documentary, Fast-paced, Minimal)
+  scriptFormat?: ScriptFormatType; // 기획 포맷
+  speechTone?: ScriptSpeechTone; // 대본 말투
+  safetyCheck?: ShortsSafetyCheck; // 하단 팩트 & 초상권 체크 결과
   customTextOverlays?: CustomTextOverlay[]; // 캡컷 스타일 커스텀 자막 레이어 목록
   channelLogoOverlay?: ChannelLogoOverlay; // 채널 로고 & 워터마크 오버레이
   subtitleTempo?: SubtitleTempo; // 캡컷식 자막 분할 속도 템포 (fast, standard, relaxed)
