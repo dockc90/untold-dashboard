@@ -13,7 +13,6 @@ import {
   AlertCircle,
   CheckCircle2,
   Compass,
-  ExternalLink,
 } from 'lucide-react';
 import type { CategoryType, TrendingFigure } from '../types';
 import { getActiveGeminiKey } from '../services/sinsooApi';
@@ -225,7 +224,7 @@ export const NewsletterModal: React.FC<NewsletterModalProps> = ({
           ok: false,
           text:
             json?.message ||
-            '구독 이메일은 등록되었습니다. 실제 발송은 운영 서버(Vercel 환경변수 SMTP_USER · SMTP_PASS) 설정 후 작동하며, 지금은 상단 [메일앱 열기]·[전문 복사]로 바로 확인하실 수 있습니다.',
+            '구독 이메일은 등록되었습니다. 실제 발송은 운영 서버(Vercel 환경변수 SMTP_USER · SMTP_PASS) 설정 후 작동하며, 지금은 상단 [전문 복사]로 바로 확인하실 수 있습니다.',
         });
       }
     } catch (err: any) {
@@ -234,13 +233,6 @@ export const NewsletterModal: React.FC<NewsletterModalProps> = ({
       setIsSendingTest(false);
     }
   };
-
-  const mailtoHref =
-    issue && textBrief
-      ? `mailto:${encodeURIComponent(email.trim())}?subject=${encodeURIComponent(issue.subject)}&body=${encodeURIComponent(
-          textBrief.slice(0, 1500)
-        )}`
-      : '#';
 
   return (
     <div className="fixed inset-0 z-50 bg-black/45 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
@@ -301,16 +293,6 @@ export const NewsletterModal: React.FC<NewsletterModalProps> = ({
               </div>
 
               <div className="flex items-center gap-1.5 flex-wrap">
-                {issue && textBrief && (
-                  <a
-                    href={mailtoHref}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#F1F1EF] hover:bg-[#E9E9E7] border border-[#E3E2DE] text-[11px] font-semibold text-[#37352F] transition"
-                    title="내 메일 앱에서 오늘 브리핑 열어보기"
-                  >
-                    <ExternalLink className="w-3 h-3" />
-                    <span>메일앱 열기</span>
-                  </a>
-                )}
                 {textBrief && (
                   <button
                     type="button"

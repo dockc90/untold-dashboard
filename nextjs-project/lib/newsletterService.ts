@@ -830,7 +830,7 @@ export async function sendNewsletterEmail(
     ok: false,
     configured: false,
     provider: 'none',
-    error: '이메일은 구독 목록에 등록되었으며, 실제 외부 발송은 운영 서버(Vercel 환경변수 SMTP_USER · SMTP_PASS) 설정 후 매일 오전 7시 작동합니다. 지금은 [메일앱 열기] 또는 [전문 복사]로 바로 확인하실 수 있습니다.',
+    error: '이메일은 구독 목록에 등록되었으며, 실제 외부 발송은 운영 서버(Vercel 환경변수 SMTP_USER · SMTP_PASS) 설정 후 매일 오전 7시 작동합니다. 지금은 [전문 복사]로 바로 확인하실 수 있습니다.',
   };
 }
 
