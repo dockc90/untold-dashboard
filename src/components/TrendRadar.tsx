@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { 
   Flame, 
   Search, 
@@ -147,16 +147,38 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
   const [showDbInfo, setShowDbInfo] = useState(false);
   const [refreshToast, setRefreshToast] = useState<string | null>(null);
   const [lastUpdatedTime, setLastUpdatedTime] = useState<string | null>(null);
+  const fetchedSlicesRef = useRef<Map<string, number>>(new Map());
+
+  const ensureSliceFresh = (nextTf: TimeFilter, nextCat: CategoryType, nextChan: SourceChannel) => {
+    if (isLoading) return;
+    const key = `${nextTf}:${nextCat}:${nextChan}`;
+    const lastTry = fetchedSlicesRef.current.get(key) || 0;
+    if (Date.now() - lastTry < 5 * 60 * 1000) return;
+
+    const liveMatching = figures.filter((fig) => {
+      if (!fig.isLive) return false;
+      const catOk = nextCat === 'all' ? true : fig.category === nextCat;
+      const tfOk = nextTf === '7d' ? true : nextTf === '48h' ? fig.timeframe === '24h' || fig.timeframe === '48h' : fig.timeframe === '24h';
+      return catOk && tfOk;
+    });
+
+    const minNeeded = nextCat === 'all' ? 5 : 2;
+    if (liveMatching.length < minNeeded) {
+      fetchedSlicesRef.current.set(key, Date.now());
+      onRefreshTrends(nextTf, nextCat, nextChan).catch(() => {});
+    }
+  };
 
   const handleRefreshClick = async () => {
     if (isLoading) return;
-    setRefreshToast('⏳ Google Search로 오늘 기준 실시간 화제 인물을 검색 중...');
+    setRefreshToast('⏳ 구글 급상승·실시간 뉴스 & Google Search로 오늘의 화제 인물을 수집 중...');
     try {
+      fetchedSlicesRef.current.set(`${timeFilter}:${categoryFilter}:${sourceChannel}`, Date.now());
       await onRefreshTrends(timeFilter, categoryFilter, sourceChannel);
       const now = new Date();
       const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
       setLastUpdatedTime(timeStr);
-      setRefreshToast('✨ Google Search 기반 최신 화제 인물로 갱신되었습니다!');
+      setRefreshToast('✨ 오늘 기준 최신 화제 인물로 업데이트되었습니다!');
       setTimeout(() => setRefreshToast(null), 4000);
     } catch (err: any) {
       setRefreshToast(`⚠️ ${err?.message || '실시간 검색 갱신에 실패했습니다. API 설정을 확인해 주세요.'}`);
@@ -274,9 +296,9 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
               <span>실시간 데이터 수집 및 교차 검증 파이프라인</span>
             </div>
             <p className="text-[#787774] leading-relaxed font-normal">
-              1. <strong>네이버 데이터랩</strong>: 지난 24~48시간 검색량 급상승 키워드 및 연관 검색어 추출.<br/>
-              2. <strong>유튜브 인기 급상승 쇼츠</strong>: 대한민국 시청자 대상 100만 뷰 이상 바이럴 영상 인물 교차 분석.<br/>
-              3. <strong>인스타그램 릴스</strong>: 릴스 배경음악 챌린지 및 핫토픽 필터링.
+              1. <strong>Google Trends KR & 뉴스 RSS</strong>: 오늘 기준 국내 급상승 검색어와 연예·스포츠·경제·사회·글로벌 최신 헤드라인을 실시간 수집합니다.<br/>
+              2. <strong>Google Search AI 교차 분석</strong>: 수집된 최신 신호를 바탕으로 지금 실제 화제인 인물·사건·숫자 팩트를 검증해 추천합니다.<br/>
+              3. <strong>자동 최신성 유지</strong>: 앱 진입 시, 카테고리/기간 이동 시, 10분 경과 복귀 시 최신 데이터로 자동 갱신됩니다.
             </p>
           </div>
         )}
@@ -337,7 +359,10 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
           {(['24h', '48h', '7d'] as TimeFilter[]).map((tf) => (
             <button
               key={tf}
-              onClick={() => setTimeFilter(tf)}
+              onClick={() => {
+                setTimeFilter(tf);
+                ensureSliceFresh(tf, categoryFilter, sourceChannel);
+              }}
               className={`py-1.5 text-center rounded-lg transition whitespace-nowrap px-1 cursor-pointer ${
                 timeFilter === tf
                   ? 'bg-white text-[#191919] font-bold shadow-xs'
@@ -358,7 +383,7 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="인물, 채널, 키워드 검색 (예: 손흥민, 네이버, 흑백요리사)"
+            placeholder="인물, 채널, 키워드 검색 (예: 젠슨 황, 손흥민, 유튜브)"
             className="w-full bg-white border border-[#E3E2DE] rounded-xl pl-9 pr-3 py-2 text-xs text-[#37352F] placeholder-[#9B9A97] focus:outline-none focus:border-[#23272A] focus:ring-1 focus:ring-[#23272A] transition"
           />
         </div>
@@ -369,7 +394,10 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
             {CATEGORIES.map((cat) => (
               <button
                 key={cat.id}
-                onClick={() => setCategoryFilter(cat.id)}
+                onClick={() => {
+                  setCategoryFilter(cat.id);
+                  ensureSliceFresh(timeFilter, cat.id, sourceChannel);
+                }}
                 className={`whitespace-nowrap px-3 py-1.5 rounded-lg transition font-medium border shrink-0 cursor-pointer ${
                   categoryFilter === cat.id
                     ? 'bg-[#23272A] text-white border-[#23272A] shadow-2xs font-semibold'

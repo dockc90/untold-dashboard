@@ -2073,6 +2073,25 @@ export async function fetchLiveTrendingFigures(opt: {
     throw new SinsooApiError('gemini', 401, 'Gemini API 키가 연결되어 있지 않습니다.');
   }
 
+  // Step 1: Collect today's live Korean Google Trends + Google News RSS signals from our backend endpoint
+  let liveBrief = '';
+  try {
+    const sigCtrl = new AbortController();
+    const sigTimer = setTimeout(() => sigCtrl.abort(), 5500);
+    const sigRes = await fetch(
+      `/api/trends/live-signals?timeframe=${encodeURIComponent(opt.timeframe)}&category=${encodeURIComponent(opt.category)}&channel=${encodeURIComponent(opt.channel)}`,
+      { signal: sigCtrl.signal, cache: 'no-store' }
+    ).finally(() => clearTimeout(sigTimer));
+    if (sigRes.ok) {
+      const sigJson = await sigRes.json();
+      if (sigJson?.formattedBrief) {
+        liveBrief = String(sigJson.formattedBrief);
+      }
+    }
+  } catch {
+    // Non-fatal: still continue with Google Search tool
+  }
+
   const todayKst = getKstDateString();
   const timeframeLabel =
     opt.timeframe === '24h' ? '최근 24시간' : opt.timeframe === '48h' ? '최근 48시간' : '최근 7일간';
@@ -2084,26 +2103,29 @@ export async function fetchLiveTrendingFigures(opt: {
       : opt.channel === 'instagram'
       ? '인스타그램 릴스·SNS 바이럴'
       : '한국 및 글로벌 주요 뉴스·유튜브·네이버·SNS 통합';
+  const limit = opt.limit || (opt.category === 'all' ? 18 : 12);
   const categoryLabel =
     opt.category === 'all'
-      ? '전체(연예·스포츠·정치경제·유튜버·기업·사회·해외 골고루)'
-      : opt.category;
-  const limit = opt.limit || 14;
+      ? '7개 분야 균형 배분 (viral·entertainment·actor·sports·economy·social·global 각 분야 최소 2~3명씩 골고루)'
+      : `요청 카테고리 '${opt.category}' 전용 (모든 인물의 category 필드를 '${opt.category}'로 지정)`;
+
+  const liveSignalsSection = liveBrief
+    ? `\n[★ 방금 수집된 실시간 구글 급상승 검색어 & 분야별 최신 뉴스 헤드라인]\n${liveBrief}\n`
+    : '';
 
   const prompt = `당신은 대한민국 실시간 쇼츠 트렌드 리서처입니다.
 오늘 날짜는 ${todayKst}(한국 시간)입니다.
-
+${liveSignalsSection}
 [필수 작업]
-반드시 Google Search 도구로 오늘(${todayKst}) 및 ${timeframeLabel} 동안 ${channelLabel}에서 실제로 가장 크게 화제가 되고 있는 인물 ${limit}명을 검색해 정리하세요.
-- 카테고리 조건: ${categoryLabel}
-- 옛날 과거 일화(예: 수년 전 성공담, 오래된 밈)가 아니라 **지금(${todayKst} 기준 ${timeframeLabel}) 뉴스·커뮤니티·숏폼에서 실제로 뜨고 있는 최신 사건/논란/발표/기록**을 반영해야 합니다.
-  (예: 특정 인물이 최근 불륜·스캔들·사임·경기·수상·신곡 등으로 화제라면 반드시 그 최신 이슈를 반영하세요.)
-- 확인되지 않은 날짜나 숫자를 절대 지어내지 말고, 검색된 실제 날짜(예: 11월 12일, 2026년 11월)·숫자(순위·조회수·기록 등)만 쓰세요.
+1. 위 실시간 뉴스·급상승 검색어에 포착된 인물들을 최우선으로 반영하고, 추가로 Google Search 도구로 오늘(${todayKst}) 및 ${timeframeLabel} 동안 ${channelLabel}에서 새롭게 급부상한 화제의 인물까지 총 ${limit}명을 선정하세요.
+2. 카테고리 조건: ${categoryLabel}
+3. **절대 금지**: 과거 수년 전 성공담, 오래된 드라마/음원, 예전 밈 등 낡은 내용을 오늘 화제인 것처럼 쓰지 마세요. 반드시 **지금(${todayKst} 기준 ${timeframeLabel}) 뉴스·커뮤니티·숏폼에서 실제로 뜨고 있는 최신 사건·스캔들·사임·발언·품절·경기·신작·SNS 바이럴**로 모든 인물을 업데이트하세요.
+4. 확인되지 않은 날짜나 숫자를 절대 지어내지 말고, 검색·뉴스로 확인된 실제 날짜(예: 11월 12일, 11월 13일)·숫자만 쓰세요.
 
 아래 형식의 JSON 배열로만 출력하세요(설명·마크다운 금지):
 [
   {
-    "name": "인물명 (영문명 또는 부제)",
+    "name": "인물명",
     "title": "지금 왜 화제인지 한 줄 헤드라인",
     "category": "${opt.category === 'all' ? 'viral | entertainment | actor | sports | economy | social | global 중 하나' : opt.category}",
     "viralityScore": 91~100 사이 정수,

@@ -47,8 +47,16 @@ import { generateClientFallbackScript } from './utils/fallbackGenerator';
 import { getSceneFallbackImage } from './utils/sceneImages';
 import { analyzeLiveFigure, fetchLiveTrendingFigures, loadSinsooSettings } from './services/sinsooApi';
 
-const LIVE_TRENDS_CACHE_KEY = 'autoshorts_live_trends_v1';
-const LIVE_TRENDS_TTL_MS = 15 * 60 * 1000;
+const LIVE_TRENDS_CACHE_KEY = 'autoshorts_live_trends_v2';
+const LIVE_TRENDS_TTL_MS = 10 * 60 * 1000;
+
+function getKstTodayKey(): string {
+  try {
+    return new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+  } catch {
+    return new Date().toISOString().slice(0, 10);
+  }
+}
 
 function normalizeFigureKey(name: string): string {
   return String(name || '')
@@ -522,7 +530,7 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // API Call: Refresh trends with live Google Search Gemini (uses browser API key first, falls back to server API)
+  // API Call: Refresh trends with live Google Trends/News RSS + Google Search Gemini
   const handleRefreshTrends = async (timeframe: TimeFilter, category: CategoryType, channel: SourceChannel = 'all') => {
     setIsLoadingTrends(true);
     setErrorMessage(null);
@@ -532,7 +540,12 @@ export default function App() {
       let fetchedLive = false;
 
       if (settings.geminiKey?.trim()) {
-        const liveRes = await fetchLiveTrendingFigures({ timeframe, category, channel, limit: 14 });
+        const liveRes = await fetchLiveTrendingFigures({
+          timeframe,
+          category,
+          channel,
+          limit: category === 'all' ? 18 : 12,
+        });
         newFigures = liveRes.figures;
         fetchedLive = newFigures.length > 0;
       } else {
@@ -565,23 +578,34 @@ export default function App() {
           };
         });
 
+        let updatedList: TrendingFigure[] = formatted;
         setFigures((prev) => {
+          if (fetchedLive) {
+            if (category === 'all' && timeframe === '24h' && channel === 'all') {
+              // Replace outdated static figures completely with today's fresh live figures
+              updatedList = [...formatted].sort((a, b) => b.viralityScore - a.viralityScore);
+              return updatedList;
+            }
+            // Merge with other live figures only (dropping stale static 2024 figures)
+            const newNames = new Set(formatted.map((f) => normalizeFigureKey(f.name)));
+            const keptLive = (prev || []).filter(
+              (p) => p.isLive && !newNames.has(normalizeFigureKey(p.name))
+            );
+            updatedList = [...formatted, ...keptLive].sort((a, b) => b.viralityScore - a.viralityScore);
+            return updatedList;
+          }
+
           const baseFigures = prev && prev.length > 0 ? prev : INITIAL_TRENDING_FIGURES;
           const newNames = new Set(formatted.map((f) => normalizeFigureKey(f.name)));
-          const kept = baseFigures
-            .filter((p) => !newNames.has(normalizeFigureKey(p.name)))
-            .map((fig) => ({
-              ...fig,
-              viralityScore: fetchedLive ? Math.min(89, fig.viralityScore || 85) : fig.viralityScore,
-            }));
-
-          const merged = [...formatted, ...kept].sort((a, b) => {
-            if (Boolean(b.isLive) !== Boolean(a.isLive)) return b.isLive ? 1 : -1;
-            return b.viralityScore - a.viralityScore;
-          });
-          return merged;
+          const kept = baseFigures.filter((p) => !newNames.has(normalizeFigureKey(p.name)));
+          updatedList = [...formatted, ...kept].sort((a, b) => b.viralityScore - a.viralityScore);
+          return updatedList;
         });
-        setSelectedFigure(formatted[0]);
+
+        setSelectedFigure((prevSel) => {
+          if (prevSel && updatedList.some((u) => u.id === prevSel.id)) return prevSel;
+          return updatedList[0] || formatted[0];
+        });
 
         if (fetchedLive) {
           const now = new Date();
@@ -591,7 +615,12 @@ export default function App() {
           try {
             sessionStorage.setItem(
               LIVE_TRENDS_CACHE_KEY,
-              JSON.stringify({ savedAt: Date.now(), syncedAt: hhmm, figures: formatted })
+              JSON.stringify({
+                todayKst: getKstTodayKey(),
+                savedAt: Date.now(),
+                syncedAt: hhmm,
+                figures: updatedList,
+              })
             );
           } catch {
             // ignore storage quota
@@ -606,35 +635,56 @@ export default function App() {
     }
   };
 
-  // Auto-load fresh Google-Search trending figures once on mount when browser Gemini key is configured
+  // Auto-load live figures on mount and keep fresh when tab regains focus after TTL or KST date change
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    const todayKst = getKstTodayKey();
+    let hasFreshCache = false;
+
     try {
       const rawCache = sessionStorage.getItem(LIVE_TRENDS_CACHE_KEY);
       if (rawCache) {
         const cached = JSON.parse(rawCache);
-        if (cached?.savedAt && Date.now() - cached.savedAt < LIVE_TRENDS_TTL_MS && Array.isArray(cached.figures) && cached.figures.length > 0) {
-          const cachedNames = new Set(cached.figures.map((f: TrendingFigure) => normalizeFigureKey(f.name)));
-          const kept = INITIAL_TRENDING_FIGURES
-            .filter((p) => !cachedNames.has(normalizeFigureKey(p.name)))
-            .map((p) => ({ ...p, viralityScore: Math.min(89, p.viralityScore || 85) }));
-          setFigures([...cached.figures, ...kept]);
+        const isSameDay = cached?.todayKst === todayKst;
+        const isFresh = cached?.savedAt && Date.now() - cached.savedAt < LIVE_TRENDS_TTL_MS;
+        if (isSameDay && isFresh && Array.isArray(cached.figures) && cached.figures.length > 0) {
+          setFigures(cached.figures);
           setSelectedFigure(cached.figures[0]);
           setIsLiveTrendsLoaded(true);
           setLastLiveSyncedAt(cached.syncedAt || null);
-          return;
+          hasFreshCache = true;
         }
       }
     } catch {
       // ignore cache parse errors
     }
 
-    const settings = loadSinsooSettings();
-    if (settings.geminiKey?.trim()) {
+    if (!hasFreshCache) {
       handleRefreshTrends('24h', 'all', 'all').catch((e) => {
         console.warn('Auto live trend refresh skipped:', e?.message || e);
       });
     }
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const raw = sessionStorage.getItem(LIVE_TRENDS_CACHE_KEY);
+        if (!raw) {
+          handleRefreshTrends('24h', 'all', 'all').catch(() => {});
+          return;
+        }
+        const parsed = JSON.parse(raw);
+        const expired = !parsed?.savedAt || Date.now() - parsed.savedAt >= LIVE_TRENDS_TTL_MS;
+        const dayChanged = parsed?.todayKst !== getKstTodayKey();
+        if (expired || dayChanged) {
+          handleRefreshTrends('24h', 'all', 'all').catch(() => {});
+        }
+      } catch {
+        // ignore
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

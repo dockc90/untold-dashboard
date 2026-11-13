@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI, Type } from '@google/genai';
+import { buildSignalFallbackFigures, collectLiveTrendSignals } from '@/lib/liveTrendsSignals';
 
 const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
@@ -355,37 +356,36 @@ export async function POST(request: Request) {
     }
   ];
 
+  const liveSignals = await collectLiveTrendSignals({ timeframe, category, channel }).catch(() => null);
+
   if (!apiKey) {
-    return NextResponse.json(fallbackList);
+    const rssFallback = buildSignalFallbackFigures(liveSignals, timeframe, category);
+    return NextResponse.json(rssFallback.length > 0 ? rssFallback : fallbackList);
   }
 
-  const categoryInstruction = 
-    category === 'viral'
-      ? '현재 요청은 [🔥 SNS 바이럴·밈] 전용 실시간 발굴 모드입니다. 남대문 스카프 아저씨(이종석), 충주맨(김선태), 말왕(장충동 왕족발보쌈), 서이브(마라탕후루), 랄랄, 틱톡/릴스/쇼츠에서 알고리즘을 터뜨린 길거리 세일즈 달인, 화제의 챌린지 밈 주인공, 일반인 바이럴 스타들을 16~20명 대량 발굴하여 추천하세요. 모든 인물의 category 필드는 반드시 "viral"로 지정하세요.'
-      : category === 'economy'
-      ? '반드시 젠슨 황(엔비디아 CEO, 전 세계 시가총액 1위 신화), 일론 머스크, 샘 알트만, 워런 버핏 등 글로벌 테크/경제 거물과 국내외 혁신 기업인을 최우선 포함하세요.'
-      : category === 'global'
-      ? '반드시 젠슨 황(엔비디아), 일론 머스크(테슬라/xAI), 로제(아파트 신드롬), 페이커 등 글로벌 무대에서 압도적 조회수를 올리고 있는 세계적 인물을 포함하세요.'
-      : category === 'entertainment'
-      ? '안성재 셰프, 로제, GD(지드래곤), 카리나 등 현재 유튜브·릴스에서 폭발적 관심을 받는 연예·대중문화 핫 인물을 추천하세요.'
-      : category === 'sports'
-      ? '손흥민, 페이커, 오타니 쇼헤이, 이강인, 김민재 등 역경을 딛고 세계 정상에 오른 스포츠 영웅을 추천하세요.'
-      : '현재 전 세계와 대한민국 숏폼(유튜브 쇼츠, 릴스, 틱톡)에서 가장 도파민과 조회수가 폭발적인 인물들을 추천하세요. 특히 전 세계 시총 1위 AI 황제 젠슨 황(엔비디아), 일론 머스크뿐만 아니라 남대문 스카프 아저씨, 충주맨 등 숏폼/릴스에서 엄청난 조회수를 폭발시키고 있는 SNS 핫 바이럴 인물도 적극 포함하고, 셰프·가수·배우·스포츠 영웅 등 다채로운 감동 실화 인물을 조합하세요.';
+  const targetCount = category === 'all' ? '18~20명' : '12~14명';
+  const categoryInstruction =
+    category === 'all'
+      ? '전 카테고리 균형: SNS 바이럴·밈(viral), 연예·가수(entertainment), 배우·드라마(actor), 스포츠(sports), 경제·기업(economy), 사회·이슈(social), 글로벌·셀럽(global) 7개 분야에서 각각 2~3명씩 골고루 선별하세요.'
+      : `요청된 카테고리('${category}')에 100% 집중하여 오늘 실제로 화제인 인물들을 선별하고, 모든 인물의 category 필드는 반드시 '${category}'로 지정하세요.`;
 
-  const todayStr = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+  const todayStr = liveSignals?.todayKst || new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
   const timeframeLabel =
     timeframe === '24h' ? '최근 24시간' : timeframe === '48h' ? '최근 48시간' : '최근 7일간';
 
+  const signalsSection = liveSignals?.formattedBrief
+    ? `\n[★ 방금 수집된 실시간 구글 급상승 검색어 & 분야별 뉴스 헤드라인]\n${liveSignals.formattedBrief}\n`
+    : '';
+
   const prompt = `당신은 대한민국 최고 유튜브 쇼츠 & 인스타 릴스 실시간 트렌드 리서처입니다.
 오늘 날짜는 ${todayStr}(한국 시간)입니다.
-반드시 Google Search 도구로 오늘(${todayStr}) 및 ${timeframeLabel} 동안 네이버 실시간 검색, 유튜브 급상승 쇼츠, 인스타그램 릴스, 한국·글로벌 주요 뉴스에서 실제로 가장 크게 화제가 되고 있는 최신 인물 14~16명을 검색해 추천하세요.
-
-[★ 실시간 사실 기반 브리핑 원칙]
-1. ${categoryInstruction}
-2. ${category !== 'all' ? `요청된 카테고리(${category})에 집중하고 category 필드는 반드시 '${category}'로 지정하세요.` : '전 카테고리 균형: SNS 바이럴·밈, 연예·가수, 배우·드라마, 스포츠, 경제·기업, 글로벌·셀럽, 사회·이슈 전 분야에서 오늘 가장 화제성 높은 인물을 골고루 선별하세요.'}
-3. 옛날 과거 일화가 아니라 **지금(${todayStr} 기준 ${timeframeLabel}) 실제로 터진 최신 뉴스·논란·사건·스캔들·사임·경기·신곡·방송**을 반영하세요.
+${signalsSection}
+[필수 지시]
+1. 위 실시간 뉴스·급상승 검색어에 등장한 화제의 인물들을 최우선으로 반영하고, 추가로 Google Search 도구로 오늘(${todayStr}) 및 ${timeframeLabel} 동안 네이버 실시간 뉴스·유튜브 쇼츠·인스타 릴스에서 새롭게 급부상한 인물까지 총 ${targetCount}을 선정하세요.
+2. ${categoryInstruction}
+3. **절대 금지**: 옛날 과거 일화(예: 몇 년 전 성공담, 오래된 드라마/유행가, 과거 밈)를 오늘 이슈인 것처럼 재활용하지 마세요. 모든 인물은 **지금(${todayStr} 기준 ${timeframeLabel}) 실제로 터진 최신 뉴스·스캔들·사임·발언·품절·경기·신작·SNS 바이럴** 이유를 반영해야 합니다.
 4. primaryChannel 필드는 반드시 'youtube', 'naver', 'instagram', 'multi' 중 하나의 소문자 영문 값으로 지정하세요.
-5. buzzSummary에는 **"왜 지금 화제인지 + 확인된 날짜(또는 연도·기간)·구체적 숫자"** 팩트 1~2문장을 작성하세요(확인되지 않은 수치·날짜 날조 엄금).
+5. buzzSummary에는 **"왜 지금 화제인지 + 확인된 날짜(월·일 또는 연도)·구체적 숫자"** 팩트 1~2문장을 작성하세요(확인되지 않은 수치·날짜 날조 엄금).
 6. hookLine에는 **첫 3초 만에 스크롤을 멈출 오프닝 훅 1줄(30~45자 내외)**을 작성하세요.
 7. 반드시 아래와 같은 유효한 JSON 배열만 출력하세요(코드펜스 \`\`\` 나 설명 텍스트 절대 금지):
 [
@@ -457,5 +457,6 @@ export async function POST(request: Request) {
     }
   }
 
-  return NextResponse.json(fallbackList);
+  const rssFallback = buildSignalFallbackFigures(liveSignals, timeframe, category);
+  return NextResponse.json(rssFallback.length > 0 ? rssFallback : fallbackList);
 }
