@@ -21,9 +21,11 @@ export interface SinsooSettings {
   models: string[];
   okModels: string[];
   ttsModel: string;
+  ttsModels?: string[];
   voice: string;
   ttsStyle: string;
   imgModel: string;
+  imgModels?: string[];
   brand: string;
   handle: string;
   outW: 720 | 1080;
@@ -64,9 +66,26 @@ export const DEFAULT_SINSOO_SETTINGS: SinsooSettings = {
   ],
   okModels: [],
   ttsModel: 'gemini-3.8-flash-tts',
+  ttsModels: [
+    'gemini-3.8-flash-tts',
+    'gemini-3.8-flash-lite-tts',
+    'gemini-3.1-flash-tts-preview',
+    'gemini-2.5-flash-preview-tts',
+    'gemini-2.5-pro-preview-tts',
+  ],
   voice: 'Kore',
   ttsStyle: '차분하고 또렷한 다큐멘터리 내레이션',
-  imgModel: 'gemini-3.1-flash-image',
+  imgModel: 'gemini-nano-banana-2.1',
+  imgModels: [
+    'gemini-nano-banana-2.1',
+    'gemini-3.1-flash-image',
+    'gemini-3.1-flash-lite-image',
+    'gemini-3.1-flash-image-preview',
+    'gemini-3-pro-image',
+    'gemini-3-pro-image-preview',
+    'nano-banana-pro-preview',
+    'gemini-2.5-flash-image',
+  ],
   brand: '',
   handle: '',
   outW: 1080,
@@ -110,9 +129,13 @@ export const GEMINI_FALLBACK_CATALOG = {
     'gemini-2.5-pro-preview-tts',
   ],
   image: [
+    'gemini-nano-banana-2.1',
     'gemini-3.1-flash-image',
+    'gemini-3.1-flash-lite-image',
     'gemini-3.1-flash-image-preview',
     'gemini-3-pro-image',
+    'gemini-3-pro-image-preview',
+    'nano-banana-pro-preview',
     'gemini-2.5-flash-image',
   ],
 };
@@ -629,10 +652,26 @@ export async function listGeminiModels(apiKey?: string) {
     .map((m: any) => m.name)
     .filter((n: string) => /tts/.test(n))
     .sort((a: string, b: string) => (/^gemini-3/.test(a) ? 0 : 1) - (/^gemini-3/.test(b) ? 0 : 1));
-  const image = all
-    .map((m: any) => m.name)
-    .filter((n: string) => /image|banana/.test(n) && !/imagen|embedding/.test(n))
-    .sort((a: string, b: string) => (/^gemini-3/.test(a) ? 0 : 1) - (/^gemini-3/.test(b) ? 0 : 1));
+  const imgPriority = (name: string) => {
+    if (name === 'gemini-nano-banana-2.1') return 0;
+    if (/^gemini-4/.test(name)) return 1;
+    if (name === 'gemini-3.1-flash-image') return 2;
+    if (name === 'gemini-3.1-flash-lite-image') return 3;
+    if (name === 'gemini-3.1-flash-image-preview') return 4;
+    if (name === 'gemini-3-pro-image') return 5;
+    if (name === 'gemini-3-pro-image-preview') return 6;
+    if (name === 'nano-banana-pro-preview') return 7;
+    if (/^gemini-3/.test(name)) return 8;
+    if (/^gemini-2\.5/.test(name)) return 90;
+    return 40;
+  };
+  const image = Array.from(
+    new Set(
+      all
+        .map((m: any) => m.name)
+        .filter((n: string) => /image|banana/i.test(n) && !/imagen|embedding/i.test(n))
+    )
+  ).sort((a: any, b: any) => imgPriority(a) - imgPriority(b)) as string[];
   return { all, text, tts, image };
 }
 

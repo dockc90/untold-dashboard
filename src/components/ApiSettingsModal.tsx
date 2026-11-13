@@ -138,11 +138,13 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
         model: selectedModel,
         models: nextTextModels,
         ttsModel: selectedTts,
+        ttsModels: nextTtsModels,
         imgModel: selectedImg,
+        imgModels: nextImgModels,
       });
 
       setGeminiStatus({
-        text: `키 인식 ✓ (텍스트 ${nextTextModels.length}개 · TTS ${nextTtsModels.length}개). 실제 생성 테스트 중…`,
+        text: `키 인식 ✓ (텍스트 ${nextTextModels.length}개 · TTS ${nextTtsModels.length}개 · 이미지 ${nextImgModels.length}개). 실제 생성 테스트 중…`,
       });
 
       const testRes = await genGeminiText({
@@ -165,7 +167,9 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
         models: nextTextModels,
         okModels,
         ttsModel: selectedTts,
+        ttsModels: nextTtsModels,
         imgModel: selectedImg,
+        imgModels: nextImgModels,
       });
       setForm(updated);
       setGeminiStatus({
@@ -467,7 +471,7 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
                           </optgroup>
                         )}
                         <optgroup label="✨ Gemini TTS (30종)">
-                          {Array.from(new Set([form.ttsModel, ...GEMINI_FALLBACK_CATALOG.tts])).map((m) => (
+                          {Array.from(new Set([form.ttsModel, ...(form.ttsModels || []), ...GEMINI_FALLBACK_CATALOG.tts])).map((m) => (
                             <option key={m} value={m}>
                               {m}
                             </option>
@@ -482,9 +486,9 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
                         onChange={(e) => setForm({ ...form, imgModel: e.target.value })}
                         className="mt-1 w-full px-2 py-1.5 rounded-lg border border-[#E3E2DE] bg-white text-xs"
                       >
-                        {Array.from(new Set([form.imgModel, ...GEMINI_FALLBACK_CATALOG.image])).map((m) => (
+                        {Array.from(new Set([...(form.imgModels || []), ...GEMINI_FALLBACK_CATALOG.image, form.imgModel])).filter(Boolean).map((m) => (
                           <option key={m} value={m}>
-                            {m}
+                            {m === 'gemini-nano-banana-2.1' ? `${m} (최신 Nano Banana 2.1)` : m}
                           </option>
                         ))}
                       </select>
