@@ -169,17 +169,27 @@ async function syncSubsToFallbackDb() {
   const sb = getSupabaseAdminClient();
   if (!sb) return;
   try {
-    await sb.from('untold_projects').upsert(
+    const { error } = await sb.from('untold_projects').upsert(
       {
         id: SYS_SUBS_ROW_ID,
         figure_name: '__system_newsletter_subscribers__',
         category: 'social',
-        full_script: '',
         data: { __system: true, subscribers: Array.from(memSubs.values()) },
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'id' }
     );
+    if (error) {
+      // Fallback retry in case minimal schema is used without category
+      await sb.from('untold_projects').upsert(
+        {
+          id: SYS_SUBS_ROW_ID,
+          figure_name: '__system_newsletter_subscribers__',
+          data: { __system: true, subscribers: Array.from(memSubs.values()) },
+        },
+        { onConflict: 'id' }
+      );
+    }
   } catch {
     // ignore
   }
@@ -211,17 +221,19 @@ export async function listActiveSubscribers(): Promise<NewsletterSubscriber[]> {
     }
 
     try {
-      const { data: sysRow } = await sb
+      const { data: sysRow, error: sysErr } = await sb
         .from('untold_projects')
         .select('data')
         .eq('id', SYS_SUBS_ROW_ID)
         .maybeSingle();
-      const dbSubs = sysRow?.data?.subscribers;
-      if (Array.isArray(dbSubs)) {
-        dbSubs.forEach((s: NewsletterSubscriber) => {
-          if (s?.email) memSubs.set(normalizeEmail(s.email), s);
-        });
-        saveDiskSubs();
+      if (!sysErr) {
+        const dbSubs = sysRow?.data?.subscribers;
+        if (Array.isArray(dbSubs)) {
+          dbSubs.forEach((s: NewsletterSubscriber) => {
+            if (s?.email) memSubs.set(normalizeEmail(s.email), s);
+          });
+          saveDiskSubs();
+        }
       }
     } catch {
       // fall through
