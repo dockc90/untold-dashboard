@@ -1012,7 +1012,7 @@ export default function App() {
       )}
 
       {/* Main View Area (Mobile-First Safe Area & Spacing to Prevent Any Clipping) */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-6 pb-32 sm:pb-36 md:pb-12 pb-safe flex flex-col min-w-0 max-w-full">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-6 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] sm:pb-[calc(7rem+env(safe-area-inset-bottom,0px))] md:pb-12 flex flex-col min-w-0 max-w-full">
         {currentTab === 'studio' && (
           <div className="flex-1 flex flex-col min-h-0 w-full">
             {studioStep === 'trends' && (
