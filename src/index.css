@@ -54,10 +54,10 @@ html, body {
   margin-bottom: env(safe-area-inset-bottom, 16px);
 }
 
-/* Ensure mobile input readability & prevent iOS zoom on focus */
+/* Match mobile input/select/textarea typography with compact UI tone & manner */
 @media (max-width: 768px) {
   input, select, textarea {
-    font-size: 16px !important;
+    font-size: 13px;
   }
 }
 

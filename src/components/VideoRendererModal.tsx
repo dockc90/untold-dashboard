@@ -895,6 +895,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   const [videoTone, setVideoTone] = useState<VideoMoodTone>(project.videoTone || 'Cinematic');
   // YouTube Native BGM Mode (No external BGM baked into render -> zero copyright/revenue-split risk)
   const [youtubeNativeBgmMode, setYoutubeNativeBgmMode] = useState<boolean>(true);
+  const [isSceneVolumeMixerOpen, setIsSceneVolumeMixerOpen] = useState<boolean>(false);
 
   const isFirstMountRef = useRef(true);
   useEffect(() => {
@@ -7463,7 +7464,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                   </div>
                 )}
 
-                <div className="w-[160px] xs:w-[185px] sm:w-[240px] md:w-[310px] aspect-[9/16] bg-slate-950 rounded-3xl overflow-hidden shadow-2xl border-4 border-slate-900 relative flex items-center justify-center shrink-0">
+                <div className="w-[260px] xs:w-[285px] sm:w-[320px] md:w-[360px] lg:w-[390px] aspect-[9/16] bg-slate-950 rounded-3xl overflow-hidden shadow-2xl border-4 border-slate-900 relative flex items-center justify-center shrink-0">
               <canvas
                 ref={canvasRef}
                 onPointerDown={(e) => {
@@ -7944,6 +7945,115 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                   <Sparkles className="w-3.5 h-3.5 text-amber-600" />
                   <span>쇼츠 바이럴 추천 세팅 적용</span>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => setYoutubeNativeBgmMode((prev) => !prev)}
+                  className={`px-3 py-1.5 rounded-xl font-black text-xs flex items-center space-x-1.5 transition border shadow-2xs cursor-pointer active:scale-95 ${
+                    youtubeNativeBgmMode
+                      ? 'bg-emerald-600 text-white border-emerald-700'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  }`}
+                  title="외부 BGM 없이 성우 보이스만 추출해 유튜브 업로드 시 기본 음원 라이브러리 사용"
+                >
+                  <span>{youtubeNativeBgmMode ? '🎵 유튜브 기본 음원 모드 ON' : '🎵 유튜브 기본 음원 모드 OFF'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsSceneVolumeMixerOpen((prev) => !prev)}
+                  className={`px-3 py-1.5 rounded-xl font-black text-xs flex items-center space-x-1.5 transition border shadow-2xs cursor-pointer active:scale-95 ${
+                    isSceneVolumeMixerOpen
+                      ? 'bg-indigo-600 text-white border-indigo-700'
+                      : 'bg-white text-indigo-800 border-indigo-200 hover:bg-indigo-50'
+                  }`}
+                >
+                  <span>🎚️ 씬별 음소거·볼륨</span>
+                </button>
+              </div>
+            )}
+
+            {!isRendering && isSceneVolumeMixerOpen && (
+              <div className="mt-2.5 w-full max-w-[440px] p-3 rounded-2xl bg-white border border-indigo-200 shadow-sm space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-black text-slate-900">🎚️ 씬별 음소거 & 볼륨 조절 (0~150%)</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!onUpdateProject) return;
+                      onUpdateProject({
+                        ...project,
+                        scenes: scenes.map((sc) => ({
+                          ...sc,
+                          narrationMuted: false,
+                          narrationVolume: 100,
+                        })),
+                      });
+                    }}
+                    className="px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-slate-700 cursor-pointer"
+                  >
+                    전체 100%
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-44 overflow-y-auto pr-0.5">
+                  {scenes.map((sc, idx) => {
+                    const isMuted = Boolean(sc.narrationMuted);
+                    const vol = sc.narrationVolume ?? 100;
+                    return (
+                      <div
+                        key={`quick-vol-${sc.sceneNumber}-${idx}`}
+                        className={`p-1.5 rounded-xl border text-[11px] flex items-center gap-1.5 ${
+                          isMuted ? 'bg-rose-50/70 border-rose-200' : 'bg-slate-50 border-slate-200'
+                        }`}
+                      >
+                        <span className="font-extrabold text-slate-700 w-7 shrink-0">{idx + 1}씬</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!onUpdateProject) return;
+                            onUpdateProject({
+                              ...project,
+                              scenes: scenes.map((item, sIdx) =>
+                                sIdx === idx ? { ...item, narrationMuted: !isMuted } : item
+                              ),
+                            });
+                          }}
+                          className={`px-1.5 py-0.5 rounded-md text-[10px] font-black border shrink-0 cursor-pointer ${
+                            isMuted
+                              ? 'bg-rose-600 text-white border-rose-700'
+                              : 'bg-white text-slate-700 border-slate-200'
+                          }`}
+                        >
+                          {isMuted ? '🔇' : '🔊'}
+                        </button>
+                        <input
+                          type="range"
+                          min={0}
+                          max={150}
+                          step={5}
+                          disabled={isMuted}
+                          value={isMuted ? 0 : vol}
+                          onChange={(e) => {
+                            if (!onUpdateProject) return;
+                            const nextVol = Number(e.target.value);
+                            onUpdateProject({
+                              ...project,
+                              scenes: scenes.map((item, sIdx) =>
+                                sIdx === idx
+                                  ? { ...item, narrationVolume: nextVol, narrationMuted: nextVol === 0 }
+                                  : item
+                              ),
+                            });
+                          }}
+                          className="flex-1 min-w-0 accent-indigo-600 cursor-pointer disabled:opacity-40"
+                        />
+                        <span className="text-[10px] font-bold text-slate-600 w-8 text-right shrink-0">
+                          {isMuted ? '0%' : `${vol}%`}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 

@@ -288,7 +288,7 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
       return catOk && tfOk;
     });
 
-    const minNeeded = nextCat === 'all' ? 5 : 2;
+    const minNeeded = 10;
     if (liveMatching.length < minNeeded) {
       fetchedSlicesRef.current.set(key, Date.now());
       onRefreshTrends(nextTf, nextCat, nextChan).catch(() => {});
@@ -312,8 +312,8 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
     }
   };
 
-  // Filter figures
-  const filteredFigures = figures.filter((fig) => {
+  // Filter figures (and guarantee at least 10 figures per category when a specific category is selected)
+  const baseFilteredFigures = figures.filter((fig) => {
     const norm = normalizeChannel(fig.primaryChannel);
 
     const matchesChannel = (() => {
@@ -346,6 +346,20 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
 
     return matchesChannel && matchesTime && matchesCategory && matchesQuery;
   });
+
+  const filteredFigures = (() => {
+    if (categoryFilter === 'all' || searchQuery !== '' || baseFilteredFigures.length >= 10) {
+      return baseFilteredFigures;
+    }
+    const existingIds = new Set(baseFilteredFigures.map((f) => f.id));
+    const categoryExtras = figures.filter((fig) => {
+      if (existingIds.has(fig.id)) return false;
+      return categoryFilter === 'upcoming'
+        ? Boolean(fig.isUpcoming || fig.category === 'upcoming')
+        : fig.category === categoryFilter;
+    });
+    return [...baseFilteredFigures, ...categoryExtras].slice(0, Math.max(10, baseFilteredFigures.length + categoryExtras.length));
+  })();
 
   const handleCustomSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

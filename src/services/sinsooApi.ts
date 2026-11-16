@@ -2323,7 +2323,7 @@ export async function fetchLiveTrendingFigures(opt: {
       : opt.channel === 'instagram'
       ? '인스타그램 릴스·SNS 바이럴'
       : '한국 및 글로벌 주요 뉴스·유튜브·네이버·SNS 통합';
-  const limit = opt.limit || (opt.category === 'all' ? 18 : 12);
+  const limit = opt.limit || (opt.category === 'all' ? 20 : 12);
   const categoryLabel =
     opt.category === 'upcoming'
       ? `🔭 [내일 예고·선점] 오늘(${todayKst}) 밤부터 내일(${tomorrowKst})·이번 주 사이 공개/개봉/컴백/경기/선발대결/발표/개막 등이 예정되어 있어 지금 올리면 내일 검색량 폭발을 선점할 수 있는 인물 ${limit}명 (모든 인물의 category를 'upcoming', isUpcoming을 true로 지정하고 scheduledDate에 "내일(M/D)" 등 예정 시점 표기)`

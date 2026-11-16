@@ -67,8 +67,8 @@ interface ScriptStudioProps {
 }
 
 const SCRIPT_FORMAT_OPTIONS: { id: ScriptFormatType; label: string }[] = [
-  { id: 'overcoming_story', label: '① 역경극복·감동미담형(CJ 저단백밥 스타일)' },
-  { id: 'humble_twist', label: '② 소박한 반전매력형(재벌의 길거리 어묵 먹방 스타일)' },
+  { id: 'overcoming_story', label: '① 역경극복·감동미담형' },
+  { id: 'humble_twist', label: '② 소박한 반전매력형' },
   { id: 'life_timeline', label: '③ 어린시절~현재 인생변천사형' },
   { id: 'biz_sports_owner', label: '④ 기업인+스포츠 구단주/비즈니스형' },
 ];
@@ -1291,12 +1291,12 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                       className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs hover:shadow-xs space-y-3 transition"
                     >
                       {/* Scene Header */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-xs font-black px-2.5 py-0.5 rounded-lg bg-indigo-600 text-white">
+                      <div className="flex flex-wrap items-center justify-between gap-1.5">
+                        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                          <span className="text-xs font-black px-2.5 py-0.5 rounded-lg bg-indigo-600 text-white shrink-0">
                             Scene {scene.sceneNumber}
                           </span>
-                          <span className="text-xs font-bold text-slate-500">
+                          <span className="text-xs font-bold text-slate-500 shrink-0">
                             {scene.timeRange}
                           </span>
                           {idx === 0 ? (
@@ -1342,10 +1342,10 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                           <span className="text-[10px] text-slate-400 font-medium">{scene.narration.length}자</span>
                         </label>
                         <textarea
-                          rows={2}
+                          rows={3}
                           value={scene.narration}
                           onChange={(e) => handleSceneNarrationChange(idx, e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 font-medium leading-relaxed focus:outline-none focus:border-indigo-500"
+                          className="w-full min-h-[74px] bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 font-medium leading-relaxed focus:outline-none focus:border-indigo-500"
                         />
                       </div>
 
@@ -1697,6 +1697,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                 </div>
               );
             })()}
+            <div className="h-24 md:h-2" aria-hidden="true" />
           </>
         )}
       </div>
