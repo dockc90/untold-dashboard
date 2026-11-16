@@ -1096,7 +1096,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
             </div>
             <div className="min-w-0">
               <span className="font-extrabold text-slate-900 block sm:inline">대본 컨셉 테마 선택</span>{' '}
-              <span className="text-[11px] text-slate-600 font-medium hidden sm:inline">컨셉을 선택한 후 [선택 컨셉으로 대본 생성] 버튼을 누르세요.</span>
+              <span className="text-[11px] text-slate-600 font-medium hidden sm:inline">원하는 테마를 고른 뒤 상단 [✨ 대본 생성] 버튼을 누르세요.</span>
             </div>
           </div>
 
@@ -1123,17 +1123,6 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                 </button>
               );
             })}
-
-            {/* 선택된 컨셉으로 생성 실행 버튼 */}
-            <button
-              type="button"
-              onClick={() => onGenerateScript(targetPersona, duration, videoTone, activeStoryAngle, customKeyword, scriptFormat, speechTone)}
-              disabled={isGenerating || !selectedFigure}
-              className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs transition shadow-xs cursor-pointer flex items-center space-x-1 shrink-0 disabled:opacity-50 ml-1"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>선택 컨셉으로 대본 생성</span>
-            </button>
           </div>
         </div>
 
@@ -1155,9 +1144,13 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                 setActiveStoryAngle('variant_origin');
                 onGenerateScript(targetPersona, duration, videoTone, 'variant_origin', customKeyword, 'life_timeline', speechTone);
               }}
-              className="px-2.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-600 text-emerald-800 hover:text-white border border-emerald-200 font-bold text-[11px] transition cursor-pointer disabled:opacity-50"
+              className={`px-2.5 py-1.5 rounded-xl border font-bold text-[11px] transition cursor-pointer disabled:opacity-50 ${
+                activeStoryAngle === 'variant_origin'
+                  ? 'bg-emerald-600 text-white border-emerald-700 ring-2 ring-emerald-300 shadow-xs'
+                  : 'bg-emerald-50 hover:bg-emerald-600 text-emerald-800 hover:text-white border-emerald-200'
+              }`}
             >
-              🌱 ① 무명·초창기 신선함
+              {activeStoryAngle === 'variant_origin' ? '✓ ' : ''}🌱 ① 무명·초창기 신선함
             </button>
             <button
               type="button"
@@ -1166,9 +1159,13 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                 setActiveStoryAngle('variant_humble');
                 onGenerateScript(targetPersona, duration, videoTone, 'variant_humble', customKeyword, 'humble_twist', speechTone);
               }}
-              className="px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-600 text-amber-800 hover:text-white border border-amber-200 font-bold text-[11px] transition cursor-pointer disabled:opacity-50"
+              className={`px-2.5 py-1.5 rounded-xl border font-bold text-[11px] transition cursor-pointer disabled:opacity-50 ${
+                activeStoryAngle === 'variant_humble'
+                  ? 'bg-amber-600 text-white border-amber-700 ring-2 ring-amber-300 shadow-xs'
+                  : 'bg-amber-50 hover:bg-amber-600 text-amber-800 hover:text-white border-amber-200'
+              }`}
             >
-              🍢 ② 소박한 반전 매력
+              {activeStoryAngle === 'variant_humble' ? '✓ ' : ''}🍢 ② 소박한 반전 매력
             </button>
             <button
               type="button"
@@ -1177,9 +1174,13 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                 setActiveStoryAngle('variant_touching');
                 onGenerateScript(targetPersona, duration, videoTone, 'variant_touching', customKeyword, 'overcoming_story', speechTone);
               }}
-              className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-600 text-rose-800 hover:text-white border border-rose-200 font-bold text-[11px] transition cursor-pointer disabled:opacity-50"
+              className={`px-2.5 py-1.5 rounded-xl border font-bold text-[11px] transition cursor-pointer disabled:opacity-50 ${
+                activeStoryAngle === 'variant_touching'
+                  ? 'bg-rose-600 text-white border-rose-700 ring-2 ring-rose-300 shadow-xs'
+                  : 'bg-rose-50 hover:bg-rose-600 text-rose-800 hover:text-white border-rose-200'
+              }`}
             >
-              💧 ③ 눈물·감동 서사
+              {activeStoryAngle === 'variant_touching' ? '✓ ' : ''}💧 ③ 눈물·감동 서사
             </button>
           </div>
         </div>

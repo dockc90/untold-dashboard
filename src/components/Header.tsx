@@ -8,7 +8,9 @@ import {
   KeyRound,
   Video,
   Briefcase,
+  Zap,
 } from 'lucide-react';
+import { UserAccountState } from '../utils/subscription';
 import {
   getActiveGeminiKey,
   getActiveYoutubeKey,
@@ -25,6 +27,8 @@ interface HeaderProps {
   onOpenApiSettings?: () => void;
   onOpenMediaCollector?: () => void;
   onOpenSponsorKit?: () => void;
+  onOpenPricing?: () => void;
+  account?: UserAccountState;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -35,6 +39,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenApiSettings,
   onOpenMediaCollector,
   onOpenSponsorKit,
+  onOpenPricing,
+  account,
 }) => {
   const [hasGemini, setHasGemini] = useState(() => Boolean(getActiveGeminiKey()));
   const [hasYt, setHasYt] = useState(() => Boolean(getActiveYoutubeKey()));
@@ -90,7 +96,7 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 onClick={onOpenSponsorKit}
                 className="p-1.5 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 cursor-pointer"
-                title="1인 언론사 광고 단가표 · 제안서"
+                title="내 채널 협찬 단가표 · 제안서"
               >
                 <Briefcase className="w-3.5 h-3.5" />
               </button>
@@ -106,7 +112,17 @@ export const Header: React.FC<HeaderProps> = ({
                 <Video className="w-3.5 h-3.5 text-rose-500" />
               </button>
             )}
-            {onOpenApiSettings && (
+            {onOpenPricing ? (
+              <button
+                type="button"
+                onClick={onOpenPricing}
+                className="flex items-center space-x-1 px-2 py-1.5 rounded-xl bg-indigo-50 text-indigo-800 border border-indigo-200 text-[11px] font-bold cursor-pointer"
+                title="요금제 · 잔여 크레딧 · 계정"
+              >
+                <Zap className="w-3 h-3 text-amber-500 fill-amber-500" />
+                <span>{account?.plan === 'agency' ? '∞' : `${account?.creditsRemaining ?? 5}회`}</span>
+              </button>
+            ) : onOpenApiSettings && (
               <button
                 type="button"
                 onClick={onOpenApiSettings}
@@ -200,10 +216,10 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 onClick={onOpenSponsorKit}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-xs font-bold text-amber-900 transition cursor-pointer"
-                title="1인 언론사 광고 단가표 & 제안서 자동 생성기"
+                title="내 채널 협찬 단가표 & 제안서 자동 생성기"
               >
                 <Briefcase className="w-3.5 h-3.5 text-amber-700" />
-                <span>광고 단가표</span>
+                <span>내 협찬 단가표</span>
               </button>
             )}
 
@@ -219,7 +235,20 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            {onOpenApiSettings && (
+            {onOpenPricing ? (
+              <button
+                type="button"
+                onClick={onOpenPricing}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-xs font-extrabold text-indigo-900 transition cursor-pointer"
+                title="요금제 · 잔여 크레딧 · 계정 관리"
+              >
+                <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                <span>{account?.plan === 'agency' ? '무제한' : `잔여 ${account?.creditsRemaining ?? 5}회`}</span>
+                <span className="px-1.5 py-0.2 rounded-full bg-indigo-600 text-white text-[9px] font-black uppercase">
+                  {account?.plan || 'free'}
+                </span>
+              </button>
+            ) : onOpenApiSettings && (
               <button
                 type="button"
                 onClick={onOpenApiSettings}

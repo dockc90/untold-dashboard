@@ -1245,16 +1245,9 @@ export async function synthesizeElevenLabsTts(opt: ElevenLabsTtsOptions): Promis
   const style = typeof opt.style === 'number' ? opt.style : 0.15;
   const useSpeakerBoost = opt.speakerBoost !== false;
   const userKey = (opt.apiKey ?? settings.elevenLabsKey ?? '').trim();
-  if (!userKey) {
-    throw new SinsooApiError(
-      'elevenlabs',
-      401,
-      'ElevenLabs API 키가 입력되지 않았습니다. [API 설정 → API 키 · 모델]에서 본인의 ElevenLabs 키(sk_...)를 입력해 주세요.'
-    );
-  }
   const signal = withTimeout(opt.signal, 45000);
 
-  // 1) Try workspace/Vercel /api/tts proxy with client-supplied xi-api-key header
+  // 1) Try workspace/Vercel /api/tts proxy (supports Hosted server ELEVENLABS_API_KEY or client key)
   let serverFallbackReason = '';
   try {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -1825,7 +1818,21 @@ function parseIsoDuration(s?: string): number {
 
 export async function yFetch(path: string, params: Record<string, string | number | undefined>, apiKey?: string) {
   const key = apiKey || getActiveYoutubeKey();
-  if (!key) throw new SinsooApiError('youtube', 401, 'YouTube API 키가 없습니다. [API 키 설정]에서 입력해 주세요.');
+  if (!key) {
+    try {
+      const proxyRes = await fetch('/api/youtube/proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path, params }),
+      });
+      if (proxyRes.ok) {
+        return await proxyRes.json();
+      }
+    } catch {
+      // fall through to explicit error
+    }
+    throw new SinsooApiError('youtube', 401, 'YouTube API 키가 없습니다. [플랜/계정] 또는 서버 설정을 확인해 주세요.');
+  }
   const u = new URL(YT_BASE + path);
   Object.entries(params).forEach(([k, v]) => {
     if (v != null && v !== '') u.searchParams.set(k, String(v));

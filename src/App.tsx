@@ -20,6 +20,7 @@ const MediaCollectorModal = lazy(() => import('./components/MediaCollectorModal'
 const ApiSettingsModal = lazy(() => import('./components/ApiSettingsModal').then(m => ({ default: m.ApiSettingsModal })));
 const NewsletterModal = lazy(() => import('./components/NewsletterModal').then(m => ({ default: m.NewsletterModal })));
 const SponsorKitModal = lazy(() => import('./components/SponsorKitModal').then(m => ({ default: m.SponsorKitModal })));
+const PricingModal = lazy(() => import('./components/PricingModal').then(m => ({ default: m.PricingModal })));
 
 const StudioLoadingFallback: React.FC<{ label?: string }> = ({ label = '스튜디오 로딩 중...' }) => (
   <div className="flex-1 flex flex-col items-center justify-center p-8 min-h-[360px] text-slate-500 space-y-3 animate-fade-in">
@@ -48,6 +49,7 @@ import {
 import { generateClientFallbackScript } from './utils/fallbackGenerator';
 import { getSceneFallbackImage } from './utils/sceneImages';
 import { analyzeLiveFigure, fetchLiveTrendingFigures, formatKoreanViewCount, generateShortsScriptDirect, getActiveGeminiKey, loadSinsooSettings } from './services/sinsooApi';
+import { loadAccountState, consumeAccountCredit, UserAccountState } from './utils/subscription';
 
 const LIVE_TRENDS_CACHE_KEY = 'autoshorts_live_trends_v2';
 const LIVE_TRENDS_TTL_MS = 10 * 60 * 1000;
@@ -154,6 +156,15 @@ export default function App() {
   const [isApiSettingsOpen, setIsApiSettingsOpen] = useState(false);
   const [isNewsletterOpen, setIsNewsletterOpen] = useState(false);
   const [isSponsorKitOpen, setIsSponsorKitOpen] = useState(false);
+  const [isPricingOpen, setIsPricingOpen] = useState(false);
+  const [account, setAccount] = useState<UserAccountState>(() => loadAccountState());
+  const [showQuickstartBanner, setShowQuickstartBanner] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('untold_quickstart_dismissed_v1') !== '1';
+    } catch {
+      return true;
+    }
+  });
   const [channelBranding, setChannelBranding] = useState<ChannelBranding>(() => {
     try {
       const raw = localStorage.getItem('untold_channel_branding_v1');
@@ -791,6 +802,13 @@ export default function App() {
     speechTone: ScriptSpeechTone = 'friendly_story'
   ) => {
     if (!selectedFigure) return;
+    const creditCheck = consumeAccountCredit(1);
+    setAccount(creditCheck.state);
+    if (!creditCheck.ok) {
+      setErrorMessage('이번 달 무료 AI 생성 크레딧(5회)을 모두 사용했습니다. 플랜을 업그레이드해 무제한으로 제작해 보세요!');
+      setIsPricingOpen(true);
+      return;
+    }
     setIsGeneratingScript(true);
     setErrorMessage(null);
     try {
@@ -873,7 +891,9 @@ export default function App() {
       }
 
       // If API was unavailable or returned empty data, use figure-aware client fallback generator
+      let usedSmartFallback = false;
       if (!data || !data.scenes || data.scenes.length === 0) {
+        usedSmartFallback = true;
         data = generateClientFallbackScript(
           selectedFigure.name,
           duration,
@@ -891,6 +911,10 @@ export default function App() {
             hookLine: selectedFigure.hookLine,
           }
         );
+      }
+      if (usedSmartFallback || data.isFallback) {
+        setSuccessToast('⚡ AI 트래픽이 몰려 인물 맞춤 스마트 템플릿으로 즉시 생성했습니다. 언제든 다시 생성하실 수 있습니다.');
+        setTimeout(() => setSuccessToast(null), 5000);
       }
       const charCount = (data.fullScript || '').replace(/\s+/g, '').length;
       const estimatedSeconds = Math.round(charCount / 6.5);
@@ -993,6 +1017,8 @@ export default function App() {
         onResetToHome={handleResetToHome}
         onOpenApiSettings={() => setIsApiSettingsOpen(true)}
         onOpenSponsorKit={() => setIsSponsorKitOpen(true)}
+        onOpenPricing={() => setIsPricingOpen(true)}
+        account={account}
         onOpenMediaCollector={() => {
           setMediaCollectorQuery(selectedFigure?.name || '');
           setIsMediaCollectorOpen(true);
@@ -1089,7 +1115,32 @@ export default function App() {
               </Suspense>
             ) : studioStep === 'trends' ? (
               <div className="flex-1 flex flex-col min-h-0 space-y-3 sm:space-y-4 w-full">
-                {/* Step 1 Top Guidance Banner (Notion Minimalist Hero) */}
+                {/* Step 1 Top Guidance Banner (Notion Minimalist Hero + Dismissible 3-Step Quickstart) */}
+                {showQuickstartBanner && (
+                  <div className="bg-gradient-to-r from-indigo-50 via-white to-amber-50 rounded-2xl p-3.5 sm:p-4 border border-indigo-200/80 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 w-full">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-[#37352F]">
+                      <span className="px-2 py-0.5 rounded-full bg-indigo-600 text-white font-black text-[10px]">
+                        3분 완성 가이드
+                      </span>
+                      <span className="font-bold">① 아래에서 화제 인물 선택</span>
+                      <span className="text-slate-400">➔</span>
+                      <span className="font-bold">② [✨ 대본 생성] 1클릭</span>
+                      <span className="text-slate-400">➔</span>
+                      <span className="font-bold">③ 사진 넣고 9:16 쇼츠 저장</span>
+                      <span className="text-[11px] text-emerald-700 font-semibold">(API 키 발급 없이 바로 사용 가능)</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowQuickstartBanner(false);
+                        try { localStorage.setItem('untold_quickstart_dismissed_v1', '1'); } catch {}
+                      }}
+                      className="text-[11px] font-bold text-[#787774] hover:text-[#191919] px-2 py-1 rounded-lg hover:bg-white/80 shrink-0 cursor-pointer"
+                    >
+                      닫기 ✕
+                    </button>
+                  </div>
+                )}
                 <div className="bg-white rounded-2xl p-5 sm:p-6 border border-[#E9E9E7] shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 w-full">
                   <div className="space-y-1.5 w-full sm:w-auto">
                     <div className="inline-flex items-center space-x-1.5 px-2 py-0.5 rounded-md bg-[#F1F1EF] text-[#37352F] text-[11px] font-semibold border border-[#E3E2DE] leading-none">
@@ -1540,6 +1591,18 @@ export default function App() {
             isOpen={isSponsorKitOpen}
             onClose={() => setIsSponsorKitOpen(false)}
             channelBranding={channelBranding}
+          />
+        </Suspense>
+      )}
+
+      {isPricingOpen && (
+        <Suspense fallback={null}>
+          <PricingModal
+            isOpen={isPricingOpen}
+            onClose={() => setIsPricingOpen(false)}
+            account={account}
+            onAccountChange={setAccount}
+            onOpenApiSettings={() => setIsApiSettingsOpen(true)}
           />
         </Suspense>
       )}

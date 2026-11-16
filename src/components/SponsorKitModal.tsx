@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { X, Briefcase, Copy, Check, TrendingUp, Mail, Sparkles, Calculator } from 'lucide-react';
 import { CategoryType, ChannelBranding } from '../types';
 
@@ -130,6 +130,15 @@ ${channelName} 드림
 5단계 (55~60초 여운 엔딩 — 광고주 극찬 포인트):
 "사업의 가치는 숫자로만 남지 않는다. 누군가의 삶을 바꿨을 때 기업의 존재 이유가 된다."`;
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const activeText =
@@ -142,8 +151,14 @@ ${channelName} 드림
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-3 sm:p-5 overflow-y-auto">
-      <div className="bg-white border border-[#E3E2DE] rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-3 sm:p-5 overflow-y-auto"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white border border-[#E3E2DE] rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden"
+      >
         {/* Header */}
         <div className="px-5 py-4 border-b border-[#EDEDEB] bg-[#FBFBFA] flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -152,7 +167,7 @@ ${channelName} 드림
             </div>
             <div className="min-w-0">
               <h2 className="text-base sm:text-lg font-extrabold text-[#191919] truncate">
-                💼 1인 언론사 광고 단가표 & 제안서 자동 생성기
+                💼 내 채널 협찬 단가표 & 제안서 자동 생성기
               </h2>
               <p className="text-[11px] text-[#787774] truncate">
                 유튜브·인스타·틱톡 3사 합산 리치로 대기업/대행사 브랜디드 광고 단가를 2배 높여 제안하세요.

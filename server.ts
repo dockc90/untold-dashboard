@@ -1356,6 +1356,79 @@ function persistServerDraft(draft: any) {
   } catch (e) {}
 }
 
+app.post('/api/tts', async (req, res) => {
+  try {
+    const body = req.body || {};
+    const cleanText = String(body.text || '').trim().slice(0, 1000);
+    const voiceId = String(body.voice_id || body.reference_id || 'JBFqnCBsd6RMkjVDRZzb').trim();
+    const modelId = String(body.model_id || 'eleven_v4').trim();
+    const elevenApiKey = String(req.headers['xi-api-key'] || process.env.ELEVENLABS_API_KEY || '').trim();
+
+    if (!cleanText) {
+      return res.status(400).json({ error: 'Text is required' });
+    }
+    if (!elevenApiKey) {
+      return res.status(401).json({ error: 'ElevenLabs API key not configured' });
+    }
+
+    const elevenUrl = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`;
+    const elevenRes = await fetch(elevenUrl, {
+      method: 'POST',
+      headers: {
+        'xi-api-key': elevenApiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        text: cleanText,
+        model_id: modelId,
+        voice_settings: {
+          stability: typeof body.stability === 'number' ? body.stability : 0.5,
+          similarity_boost: typeof body.similarity_boost === 'number' ? body.similarity_boost : 0.75,
+          style: typeof body.style === 'number' ? body.style : 0.15,
+          use_speaker_boost: body.use_speaker_boost !== false,
+        },
+      }),
+    });
+
+    if (!elevenRes.ok) {
+      const errText = await elevenRes.text().catch(() => '');
+      return res.status(elevenRes.status).json({ error: errText || 'ElevenLabs TTS error' });
+    }
+
+    const buf = Buffer.from(await elevenRes.arrayBuffer());
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('X-TTS-Engine', `ElevenLabs-${modelId}`);
+    return res.status(200).send(buf);
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message || 'TTS proxy failed' });
+  }
+});
+
+app.post('/api/youtube/proxy', async (req, res) => {
+  try {
+    const body = req.body || {};
+    const pathStr = String(body.path || '');
+    const params = (body.params && typeof body.params === 'object' ? body.params : {}) as Record<string, any>;
+    const key = String(body.apiKey || process.env.YOUTUBE_API_KEY || process.env.VITE_YOUTUBE_API_KEY || '').trim();
+    if (!key) {
+      return res.status(401).json({ error: 'YouTube API key not configured' });
+    }
+    if (!pathStr.startsWith('/')) {
+      return res.status(400).json({ error: 'Invalid YouTube API path' });
+    }
+    const u = new URL('https://www.googleapis.com/youtube/v3' + pathStr);
+    Object.entries(params).forEach(([k, v]) => {
+      if (v != null && v !== '') u.searchParams.set(k, String(v));
+    });
+    u.searchParams.set('key', key);
+    const ytRes = await fetch(u.toString());
+    const data = await ytRes.json().catch(() => ({}));
+    return res.status(ytRes.status).json(data);
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message || 'YouTube proxy failed' });
+  }
+});
+
 app.get('/api/projects', async (req, res) => {
   try {
     const syncCode = req.query.sync_code as string;

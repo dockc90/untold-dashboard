@@ -7446,7 +7446,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                       className="flex-1 py-1.5 px-3 rounded-xl bg-gradient-to-r from-violet-600 via-indigo-600 to-indigo-700 hover:from-violet-700 hover:to-indigo-800 text-white font-black text-xs shadow-md shadow-indigo-500/25 flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95"
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      <span>+ 내 마음대로 자막 추가</span>
+                      <span>내 마음대로 자막 추가</span>
                     </button>
                     {selectedSubtitleId && (
                       <button
@@ -7974,85 +7974,110 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
             )}
 
             {!isRendering && isSceneVolumeMixerOpen && (
-              <div className="mt-2.5 w-full max-w-[440px] p-3 rounded-2xl bg-white border border-indigo-200 shadow-sm space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-black text-slate-900">🎚️ 씬별 음소거 & 볼륨 조절 (0~150%)</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!onUpdateProject) return;
-                      onUpdateProject({
-                        ...project,
-                        scenes: scenes.map((sc) => ({
-                          ...sc,
-                          narrationMuted: false,
-                          narrationVolume: 100,
-                        })),
-                      });
-                    }}
-                    className="px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-slate-700 cursor-pointer"
-                  >
-                    전체 100%
-                  </button>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-44 overflow-y-auto pr-0.5">
-                  {scenes.map((sc, idx) => {
-                    const isMuted = Boolean(sc.narrationMuted);
-                    const vol = sc.narrationVolume ?? 100;
-                    return (
-                      <div
-                        key={`quick-vol-${sc.sceneNumber}-${idx}`}
-                        className={`p-1.5 rounded-xl border text-[11px] flex items-center gap-1.5 ${
-                          isMuted ? 'bg-rose-50/70 border-rose-200' : 'bg-slate-50 border-slate-200'
-                        }`}
+              <div
+                onClick={() => setIsSceneVolumeMixerOpen(false)}
+                className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 backdrop-blur-xs p-3 sm:p-4"
+              >
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-full max-w-lg p-4 rounded-2xl bg-white border border-indigo-200 shadow-2xl space-y-3"
+                >
+                  <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100">
+                    <div>
+                      <span className="text-sm font-black text-slate-900 block">
+                        🎚️ 씬별 음소거 & 볼륨 조절 (0~150%)
+                      </span>
+                      <span className="text-[11px] text-slate-500">
+                        특정 씬의 성우 목소리를 끄거나(🔇) 크기를 개별 조절합니다.
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!onUpdateProject) return;
+                          onUpdateProject({
+                            ...project,
+                            scenes: scenes.map((sc) => ({
+                              ...sc,
+                              narrationMuted: false,
+                              narrationVolume: 100,
+                            })),
+                          });
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-[11px] font-bold text-slate-700 cursor-pointer"
                       >
-                        <span className="font-extrabold text-slate-700 w-7 shrink-0">{idx + 1}씬</span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!onUpdateProject) return;
-                            onUpdateProject({
-                              ...project,
-                              scenes: scenes.map((item, sIdx) =>
-                                sIdx === idx ? { ...item, narrationMuted: !isMuted } : item
-                              ),
-                            });
-                          }}
-                          className={`px-1.5 py-0.5 rounded-md text-[10px] font-black border shrink-0 cursor-pointer ${
-                            isMuted
-                              ? 'bg-rose-600 text-white border-rose-700'
-                              : 'bg-white text-slate-700 border-slate-200'
+                        전체 100%
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsSceneVolumeMixerOpen(false)}
+                        className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+                        aria-label="닫기"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-0.5">
+                    {scenes.map((sc, idx) => {
+                      const isMuted = Boolean(sc.narrationMuted);
+                      const vol = sc.narrationVolume ?? 100;
+                      return (
+                        <div
+                          key={`quick-vol-${sc.sceneNumber}-${idx}`}
+                          className={`p-2 rounded-xl border text-[11px] flex items-center gap-1.5 ${
+                            isMuted ? 'bg-rose-50/70 border-rose-200' : 'bg-slate-50 border-slate-200'
                           }`}
                         >
-                          {isMuted ? '🔇' : '🔊'}
-                        </button>
-                        <input
-                          type="range"
-                          min={0}
-                          max={150}
-                          step={5}
-                          disabled={isMuted}
-                          value={isMuted ? 0 : vol}
-                          onChange={(e) => {
-                            if (!onUpdateProject) return;
-                            const nextVol = Number(e.target.value);
-                            onUpdateProject({
-                              ...project,
-                              scenes: scenes.map((item, sIdx) =>
-                                sIdx === idx
-                                  ? { ...item, narrationVolume: nextVol, narrationMuted: nextVol === 0 }
-                                  : item
-                              ),
-                            });
-                          }}
-                          className="flex-1 min-w-0 accent-indigo-600 cursor-pointer disabled:opacity-40"
-                        />
-                        <span className="text-[10px] font-bold text-slate-600 w-8 text-right shrink-0">
-                          {isMuted ? '0%' : `${vol}%`}
-                        </span>
-                      </div>
-                    );
-                  })}
+                          <span className="font-extrabold text-slate-700 w-8 shrink-0">{idx + 1}씬</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!onUpdateProject) return;
+                              onUpdateProject({
+                                ...project,
+                                scenes: scenes.map((item, sIdx) =>
+                                  sIdx === idx ? { ...item, narrationMuted: !isMuted } : item
+                                ),
+                              });
+                            }}
+                            className={`px-2 py-1 rounded-md text-[10px] font-black border shrink-0 cursor-pointer ${
+                              isMuted
+                                ? 'bg-rose-600 text-white border-rose-700'
+                                : 'bg-white text-slate-700 border-slate-200'
+                            }`}
+                          >
+                            {isMuted ? '🔇' : '🔊'}
+                          </button>
+                          <input
+                            type="range"
+                            min={0}
+                            max={150}
+                            step={5}
+                            disabled={isMuted}
+                            value={isMuted ? 0 : vol}
+                            onChange={(e) => {
+                              if (!onUpdateProject) return;
+                              const nextVol = Number(e.target.value);
+                              onUpdateProject({
+                                ...project,
+                                scenes: scenes.map((item, sIdx) =>
+                                  sIdx === idx
+                                    ? { ...item, narrationVolume: nextVol, narrationMuted: nextVol === 0 }
+                                    : item
+                                ),
+                              });
+                            }}
+                            className="flex-1 min-w-0 accent-indigo-600 cursor-pointer disabled:opacity-40"
+                          />
+                          <span className="text-[10px] font-bold text-slate-600 w-8 text-right shrink-0">
+                            {isMuted ? '0%' : `${vol}%`}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}
