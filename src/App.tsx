@@ -1008,7 +1008,6 @@ export default function App() {
         setCurrentTab={setCurrentTab}
         savedCount={savedProjects.length}
         onResetToHome={handleResetToHome}
-        onOpenApiSettings={() => setIsApiSettingsOpen(true)}
         onOpenSponsorKit={() => setIsSponsorKitOpen(true)}
         onOpenMediaCollector={() => {
           setMediaCollectorQuery(selectedFigure?.name || '');
