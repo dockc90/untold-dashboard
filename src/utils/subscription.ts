@@ -74,10 +74,10 @@ export function loadAccountState(): UserAccountState {
   return {
     isLoggedIn: false,
     email: '',
-    name: '게스트 크리에이터',
-    plan: 'free',
-    creditsRemaining: PLAN_CATALOG.free.monthlyCredits,
-    monthlyLimit: PLAN_CATALOG.free.monthlyCredits,
+    name: '운영자 (무제한)',
+    plan: 'agency',
+    creditsRemaining: PLAN_CATALOG.agency.monthlyCredits,
+    monthlyLimit: PLAN_CATALOG.agency.monthlyCredits,
     updatedAt: new Date().toISOString(),
   };
 }

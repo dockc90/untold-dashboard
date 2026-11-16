@@ -802,13 +802,6 @@ export default function App() {
     speechTone: ScriptSpeechTone = 'friendly_story'
   ) => {
     if (!selectedFigure) return;
-    const creditCheck = consumeAccountCredit(1);
-    setAccount(creditCheck.state);
-    if (!creditCheck.ok) {
-      setErrorMessage('이번 달 무료 AI 생성 크레딧(5회)을 모두 사용했습니다. 플랜을 업그레이드해 무제한으로 제작해 보세요!');
-      setIsPricingOpen(true);
-      return;
-    }
     setIsGeneratingScript(true);
     setErrorMessage(null);
     try {
@@ -1017,8 +1010,6 @@ export default function App() {
         onResetToHome={handleResetToHome}
         onOpenApiSettings={() => setIsApiSettingsOpen(true)}
         onOpenSponsorKit={() => setIsSponsorKitOpen(true)}
-        onOpenPricing={() => setIsPricingOpen(true)}
-        account={account}
         onOpenMediaCollector={() => {
           setMediaCollectorQuery(selectedFigure?.name || '');
           setIsMediaCollectorOpen(true);
