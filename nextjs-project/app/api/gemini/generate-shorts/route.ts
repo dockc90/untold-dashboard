@@ -59,6 +59,8 @@ export async function POST(request: Request) {
     speechTone = 'friendly_story',
     refreshCounter = 0,
     customKeyword = '',
+    pinnedCategory = 'all',
+    channelConcept = '',
   } = body;
 
   const formatDirectives: Record<string, string> = {
@@ -98,6 +100,9 @@ export async function POST(request: Request) {
     twist: formatDirectives.humble_twist,
     success: formatDirectives.biz_sports_owner,
     legend: formatDirectives.life_timeline,
+    variant_origin: `[1인 3각도 변주 ① 무명·데뷔초 신선함] 지금의 정상과 완전히 대비되는 ${figureName}의 무명 시절·초창기·데뷔 초 또는 결정적 출발점의 낯설고 신선한 실제 에피소드에 집중하세요.`,
+    variant_humble: `[1인 3각도 변주 ② 소박한 반전 매력] 화려한 타이틀과 대비되는 ${figureName}의 평범한 일상, 소탈한 습관, 사람 냄새 나는 소박한 반전 매력에 집중하세요.`,
+    variant_touching: `[1인 3각도 변주 ③ 눈물·감동 서사] 묵직한 가족애, 무명 시절의 눈물, 끝까지 포기하지 않았던 ${figureName}의 뭉클한 사연과 여운에 집중하세요.`,
     random: `새로운 앵글 버전 #${refreshCounter + 1}: 선택한 기획 포맷을 충실히 따르되 신선한 실제 에피소드와 숫자로 구성하세요.`,
   };
 
@@ -124,6 +129,11 @@ export async function POST(request: Request) {
    - [4단계: 40~55초 통 큰 결단과 성취] (씬 9~10): 홍보팀이 자랑스러워할 통 큰 결단, 선행, 기술/사업적 성취
    - [5단계: 55~60초 칭찬 댓글을 유도하는 여운 엔딩] (씬 11~12): 기업의 존재 이유와 인물의 품격이 남아 시청자가 자연스럽게 존경·칭찬 댓글을 달게 만드는 묵직한 여운
 
+[★ 인물 고유 디테일 필수 주입 규칙 (두루뭉실한 범용 대본 절대 금지)]
+- 대본만 읽어도 "아, 이 이야기는 정확히 ${figureName} 얘기구나!"라고 바로 알아챌 수 있어야 합니다.
+- ${figureName}의 실제 대표작·소속 기업/구단·구체적 사건명·유명 어록·실제 연도/금액/기록 등 **고유 팩트 디테일을 최소 4개 이상의 씬에 직접 명시**하세요.
+- "한 평 남짓한 작은 사무실", "백 번 넘게 거절", "수조 원대 기업", "단 하나의 상품", "사업의 가치는 숫자가 아니라"처럼 다른 인물에게도 그대로 갖다 붙일 수 있는 뻔한 상투어·범용 문장은 **절대 금지**합니다.
+${pinnedCategory && pinnedCategory !== 'all' ? `- [★ 내 채널 고정 브랜딩]: 이 채널은 [${pinnedCategory}]${channelConcept ? ` (${channelConcept})` : ''} 단일 카테고리 전문 채널입니다. 채널 색깔과 어휘 톤을 이 카테고리에 일관되게 맞추세요.\n` : ''}
 [★ 레퍼런스 호흡 참고 (구조와 호흡만 참고 — 내용은 반드시 ${figureName}의 실제 사실만 사용)]
 - 짧은 호흡, 구체적 숫자, 인간적 사연, 자연스럽게 변화하는 문장 어미(같은 어미 연속 반복 금지!), 뭉클한 엔딩 리듬을 참고하세요.
 

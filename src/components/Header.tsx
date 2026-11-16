@@ -7,6 +7,7 @@ import {
   Layers,
   KeyRound,
   Video,
+  Briefcase,
 } from 'lucide-react';
 import {
   getActiveGeminiKey,
@@ -23,6 +24,7 @@ interface HeaderProps {
   onResetToHome?: () => void;
   onOpenApiSettings?: () => void;
   onOpenMediaCollector?: () => void;
+  onOpenSponsorKit?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -32,6 +34,7 @@ export const Header: React.FC<HeaderProps> = ({
   onResetToHome,
   onOpenApiSettings,
   onOpenMediaCollector,
+  onOpenSponsorKit,
 }) => {
   const [hasGemini, setHasGemini] = useState(() => Boolean(getActiveGeminiKey()));
   const [hasYt, setHasYt] = useState(() => Boolean(getActiveYoutubeKey()));
@@ -82,6 +85,17 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Mobile Right: Tools, API Keys & Quick Saved */}
           <div className="flex items-center sm:hidden space-x-1">
+            {onOpenSponsorKit && (
+              <button
+                type="button"
+                onClick={onOpenSponsorKit}
+                className="p-1.5 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 cursor-pointer"
+                title="1인 언론사 광고 단가표 · 제안서"
+              >
+                <Briefcase className="w-3.5 h-3.5" />
+              </button>
+            )}
+
             {onOpenMediaCollector && (
               <button
                 type="button"
@@ -180,6 +194,18 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </button>
             </div>
+
+            {onOpenSponsorKit && (
+              <button
+                type="button"
+                onClick={onOpenSponsorKit}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-xs font-bold text-amber-900 transition cursor-pointer"
+                title="1인 언론사 광고 단가표 & 제안서 자동 생성기"
+              >
+                <Briefcase className="w-3.5 h-3.5 text-amber-700" />
+                <span>광고 단가표</span>
+              </button>
+            )}
 
             {onOpenMediaCollector && (
               <button

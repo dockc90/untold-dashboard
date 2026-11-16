@@ -11,7 +11,21 @@ export type CategoryType =
   | 'social'
   | 'global';
 
-export type TimeFilter = '24h' | '48h' | '7d';
+export type TimeFilter = '24h' | '48h' | '7d' | '30d';
+
+export interface PositivePivotRecommendation {
+  issueContext: string;        // 논란/부정 이슈 요약
+  safeAlternativeName: string; // 트래픽을 안전하게 흡수할 긍정 대안 인물명
+  safeAlternativeAngle: string;// 추천 긍정 미담/서사 앵글
+  whySafe: string;             // 광고주/초상권 안전 이유
+}
+
+export interface ChannelBranding {
+  pinnedCategory: CategoryType; // 'all'이면 자유 모드, 특정 카테고리면 단일 카테고리 고정 브랜딩
+  channelName?: string;
+  channelConcept?: string;      // 예: "국내외 기업인·부자 미담 전문"
+  contactEmail?: string;        // 광고주 문의용 이메일
+}
 
 export interface ChannelMetrics {
   naverRank?: string;      // e.g. "네이버 검색 1위 (+340%)"
@@ -104,6 +118,7 @@ export interface TrendingFigure {
   hookLine?: string; // 첫 3초 스크롤 정지 오프닝 훅 1줄
   trendingReason?: string; // 최근 화제가 된 이유(주가 급등, 어록, 방한 등)
   relatedFigures?: string[]; // 같이 올리면 동반 떡상하는 파생 인물
+  positivePivot?: PositivePivotRecommendation; // 부정 이슈 시 긍정 대안 인물 우회 추천
   isLive?: boolean; // Google Search 실시간 수집 여부
   isUpcoming?: boolean; // 내일 예고·선점(예정 이벤트) 여부
   scheduledDate?: string; // 예정 시점 라벨 (예: "내일(11/14)", "주말 예정")
@@ -258,6 +273,8 @@ export interface SceneItem {
   videoPlaybackRate?: number; // 재생 배속 (0.5x ~ 2.0x, 기본 1.0)
   videoVolume?: number; // 원본 비디오 볼륨 (0 ~ 100, 기본 0)
   videoMuted?: boolean; // 음소거 여부 (기본 true - 내레이션 TTS 우선)
+  narrationVolume?: number; // 씬별 내레이션/오디오 볼륨 (0 ~ 150, 기본 100)
+  narrationMuted?: boolean; // 씬별 내레이션/오디오 음소거 여부 (기본 false)
   videoFit?: 'cover' | 'contain'; // 9:16 화면 채움 or 비율 유지
   videoCrop?: { xPercent: number; yPercent: number; zoom: number }; // 캡컷식 줌 및 위치 이동
   motionEffect?: MotionEffectType; // 선택된 카메라 무빙 효과

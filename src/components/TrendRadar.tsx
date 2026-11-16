@@ -20,12 +20,15 @@ import {
   Copy,
   Check,
   ExternalLink,
-  Users
+  Users,
+  ShieldAlert,
+  Target
 } from 'lucide-react';
-import { TrendingFigure, CategoryType, TimeFilter, SourceChannel, YoutubeBreakoutMetric } from '../types';
+import { TrendingFigure, CategoryType, TimeFilter, SourceChannel, YoutubeBreakoutMetric, ChannelBranding, PositivePivotRecommendation } from '../types';
 import {
   formatKoreanViewCount,
   measureYoutubeBreakoutForFigures,
+  findPositivePivotForIssue,
   SinsooApiError,
 } from '../services/sinsooApi';
 import { 
@@ -47,6 +50,8 @@ interface TrendRadarProps {
   onApplyYoutubeBreakouts?: (metricsById: Map<string, YoutubeBreakoutMetric>) => void;
   onOpenApiSettings?: () => void;
   onOpenNewsletter?: () => void;
+  channelBranding?: ChannelBranding;
+  onUpdateChannelBranding?: (next: ChannelBranding) => void;
   isLoading: boolean;
   isLiveData?: boolean;
   lastLiveSyncedAt?: string | null;
@@ -224,13 +229,16 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
   onApplyYoutubeBreakouts,
   onOpenApiSettings,
   onOpenNewsletter,
+  channelBranding,
+  onUpdateChannelBranding,
   isLoading,
   isLiveData = false,
   lastLiveSyncedAt = null,
 }) => {
+  const pinnedCat = channelBranding?.pinnedCategory || 'all';
   const [sourceChannel, setSourceChannel] = useState<SourceChannel>('all');
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('24h');
-  const [categoryFilter, setCategoryFilter] = useState<CategoryType>('all');
+  const [categoryFilter, setCategoryFilter] = useState<CategoryType>(pinnedCat !== 'all' ? pinnedCat : 'all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
   const [customName, setCustomName] = useState('');
@@ -243,7 +251,24 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
   const [shortsOnlyYt, setShortsOnlyYt] = useState(true);
   const [isMeasuringYt, setIsMeasuringYt] = useState(false);
   const [copiedTagKey, setCopiedTagKey] = useState<string | null>(null);
+  const [pivotMap, setPivotMap] = useState<Record<string, PositivePivotRecommendation>>({});
+  const [loadingPivotId, setLoadingPivotId] = useState<string | null>(null);
   const fetchedSlicesRef = useRef<Map<string, number>>(new Map());
+
+  const handleFetchPositivePivot = async (fig: TrendingFigure) => {
+    if (loadingPivotId) return;
+    setLoadingPivotId(fig.id);
+    try {
+      const rec = await findPositivePivotForIssue({
+        figureName: fig.name,
+        issueSummary: `${fig.title} ${fig.controversyOrIssue || fig.buzzSummary}`,
+        category: fig.category,
+      });
+      setPivotMap((prev) => ({ ...prev, [fig.id]: rec }));
+    } finally {
+      setLoadingPivotId(null);
+    }
+  };
 
   const ensureSliceFresh = (nextTf: TimeFilter, nextCat: CategoryType, nextChan: SourceChannel) => {
     if (isLoading) return;
@@ -259,7 +284,7 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
           : nextCat === 'upcoming'
           ? Boolean(fig.isUpcoming || fig.category === 'upcoming')
           : fig.category === nextCat;
-      const tfOk = nextTf === '7d' ? true : nextTf === '48h' ? fig.timeframe === '24h' || fig.timeframe === '48h' : fig.timeframe === '24h';
+      const tfOk = nextTf === '7d' || nextTf === '30d' ? true : nextTf === '48h' ? fig.timeframe === '24h' || fig.timeframe === '48h' : fig.timeframe === '24h';
       return catOk && tfOk;
     });
 
@@ -302,7 +327,7 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
     })();
 
     const matchesTime = (() => {
-      if (timeFilter === '7d') return true;
+      if (timeFilter === '7d' || timeFilter === '30d') return true;
       if (timeFilter === '48h') return fig.timeframe === '24h' || fig.timeframe === '48h' || !fig.timeframe;
       return fig.timeframe === '24h' || !fig.timeframe || fig.isHot;
     })();
@@ -473,9 +498,9 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
           </button>
         </div>
 
-        {/* 2. Time Tabs (Notion Clean Pill) */}
-        <div className="grid grid-cols-3 gap-1 bg-[#F1F1EF] p-1 rounded-xl border border-[#E3E2DE] text-[11px] sm:text-xs">
-          {(['24h', '48h', '7d'] as TimeFilter[]).map((tf) => (
+        {/* 2. Time Tabs (Notion Clean Pill - includes 30d Monthly Steadyseller) */}
+        <div className="grid grid-cols-4 gap-1 bg-[#F1F1EF] p-1 rounded-xl border border-[#E3E2DE] text-[11px] sm:text-xs">
+          {(['24h', '48h', '7d', '30d'] as TimeFilter[]).map((tf) => (
             <button
               key={tf}
               onClick={() => {
@@ -491,9 +516,72 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
               {tf === '24h' && '24시간'}
               {tf === '48h' && '48시간'}
               {tf === '7d' && '7일'}
+              {tf === '30d' && '30일(월간)'}
             </button>
           ))}
         </div>
+
+        {/* Channel Single-Category Branding Bar */}
+        {onUpdateChannelBranding && (
+          <div className="p-2.5 rounded-xl bg-gradient-to-r from-indigo-50/80 via-white to-amber-50/70 border border-indigo-200/80 space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 text-[11px] font-extrabold text-indigo-950">
+                <Target className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                <span>내 채널 단일 카테고리 고정 (채널 색깔 브랜딩)</span>
+              </div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <select
+                  value={pinnedCat}
+                  onChange={(e) => {
+                    const nextCat = e.target.value as CategoryType;
+                    onUpdateChannelBranding({
+                      ...(channelBranding || { pinnedCategory: 'all' }),
+                      pinnedCategory: nextCat,
+                    });
+                    setCategoryFilter(nextCat);
+                    ensureSliceFresh(timeFilter, nextCat, sourceChannel);
+                  }}
+                  className="bg-white border border-indigo-200 rounded-lg px-2 py-1 text-[11px] font-bold text-[#191919] focus:outline-none focus:border-indigo-500 cursor-pointer"
+                >
+                  <option value="all">자유 탐색 (고정 해제)</option>
+                  <option value="economy">💼 경제·기업인 전문 고정</option>
+                  <option value="sports">⚽ 스포츠 스타 전문 고정</option>
+                  <option value="entertainment">🎤 연예·가수 전문 고정</option>
+                  <option value="actor">🎬 배우·드라마 전문 고정</option>
+                  <option value="global">🌍 글로벌 셀럽 전문 고정</option>
+                  <option value="viral">🔥 바이럴·밈 전문 고정</option>
+                  <option value="social">📰 사회·공공 미담 고정</option>
+                </select>
+                <input
+                  type="text"
+                  value={channelBranding?.channelConcept || ''}
+                  onChange={(e) =>
+                    onUpdateChannelBranding({
+                      ...(channelBranding || { pinnedCategory: pinnedCat }),
+                      channelConcept: e.target.value,
+                    })
+                  }
+                  placeholder="채널 한 줄 컨셉 (예: 기업인 미담 전문)"
+                  className="bg-white border border-[#E3E2DE] rounded-lg px-2.5 py-1 text-[11px] text-[#37352F] placeholder-[#9B9A97] w-48 sm:w-56 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+            </div>
+            {pinnedCat !== 'all' && categoryFilter !== pinnedCat && (
+              <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-amber-50 border border-amber-300 text-[11px] text-amber-900">
+                <span className="font-semibold">
+                  ⚠️ 채널 색깔 혼재 주의: 현재 <strong>[{CATEGORIES.find((c) => c.id === pinnedCat)?.label}]</strong> 고정 모드입니다. 타 카테고리를 섞으면 알고리즘·광고 수주에 불리할 수 있어요.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCategoryFilter(pinnedCat)}
+                  className="px-2 py-0.5 rounded-md bg-amber-600 text-white font-bold text-[10px] shrink-0 cursor-pointer hover:bg-amber-700"
+                >
+                  내 카테고리로 복귀
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Search Input */}
         <div className="relative">
@@ -923,6 +1011,82 @@ export const TrendRadar: React.FC<TrendRadarProps> = ({
                             <span>{copiedTagKey === `${fig.id}-all` ? '완료' : '복사'}</span>
                           </button>
                         )}
+                      </div>
+                      {/* Positive Pivot Panel (부정 이슈 -> 긍정 인물 트래픽 우회) */}
+                      {pivotMap[fig.id] && (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="mb-2.5 p-2.5 rounded-xl bg-emerald-50/90 border border-emerald-300 text-[11px] space-y-1.5"
+                        >
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-extrabold text-emerald-900">
+                              🛡️ 긍정 우회 대안: {pivotMap[fig.id].safeAlternativeName}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPivotMap((prev) => {
+                                  const next = { ...prev };
+                                  delete next[fig.id];
+                                  return next;
+                                })
+                              }
+                              className="text-emerald-700 hover:text-emerald-950 cursor-pointer"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                          <p className="text-emerald-900 leading-snug font-medium">
+                            {pivotMap[fig.id].safeAlternativeAngle}
+                          </p>
+                          <p className="text-[10px] text-emerald-700">
+                            ✓ {pivotMap[fig.id].whySafe}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const rec = pivotMap[fig.id];
+                              onSelectFigure({
+                                ...fig,
+                                id: `${fig.id}-pivot`,
+                                name: rec.safeAlternativeName,
+                                title: rec.safeAlternativeAngle,
+                                buzzSummary: `${rec.issueContext} 이슈 트래픽을 흡수하는 긍정 대안 서사: ${rec.safeAlternativeAngle}`,
+                                controversyOrIssue: rec.safeAlternativeAngle,
+                                suggestedAngle: rec.safeAlternativeAngle,
+                                hookLine: `${rec.safeAlternativeName}, 지금 이 순간 우리가 꼭 기억해야 할 반전 미담`,
+                                positivePivot: rec,
+                              });
+                            }}
+                            className="w-full py-1.5 px-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-[11px] transition cursor-pointer"
+                          >
+                            이 긍정 인물로 쇼츠 제작하기 →
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between gap-1.5 mb-2">
+                        {pinnedCat !== 'all' && fig.category === pinnedCat ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
+                            <Target className="w-2.5 h-2.5" />
+                            내 채널 맞춤
+                          </span>
+                        ) : (
+                          <span />
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleFetchPositivePivot(fig);
+                          }}
+                          disabled={loadingPivotId === fig.id}
+                          className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded-full transition cursor-pointer disabled:opacity-60"
+                          title="논란·부정 이슈 리스크 없이 트래픽만 흡수할 긍정 대안 인물 추천받기"
+                        >
+                          <ShieldAlert className="w-2.5 h-2.5" />
+                          <span>{loadingPivotId === fig.id ? '우회 인물 분석 중...' : '논란 우회 공략'}</span>
+                        </button>
                       </div>
                     </div>
 

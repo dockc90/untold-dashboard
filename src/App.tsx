@@ -19,6 +19,7 @@ const VideoRepurposeStudio = lazy(() => import('./components/VideoRepurposeStudi
 const MediaCollectorModal = lazy(() => import('./components/MediaCollectorModal').then(m => ({ default: m.MediaCollectorModal })));
 const ApiSettingsModal = lazy(() => import('./components/ApiSettingsModal').then(m => ({ default: m.ApiSettingsModal })));
 const NewsletterModal = lazy(() => import('./components/NewsletterModal').then(m => ({ default: m.NewsletterModal })));
+const SponsorKitModal = lazy(() => import('./components/SponsorKitModal').then(m => ({ default: m.SponsorKitModal })));
 
 const StudioLoadingFallback: React.FC<{ label?: string }> = ({ label = '스튜디오 로딩 중...' }) => (
   <div className="flex-1 flex flex-col items-center justify-center p-8 min-h-[360px] text-slate-500 space-y-3 animate-fade-in">
@@ -28,7 +29,7 @@ const StudioLoadingFallback: React.FC<{ label?: string }> = ({ label = '스튜�
 );
 import { INITIAL_TRENDING_FIGURES } from './data/initialTrends';
 import { SAMPLE_PROJECT } from './data/sampleProject';
-import { TrendingFigure, ShortsProject, CategoryType, TimeFilter, TargetPersona, VideoMoodTone, ScriptFormatType, ScriptSpeechTone, SourceChannel, SceneItem, YoutubeBreakoutMetric } from './types';
+import { TrendingFigure, ShortsProject, CategoryType, TimeFilter, TargetPersona, VideoMoodTone, ScriptFormatType, ScriptSpeechTone, SourceChannel, SceneItem, YoutubeBreakoutMetric, ChannelBranding } from './types';
 import { AlertCircle, X, ArrowLeft, Flame, Sparkles } from 'lucide-react';
 import { 
   fetchProjectsFromSupabase, 
@@ -152,6 +153,20 @@ export default function App() {
   const [studioMode, setStudioMode] = useState<'trends_new' | 'repurpose'>('trends_new');
   const [isApiSettingsOpen, setIsApiSettingsOpen] = useState(false);
   const [isNewsletterOpen, setIsNewsletterOpen] = useState(false);
+  const [isSponsorKitOpen, setIsSponsorKitOpen] = useState(false);
+  const [channelBranding, setChannelBranding] = useState<ChannelBranding>(() => {
+    try {
+      const raw = localStorage.getItem('untold_channel_branding_v1');
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return { pinnedCategory: 'all', channelConcept: '' };
+  });
+  const handleUpdateChannelBranding = (next: ChannelBranding) => {
+    setChannelBranding(next);
+    try {
+      localStorage.setItem('untold_channel_branding_v1', JSON.stringify(next));
+    } catch {}
+  };
   const [isMediaCollectorOpen, setIsMediaCollectorOpen] = useState(false);
   const [mediaCollectorQuery, setMediaCollectorQuery] = useState('');
   const [incomingRepurposeFile, setIncomingRepurposeFile] = useState<File | null>(null);
@@ -808,6 +823,8 @@ export default function App() {
             speechTone,
             customKeyword,
             refreshCounter: nextCount,
+            pinnedCategory: channelBranding.pinnedCategory,
+            channelConcept: channelBranding.channelConcept,
             geminiApiKey: loadSinsooSettings().geminiKey || '',
           }),
         });
@@ -844,6 +861,8 @@ export default function App() {
             speechTone,
             customKeyword,
             refreshCounter: nextCount,
+            pinnedCategory: channelBranding.pinnedCategory,
+            channelConcept: channelBranding.channelConcept,
           });
           if (directResult && Array.isArray(directResult.scenes) && directResult.scenes.length > 0) {
             data = directResult;
@@ -973,6 +992,7 @@ export default function App() {
         savedCount={savedProjects.length}
         onResetToHome={handleResetToHome}
         onOpenApiSettings={() => setIsApiSettingsOpen(true)}
+        onOpenSponsorKit={() => setIsSponsorKitOpen(true)}
         onOpenMediaCollector={() => {
           setMediaCollectorQuery(selectedFigure?.name || '');
           setIsMediaCollectorOpen(true);
@@ -1271,6 +1291,8 @@ export default function App() {
                     onApplyYoutubeBreakouts={handleApplyYoutubeBreakouts}
                     onOpenApiSettings={() => setIsApiSettingsOpen(true)}
                     onOpenNewsletter={() => setIsNewsletterOpen(true)}
+                    channelBranding={channelBranding}
+                    onUpdateChannelBranding={handleUpdateChannelBranding}
                     isLoading={isLoadingTrends}
                     isLiveData={isLiveTrendsLoaded}
                     lastLiveSyncedAt={lastLiveSyncedAt}
@@ -1571,6 +1593,16 @@ export default function App() {
               setStudioStep('trends');
               setStudioMode('repurpose');
             }}
+          />
+        </Suspense>
+      )}
+
+      {isSponsorKitOpen && (
+        <Suspense fallback={null}>
+          <SponsorKitModal
+            isOpen={isSponsorKitOpen}
+            onClose={() => setIsSponsorKitOpen(false)}
+            channelBranding={channelBranding}
           />
         </Suspense>
       )}

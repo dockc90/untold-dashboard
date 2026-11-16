@@ -1136,6 +1136,53 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
             </button>
           </div>
         </div>
+
+        {/* ROW 5: 1인 3각도 연작 변주 (임영웅 3버전 공식: 무명·신선함 / 소박한 반전 / 감동 서사) */}
+        <div className="p-2.5 sm:p-3 rounded-2xl bg-white border border-indigo-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs shadow-2xs w-full max-w-full min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 font-extrabold text-[11px] shrink-0">
+              🎭 1인 3각도 연작
+            </span>
+            <span className="text-[11px] text-slate-600 font-medium truncate">
+              터진 인물 1명으로 각도를 바꿔 3편 연달아 제작하세요:
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              disabled={isGenerating || !selectedFigure}
+              onClick={() => {
+                setActiveStoryAngle('variant_origin');
+                onGenerateScript(targetPersona, duration, videoTone, 'variant_origin', customKeyword, 'life_timeline', speechTone);
+              }}
+              className="px-2.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-600 text-emerald-800 hover:text-white border border-emerald-200 font-bold text-[11px] transition cursor-pointer disabled:opacity-50"
+            >
+              🌱 ① 무명·초창기 신선함
+            </button>
+            <button
+              type="button"
+              disabled={isGenerating || !selectedFigure}
+              onClick={() => {
+                setActiveStoryAngle('variant_humble');
+                onGenerateScript(targetPersona, duration, videoTone, 'variant_humble', customKeyword, 'humble_twist', speechTone);
+              }}
+              className="px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-600 text-amber-800 hover:text-white border border-amber-200 font-bold text-[11px] transition cursor-pointer disabled:opacity-50"
+            >
+              🍢 ② 소박한 반전 매력
+            </button>
+            <button
+              type="button"
+              disabled={isGenerating || !selectedFigure}
+              onClick={() => {
+                setActiveStoryAngle('variant_touching');
+                onGenerateScript(targetPersona, duration, videoTone, 'variant_touching', customKeyword, 'overcoming_story', speechTone);
+              }}
+              className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-600 text-rose-800 hover:text-white border border-rose-200 font-bold text-[11px] transition cursor-pointer disabled:opacity-50"
+            >
+              💧 ③ 눈물·감동 서사
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Tabs Row & Live Narration Stats (Responsive & Horizontally Scrollable on Mobile) */}
@@ -1619,6 +1666,34 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                   <p className="text-[11px] text-slate-700 font-medium leading-snug">
                     <span className="font-bold text-emerald-800">긍정 서사(홍보팀 기준):</span> {safety.positivePrFit}
                   </p>
+                  {(() => {
+                    const firstLine = (editableScenes[0]?.narration || '').trim();
+                    const lastLine = (editableScenes[editableScenes.length - 1]?.narration || '').trim();
+                    const combinedText = editableScenes.map((s) => s.narration || '').join(' ');
+                    const hasHookSignal = /\d|\?/.test(firstLine);
+                    const hasFigureName = selectedFigure?.name
+                      ? combinedText.includes(selectedFigure.name.split('(')[0].trim())
+                      : true;
+                    const hasCommentInvite = /\?|댓글|여러분|어떻게|생각|응원|기억/.test(lastLine);
+                    const hasEnoughScenes = editableScenes.length >= 6;
+                    return (
+                      <div className="pt-2 mt-1 border-t border-amber-200/70 flex flex-wrap items-center gap-1.5 text-[10px]">
+                        <span className="font-extrabold text-indigo-900 mr-1">✨ 휴먼 터치 3초 점검:</span>
+                        <span className={`px-2 py-0.5 rounded-full border font-bold ${hasHookSignal ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-white text-slate-600 border-slate-200'}`}>
+                          {hasHookSignal ? '✓' : '○'} 0~3초 숫자/질문 후킹
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-full border font-bold ${hasFigureName ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-white text-slate-600 border-slate-200'}`}>
+                          {hasFigureName ? '✓' : '○'} 인물 고유 실명·디테일
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-full border font-bold ${hasCommentInvite ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-white text-slate-600 border-slate-200'}`}>
+                          {hasCommentInvite ? '✓' : '○'} 댓글·여운 엔딩
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-full border font-bold ${hasEnoughScenes ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-white text-slate-600 border-slate-200'}`}>
+                          {hasEnoughScenes ? '✓' : '○'} 사진 {editableScenes.length}장 교차 편집
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })()}

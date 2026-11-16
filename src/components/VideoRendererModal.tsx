@@ -893,6 +893,8 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
   // Video Mood Tone State
   const [videoTone, setVideoTone] = useState<VideoMoodTone>(project.videoTone || 'Cinematic');
+  // YouTube Native BGM Mode (No external BGM baked into render -> zero copyright/revenue-split risk)
+  const [youtubeNativeBgmMode, setYoutubeNativeBgmMode] = useState<boolean>(true);
 
   const isFirstMountRef = useRef(true);
   useEffect(() => {
@@ -3931,8 +3933,12 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
             filter.gain.value = 3.5;
           }
 
+          const sc = scenes[i];
+          const sceneVolRatio = sc?.narrationMuted
+            ? 0
+            : Math.max(0, Math.min(1.5, (sc?.narrationVolume ?? 100) / 100));
           const voiceGain = audioCtx.createGain();
-          voiceGain.gain.setValueAtTime(0.95, audioCtx.currentTime);
+          voiceGain.gain.setValueAtTime(0.95 * sceneVolRatio, audioCtx.currentTime);
 
           src.connect(filter);
           filter.connect(voiceGain);
@@ -6484,6 +6490,124 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                       {geminiBatchStatus}
                     </div>
                   )}
+                </div>
+
+                {/* 5. 유튜브 기본 음원 모드 (BGM 저작권 0% 방어) */}
+                <div className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <div className="text-xs font-black text-emerald-950 flex items-center gap-1.5">
+                        <span>🎵 유튜브 기본 음원 모드 (BGM 무음 · 성우 보이스 전용)</span>
+                      </div>
+                      <p className="text-[10px] text-emerald-800 mt-0.5 leading-snug">
+                        편집 단계에서 외부 BGM을 넣지 않고 성우 보이스만 추출한 뒤, 유튜브 쇼츠 업로드 시 기본 음원 라이브러리를 선택하면 저작권 수익 차감 없이 100% 안전합니다.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setYoutubeNativeBgmMode((prev) => !prev)}
+                      disabled={isRendering}
+                      className={`px-3 py-1.5 rounded-full text-xs font-black transition border shrink-0 cursor-pointer ${
+                        youtubeNativeBgmMode
+                          ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                          : 'bg-white text-slate-500 border-slate-300'
+                      }`}
+                    >
+                      {youtubeNativeBgmMode ? 'ON (저작권 안전)' : 'OFF'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* 6. 씬별 음소거 & 볼륨 조절 (0% ~ 150%) */}
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <span className="text-xs font-black text-slate-900 block">
+                        🎚️ 씬별 음소거 & 볼륨 조절
+                      </span>
+                      <span className="text-[10px] text-slate-500">
+                        장면마다 내레이션 음소거 또는 볼륨(0%~150%)을 개별 조절합니다.
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={isRendering}
+                      onClick={() => {
+                        if (!onUpdateProject) return;
+                        onUpdateProject({
+                          ...project,
+                          scenes: scenes.map((sc) => ({
+                            ...sc,
+                            narrationMuted: false,
+                            narrationVolume: 100,
+                          })),
+                        });
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 text-[10px] font-bold text-slate-700 cursor-pointer shrink-0"
+                    >
+                      전체 100% 초기화
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
+                    {scenes.map((sc, idx) => {
+                      const isMuted = Boolean(sc.narrationMuted);
+                      const vol = sc.narrationVolume ?? 100;
+                      return (
+                        <div
+                          key={`vol-sc-${sc.sceneNumber}-${idx}`}
+                          className={`p-2 rounded-xl border text-[11px] flex items-center gap-2 transition ${
+                            isMuted ? 'bg-rose-50/60 border-rose-200' : 'bg-white border-slate-200'
+                          }`}
+                        >
+                          <span className="font-extrabold text-slate-700 shrink-0 w-9">
+                            {idx + 1}씬
+                          </span>
+                          <button
+                            type="button"
+                            disabled={isRendering}
+                            onClick={() => {
+                              if (!onUpdateProject) return;
+                              const nextScenes = scenes.map((item, sIdx) =>
+                                sIdx === idx ? { ...item, narrationMuted: !isMuted } : item
+                              );
+                              onUpdateProject({ ...project, scenes: nextScenes });
+                            }}
+                            className={`px-2 py-1 rounded-lg border text-[10px] font-black shrink-0 cursor-pointer transition ${
+                              isMuted
+                                ? 'bg-rose-600 text-white border-rose-700'
+                                : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                            }`}
+                            title={isMuted ? '음소거 해제' : '이 씬 음소거'}
+                          >
+                            {isMuted ? '🔇 음소거' : '🔊 켜짐'}
+                          </button>
+                          <input
+                            type="range"
+                            min={0}
+                            max={150}
+                            step={5}
+                            disabled={isRendering || isMuted}
+                            value={isMuted ? 0 : vol}
+                            onChange={(e) => {
+                              if (!onUpdateProject) return;
+                              const nextVol = Number(e.target.value);
+                              const nextScenes = scenes.map((item, sIdx) =>
+                                sIdx === idx
+                                  ? { ...item, narrationVolume: nextVol, narrationMuted: nextVol === 0 }
+                                  : item
+                              );
+                              onUpdateProject({ ...project, scenes: nextScenes });
+                            }}
+                            className="flex-1 min-w-0 accent-indigo-600 cursor-pointer disabled:opacity-40"
+                          />
+                          <span className="text-[10px] font-bold text-slate-600 w-9 text-right shrink-0">
+                            {isMuted ? '0%' : `${vol}%`}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}

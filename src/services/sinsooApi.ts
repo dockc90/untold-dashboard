@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Client-side AI & Media Services ported cleanly from ssamtool/sinsoo architecture.
 // All API requests run directly from the user's browser using user-supplied keys stored in localStorage.
-import type { CategoryType, SourceChannel, TimeFilter, TrendingFigure, YoutubeBreakoutMetric } from '../types';
+import type { CategoryType, PositivePivotRecommendation, SourceChannel, TimeFilter, TrendingFigure, YoutubeBreakoutMetric } from '../types';
 import { applyToneToShortsPayload, getSpeechTonePromptDirective } from '../utils/speechTone';
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com';
@@ -1998,7 +1998,7 @@ export async function measureYoutubeBreakoutForFigure(
     }
   }
 
-  const daysBack = timeframe === '24h' ? 3 : timeframe === '48h' ? 5 : 10;
+  const daysBack = timeframe === '24h' ? 3 : timeframe === '48h' ? 5 : timeframe === '30d' ? 30 : 10;
   const publishedAfter = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000).toISOString();
 
   const searchRes = await yFetch('/search', {
@@ -2308,7 +2308,13 @@ export async function fetchLiveTrendingFigures(opt: {
   const todayKst = getKstDateString();
   const tomorrowKst = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
   const timeframeLabel =
-    opt.timeframe === '24h' ? '최근 24시간' : opt.timeframe === '48h' ? '최근 48시간' : '최근 7일간';
+    opt.timeframe === '24h'
+      ? '최근 24시간'
+      : opt.timeframe === '48h'
+      ? '최근 48시간'
+      : opt.timeframe === '30d'
+      ? '최근 30일(월간 꾸준히 터진 스테디셀러·역주행 인기 인물 중심)'
+      : '최근 7일간';
   const channelLabel =
     opt.channel === 'youtube'
       ? '유튜브 쇼츠·인기 급상승 동영상'
@@ -2525,6 +2531,8 @@ export async function generateShortsScriptDirect(opt: {
   speechTone: string;
   customKeyword?: string;
   refreshCounter?: number;
+  pinnedCategory?: string;
+  channelConcept?: string;
 }) {
   if (!getActiveGeminiKey()) {
     throw new SinsooApiError('gemini', 401, 'Gemini API 키가 설정되지 않았습니다.');
@@ -2557,6 +2565,10 @@ export async function generateShortsScriptDirect(opt: {
 3. 오직 대상 인물("${opt.figureName}")의 실제 이력과 팩트만 사용하세요. (타인 사례 숫자 복제 금지)
 4. ${opt.targetDuration}초 대본을 5단계 구조(1단계 0~3초 후킹 -> 2단계 3~15초 배경 -> 3단계 15~40초 위기/반전 -> 4단계 40~55초 결단/성취 -> 5단계 55~60초 여운 엔딩)로 총 ${totalScenes}개 씬, 공백 제외 ${targetCharMin}~${targetCharMax}자에 맞춰 작성하세요.
 
+[★ 인물 고유 디테일 필수 주입 규칙 (두루뭉실한 범용 대본 절대 금지)]
+- 대본만 읽어도 누구 이야기인지 바로 알 수 있도록, "${opt.figureName}"의 실제 대표작·소속 기업/구단·실제 사건명·유명 어록·구체적 연도/숫자·지명을 최소 4개 이상의 씬에 직접 명시하세요.
+- "한 평 남짓한 작은 사무실", "백 번 넘게 거절", "수조 원대 기업", "단 하나의 상품" 같은 뻔한 범용 상투어·복붙 문장은 절대 금지합니다.
+${opt.pinnedCategory && opt.pinnedCategory !== 'all' ? `- [★ 내 채널 고정 브랜딩]: [${opt.pinnedCategory}]${opt.channelConcept ? ` (${opt.channelConcept})` : ''} 단일 카테고리 전문 채널 톤을 일관되게 유지하세요.\n` : ''}
 [선택 옵션 (100% 준수)]
 - 기획 포맷: ${chosenFormatText}
 - 대본 말투: ${chosenSpeechText}
@@ -2652,4 +2664,76 @@ export async function generateShortsScriptDirect(opt: {
       isPrSafe: parsed.safetyCheck?.isPrSafe !== false,
     },
   };
+}
+
+export async function findPositivePivotForIssue(opt: {
+  figureName: string;
+  issueSummary: string;
+  category?: CategoryType;
+}): Promise<PositivePivotRecommendation> {
+  const issueText = `${opt.figureName} ${opt.issueSummary}`.toLowerCase();
+
+  const buildHeuristicPivot = (): PositivePivotRecommendation => {
+    if (/친일|광복|역사|독립/.test(issueText)) {
+      return {
+        issueContext: opt.issueSummary || `${opt.figureName} 관련 역사·논란 이슈`,
+        safeAlternativeName: '빽가 (코요태 · 독립운동가 후손)',
+        safeAlternativeAngle: '논란 인물 대신, 독립운동가 후손으로서 묵묵히 선행을 이어온 빽가의 미담으로 시의성 트래픽 흡수',
+        whySafe: '비난·명예훼손 리스크 0% / 역사적 자긍심과 긍정 댓글·광고주 호감도 극대화',
+      };
+    }
+    if (/불륜|사생활|폭로|갑질|논란|범죄|탈세|주가조작/.test(issueText)) {
+      return {
+        issueContext: opt.issueSummary || `${opt.figureName} 관련 부정 이슈`,
+        safeAlternativeName: opt.category === 'economy' ? '이재현 CJ그룹 회장' : '차승원',
+        safeAlternativeAngle:
+          opt.category === 'economy'
+            ? '적자에도 17년간 햇반 저단백밥을 만들어 온 기업인의 진정성 있는 상생 미담'
+            : '22년간 가족을 끝까지 지켜낸 책임감과 따뜻한 부성애 미담 스토리',
+        whySafe: '부정 가십·초상권 고소 위험을 피하고 대기업 브랜디드 광고주가 선호하는 100% 긍정 서사',
+      };
+    }
+    return {
+      issueContext: opt.issueSummary || `${opt.figureName} 관련 화제 이슈`,
+      safeAlternativeName: opt.category === 'sports' ? '안세영' : opt.category === 'economy' ? '이재용 삼성전자 회장' : '임영웅',
+      safeAlternativeAngle: `${opt.figureName} 이슈로 모인 시청자 관심사를 부상·역경 극복 및 소박한 인간미 미담으로 안전하게 전환`,
+      whySafe: '홍보팀 기준 100% 준수(미담·인간미·결단)로 채널 정지 및 고소 리스크 원천 차단',
+    };
+  };
+
+  if (!getActiveGeminiKey()) {
+    return buildHeuristicPivot();
+  }
+
+  try {
+    const prompt = `당신은 유튜브 100만 쇼츠 채널의 '초상권·광고주 안전 전략가'입니다.
+현재 이슈: "${opt.figureName}" — "${opt.issueSummary}"
+
+[원칙]
+- 부정적 이슈나 논란 인물을 직접 비난하면 조회수는 나와도 광고주가 기피하고 고소·채널 삭제 위험이 있습니다.
+- 대신 같은 시점의 대중 관심/트래픽을 흡수하면서도 100% 긍정적인 미담·인간미·업적만 다룰 수 있는 **안전한 대안 인물 1명과 기획 앵글**을 추천하세요.
+  (예: 광복절 무렵 친일 논란 시 -> 독립운동가 후손 가수 빽가 / 기업 논란 시 -> 상생·기부 미담 기업인)
+
+반드시 아래 JSON 객체만 출력하세요:
+{
+  "issueContext": "현재 이슈 요약 (1줄)",
+  "safeAlternativeName": "대안 긍정 인물명",
+  "safeAlternativeAngle": "이 인물로 트래픽을 흡수하는 구체적 긍정 쇼츠 기획 앵글 (1~2줄)",
+  "whySafe": "광고주·초상권 안전 이유 (1줄)"
+}`;
+    const res = await genGeminiText({
+      text: prompt,
+      json: true,
+      attemptTimeoutMs: 9000,
+      timeoutMs: 12000,
+    });
+    const parsed = parseGeminiJson<PositivePivotRecommendation>(res.text);
+    if (parsed?.safeAlternativeName && parsed?.safeAlternativeAngle) {
+      return parsed;
+    }
+  } catch {
+    // fallback silently
+  }
+
+  return buildHeuristicPivot();
 }

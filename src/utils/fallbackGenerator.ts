@@ -57,7 +57,15 @@ export function generateClientFallbackScript(
       : scriptFormat === 'life_timeline'
       ? 'success'
       : 'adversity';
-  const effectiveAngle = storyAngle === 'random' ? mappedAngle : storyAngle;
+  const normalizedAngle =
+    storyAngle === 'variant_humble'
+      ? 'humble_twist'
+      : storyAngle === 'variant_origin'
+      ? 'success'
+      : storyAngle === 'variant_touching'
+      ? 'adversity'
+      : storyAngle;
+  const effectiveAngle = normalizedAngle === 'random' ? mappedAngle : normalizedAngle;
 
   if (effectiveAngle === 'adversity') {
     // 💧 감동 역전 실화
@@ -87,29 +95,34 @@ export function generateClientFallbackScript(
         { sceneNumber: 12, timeRange: '00:55 - 01:00', narration: '오늘 지독한 시련 앞에 서 있는 당신에게, 젠슨 황의 실화가 새로운 용기가 되길 바랍니다.', visualGuide: '신뢰감 있는 따뜻한 엔딩 컷과 구독 유도', imageSearchKeyword: '젠슨황 온화한 미소 클로즈업', visualEffect: '엔딩 페이드 아웃', bgmSuggestion: '희망찬 피아노 피날레' }
       ];
     } else {
+      const focusTopic = kw || ctxTitle || `${figureName}의 결정적 전환점`;
+      const buzzDetail = ctxBuzz || `${figureName} 님이 최근 대중의 뜨거운 주목을 받게 된 결정적 계기`;
+      const issueDetail = ctxIssue || `${figureName} 님이 끝까지 포기하지 않고 지켜낸 본업의 원칙과 진정성`;
+      const angleDetail = ctxAngle || `타협 없는 선택으로 결국 대중과 업계의 신뢰를 얻어낸 ${figureName}의 행보`;
+
       fallbackHooks = [
-        { type: 'question', label: '사건형 후킹', text: kw ? `'${kw}' 뒤에 숨겨진 ${figureName}의 위기 극복 실화.` : `직원 급여조차 주기 막막했던 밤, ${figureName} 님이 선택한 한 수.` },
-        { type: 'provocative', label: '반전형 후킹', text: `모두가 불가능하다던 시장에서 끝내 1등이 된 이유.` },
-        { type: 'emotional', label: '질문형 후킹', text: `단 한 사람의 진심이 어떻게 거대한 기업을 살렸을까?` }
+        { type: 'question', label: '사건형 후킹', text: ctxHook || `${figureName}, '${focusTopic}' 하나로 판을 뒤집은 진짜 이유.` },
+        { type: 'provocative', label: '반전형 후킹', text: `모두가 고개를 저었던 '${focusTopic}', ${figureName}은 왜 끝까지 밀어붙였을까?` },
+        { type: 'emotional', label: '질문형 후킹', text: `${figureName}의 진심이 결국 사람들의 마음을 움직인 결정적 순간.` }
       ];
       fallbackTitles = [
-        `통장 잔고 위기에서 업계 1등이 된 ${figureName}의 반전 실화 #shorts`,
-        `모두가 안 된다고 할 때 ${figureName} 님이 보여준 통 큰 결단 #감동실화`,
-        `작은 진심 하나로 세상을 바꾼 ${figureName}의 인생 역전 #기업인스토리`
+        `${figureName}이 '${focusTopic}'으로 모두를 놀라게 한 진짜 이유 #shorts`,
+        `화려함 뒤에 숨겨진 ${figureName}의 결정적 한 수와 반전 실화 #감동실화`,
+        `결국 실력과 진심으로 증명해낸 ${figureName}의 이야기 #인물스토리`
       ];
       fallback60Scenes = [
-        { sceneNumber: 1, timeRange: '00:00 - 00:05', narration: `화려한 정상에 서 있는 지금과 달리, ${figureName} 님의 시작은 한 평 남짓한 작은 사무실이었습니다.`, visualGuide: '초기 작은 사무실과 결연한 눈빛의 과거 아카이브 사진', imageSearchKeyword: `${figureName} 과거 초기 시절`, visualEffect: '슬로우 줌인', bgmSuggestion: '애잔한 피아노 선율' },
-        { sceneNumber: 2, timeRange: '00:05 - 00:10', narration: `"현실을 모른다, 절대 성공할 수 없다"는 차가운 거절을 백 번 넘게 들어야 했습니다.`, visualGuide: '거절당한 기획안과 늦은 밤 꺼지지 않는 사무실 불빛', imageSearchKeyword: `${figureName} 창업 초기 위기`, visualEffect: '좌측 패닝' },
-        { sceneNumber: 3, timeRange: '00:10 - 00:15', narration: kw ? `하지만 그는 포기하는 대신, '${kw}'이라는 본질 하나만 붙잡고 밤새 현장을 뛰었습니다.` : '하지만 그는 포기하는 대신, 현장의 목소리를 하나라도 더 듣기 위해 직접 발로 뛰었습니다.', visualGuide: '현장에서 메모하며 해결책을 고민하는 진지한 모습', imageSearchKeyword: `${figureName} 현장 소통`, visualEffect: '2단 스피드 줌' },
-        { sceneNumber: 4, timeRange: '00:15 - 00:20', narration: '자금이 바닥나고 적자가 눈덩이처럼 불어나며 누구나 떠나갈 때도 그의 원칙은 흔들리지 않았습니다.', visualGuide: '어두운 회의실에서 끝까지 책임을 다짐하는 실루엣', imageSearchKeyword: `${figureName} 경영 위기 극복`, visualEffect: '천천히 줌인' },
-        { sceneNumber: 5, timeRange: '00:20 - 00:25', narration: '오히려 그는 손해를 보더라도 사람과의 약속과 품질만큼은 절대 타협하지 않겠다고 선언했습니다.', visualGuide: '신뢰를 지켜낸 계약서와 진심이 담긴 악수', imageSearchKeyword: `${figureName} 경영 철학 원칙`, visualEffect: '슬로우 줌아웃' },
-        { sceneNumber: 6, timeRange: '00:25 - 00:30', narration: '당장의 수익보다 사람을 먼저 본 그 결단에, 외면하던 고객과 파트너들의 마음이 움직이기 시작했습니다.', visualGuide: '진심이 전해지며 점차 밝아지는 현장의 표정들', imageSearchKeyword: `${figureName} 진정성 미담`, visualEffect: '다이내믹 줌인' },
-        { sceneNumber: 7, timeRange: '00:30 - 00:35', narration: '단 하나의 상품, 단 한 명의 고객을 지키려던 집념이 결국 업계의 판도를 뒤집어 놓았습니다.', visualGuide: '가파르게 상승하는 신뢰 지표와 뜨거운 반응', imageSearchKeyword: `${figureName} 성공 전환점`, visualEffect: '화이트 플래시' },
-        { sceneNumber: 8, timeRange: '00:35 - 00:40', narration: '그날 이후, 불가능이라던 사람들의 비웃음은 순식간에 뜨거운 존경으로 바뀌었습니다.', visualGuide: '쏟아지는 언론 호평과 감동 기사 헤드라인', imageSearchKeyword: `${figureName} 언론 호평 기사`, visualEffect: '우측 패닝' },
-        { sceneNumber: 9, timeRange: '00:40 - 00:45', narration: '수십 번의 위기는 그를 무너뜨린 것이 아니라, 누구도 흉내 낼 수 없는 단단한 리더로 만들었습니다.', visualGuide: '정상에서 따뜻한 미소로 인사하는 당당한 모습', imageSearchKeyword: `${figureName} 리더십 강연`, visualEffect: '슬로우 줌인' },
-        { sceneNumber: 10, timeRange: '00:45 - 00:50', narration: '"사업의 가치는 숫자가 아니라, 우리가 얼마나 많은 사람의 일상을 지켰는지로 남습니다."', visualGuide: '진심 어린 철학을 전하는 인터뷰 클립', imageSearchKeyword: `${figureName} 인터뷰 명언`, visualEffect: '천천히 줌인' },
-        { sceneNumber: 11, timeRange: '00:50 - 00:55', narration: '가장 어두운 순간에도 사람과 신의를 택했던 ${figureName} 님의 통 큰 발자취.', visualGuide: '함께 웃는 임직원들과 빛나는 기업의 비전', imageSearchKeyword: `${figureName} 사회공헌 미담`, visualEffect: '와이드 줌아웃' },
-        { sceneNumber: 12, timeRange: '00:55 - 01:00', narration: '오늘 묵묵히 버텨내는 당신의 진심 역시, 머지않아 세상을 바꾸는 기적이 되길 응원합니다.', visualGuide: '따뜻한 미소와 좋아요/구독 유도 엔딩 카드', imageSearchKeyword: `${figureName} 환한 미소 프로필`, visualEffect: '엔딩 페이드 아웃', bgmSuggestion: '벅차오르는 피아노 피날레' }
+        { sceneNumber: 1, timeRange: '00:00 - 00:05', narration: ctxHook || `화려한 스포트라이트 뒤에 가려졌던 ${figureName}의 '${focusTopic}' 이야기.`, visualGuide: `${figureName}의 상징적인 장면과 강렬한 첫 3초 자막`, imageSearchKeyword: `${figureName} ${focusTopic}`, visualEffect: '슬로우 줌인', bgmSuggestion: '애잔한 피아노 선율' },
+        { sceneNumber: 2, timeRange: '00:05 - 00:10', narration: `${buzzDetail}.`, visualGuide: `${figureName} 관련 최신 보도 및 아카이브 사진`, imageSearchKeyword: `${figureName} 화제 기사 사진`, visualEffect: '좌측 패닝' },
+        { sceneNumber: 3, timeRange: '00:10 - 00:15', narration: `겉으로 드러난 결과만 보면 순탄해 보이지만, ${figureName}에게도 결코 쉽지 않았던 순간이 있었습니다.`, visualGuide: `${figureName}의 초기 활동 모습과 진지한 표정`, imageSearchKeyword: `${figureName} 과거 초기 모습`, visualEffect: '2단 스피드 줌' },
+        { sceneNumber: 4, timeRange: '00:15 - 00:20', narration: `${issueDetail}.`, visualGuide: `${figureName}의 핵심 사연과 현장 디테일`, imageSearchKeyword: `${figureName} 현장 인터뷰`, visualEffect: '천천히 줌인' },
+        { sceneNumber: 5, timeRange: '00:20 - 00:25', narration: `주변의 걱정과 계산기 앞에서도 ${figureName}은 당장의 손익보다 자신이 지켜야 할 원칙을 먼저 택했습니다.`, visualGuide: `${figureName}의 결단력이 돋보이는 클로즈업`, imageSearchKeyword: `${figureName} 소신 발언`, visualEffect: '슬로우 줌아웃' },
+        { sceneNumber: 6, timeRange: '00:25 - 00:30', narration: `오히려 위기의 순간마다 '${focusTopic}'에 더욱 집중하며 한 걸음씩 진심을 증명해 보였습니다.`, visualGuide: `묵묵히 본업에 몰입하는 ${figureName}의 모습`, imageSearchKeyword: `${figureName} 본업 열정`, visualEffect: '다이내믹 줌인' },
+        { sceneNumber: 7, timeRange: '00:30 - 00:35', narration: `${angleDetail}.`, visualGuide: `결정적 전환점이 담긴 뉴스 헤드라인과 자료`, imageSearchKeyword: `${figureName} 전환점 성과`, visualEffect: '화이트 플래시' },
+        { sceneNumber: 8, timeRange: '00:35 - 00:40', narration: `그 진정성이 뒤늦게 알려지면서, 대중과 팬들의 응원이 순식간에 쏟아지기 시작했습니다.`, visualGuide: `쏟아지는 호평 기사와 긍정 반응`, imageSearchKeyword: `${figureName} 언론 호평`, visualEffect: '우측 패닝' },
+        { sceneNumber: 9, timeRange: '00:40 - 00:45', narration: `단기적인 유행이 아니라, 오랜 시간 쌓아온 ${figureName}만의 태도가 결국 빛을 발한 것입니다.`, visualGuide: `정상에서 미소 짓는 ${figureName}`, imageSearchKeyword: `${figureName} 최근 근황`, visualEffect: '슬로우 줌인' },
+        { sceneNumber: 10, timeRange: '00:45 - 00:50', narration: `실력과 성품을 동시에 증명한 ${figureName}의 행보는 많은 이들에게 깊은 울림을 주었습니다.`, visualGuide: `진심 어린 인터뷰 클립`, imageSearchKeyword: `${figureName} 인터뷰 명언`, visualEffect: '천천히 줌인' },
+        { sceneNumber: 11, timeRange: '00:50 - 00:55', narration: `흔들리지 않는 신념으로 자신의 길을 개척해 온 ${figureName}의 발자취.`, visualGuide: `빛나는 성취와 함께하는 모습`, imageSearchKeyword: `${figureName} 대표 장면`, visualEffect: '와이드 줌아웃' },
+        { sceneNumber: 12, timeRange: '00:55 - 01:00', narration: `오늘 ${figureName}의 이야기가 여러분에게도 기분 좋은 울림과 응원이 되길 바랍니다.`, visualGuide: '따뜻한 미소와 좋아요/댓글 유도 엔딩 카드', imageSearchKeyword: `${figureName} 환한 미소 프로필`, visualEffect: '엔딩 페이드 아웃', bgmSuggestion: '벅차오르는 피아노 피날레' }
       ];
     }
   } else if (effectiveAngle === 'humble_twist') {
