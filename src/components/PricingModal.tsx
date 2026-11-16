@@ -59,11 +59,12 @@ export const PricingModal: React.FC<PricingModalProps> = ({
 
   return (
     <div
-      onClick={onClose}
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-xs p-3 sm:p-5 overflow-y-auto"
     >
       <div
-        onClick={(e) => e.stopPropagation()}
         className="bg-white border border-[#E3E2DE] rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden"
       >
         {/* Header */}

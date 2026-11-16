@@ -7975,11 +7975,12 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
             {!isRendering && isSceneVolumeMixerOpen && (
               <div
-                onClick={() => setIsSceneVolumeMixerOpen(false)}
+                onMouseDown={(e) => {
+                  if (e.target === e.currentTarget) setIsSceneVolumeMixerOpen(false);
+                }}
                 className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 backdrop-blur-xs p-3 sm:p-4"
               >
                 <div
-                  onClick={(e) => e.stopPropagation()}
                   className="w-full max-w-lg p-4 rounded-2xl bg-white border border-indigo-200 shadow-2xl space-y-3"
                 >
                   <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100">
