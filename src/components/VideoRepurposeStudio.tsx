@@ -1506,7 +1506,7 @@ JSON으로만 출력:
           {previewCandIdx != null && candidates[previewCandIdx] && (
             <div
               className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4"
-              onClick={(e) => e.target === e.currentTarget && setPreviewCandIdx(null)}
+              onMouseDown={(e) => e.target === e.currentTarget && setPreviewCandIdx(null)}
             >
               <div className="w-full max-w-2xl bg-white rounded-2xl p-4 space-y-3 shadow-2xl">
                 <div className="flex items-center justify-between">

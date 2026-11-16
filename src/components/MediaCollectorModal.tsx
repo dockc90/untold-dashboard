@@ -278,7 +278,7 @@ export const MediaCollectorModal: React.FC<MediaCollectorModalProps> = ({
   return (
     <div
       className="fixed inset-0 z-50 bg-black/45 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="w-full max-w-4xl bg-[#FBFBFA] text-[#37352F] rounded-2xl border border-[#E3E2DE] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}

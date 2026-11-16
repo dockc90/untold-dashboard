@@ -8113,7 +8113,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     return (
       <div 
         className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-slate-900/80 backdrop-blur-md animate-fade-in"
-        onClick={(e) => {
+        onMouseDown={(e) => {
           if (e.target === e.currentTarget) handleCloseSnsShareModal();
         }}
       >
@@ -8321,7 +8321,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   return (
     <div
       className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-fadeIn"
-      onClick={(e) => {
+      onMouseDown={(e) => {
         if (e.target === e.currentTarget && !isRendering) {
           onClose();
         }
