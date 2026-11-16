@@ -1241,6 +1241,33 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
           </div>
         ) : (
           <>
+            {(currentProject.copyrightDefenseNote?.includes('[가이드]') ||
+              editableScript.includes('[📖 대본 생성 가이드')) && (
+              <div className="mb-4 p-3.5 sm:p-4 rounded-2xl bg-indigo-50/90 border border-indigo-200 shadow-2xs space-y-2.5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="space-y-1">
+                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-indigo-600 text-white text-[10px] font-black">
+                      <span>📖 대본 생성 가이드</span>
+                    </div>
+                    <h4 className="text-xs sm:text-sm font-extrabold text-indigo-950">
+                      아직 AI 대본이 생성되기 전의 가이드 화면입니다
+                    </h4>
+                    <p className="text-[11px] text-indigo-900/90 leading-relaxed">
+                      ① 위에서 <strong>기획 포맷</strong>과 <strong>대본 말투</strong>를 고른 뒤 → ② (선택) <strong>강조 키워드</strong> 또는 <strong>1인 3각도</strong>를 누르거나 → ③ 아래 버튼을 누르면 <strong>{selectedFigure?.name || currentProject.figureName}</strong>만의 실제 팩트 대본이 생성됩니다.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={isGenerating || !selectedFigure}
+                    onClick={() => onGenerateScript(targetPersona, duration, videoTone, activeStoryAngle, customKeyword, scriptFormat, speechTone)}
+                    className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-sm transition cursor-pointer shrink-0 flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>지금 맞춤 대본 생성하기</span>
+                  </button>
+                </div>
+              </div>
+            )}
             {/* VIEW 1: SCENES STORYBOARD, PHOTO UPLOADER & MOTION CONTROLS */}
             {activeTab === 'scenes' && (
               <div className="space-y-4">
