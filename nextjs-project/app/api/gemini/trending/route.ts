@@ -482,7 +482,7 @@ ${signalsSection}
     isLive: true,
   });
 
-  const candidateModels = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.5-flash'];
+  const candidateModels = ['gemini-4-neon', 'gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.5-flash'];
   for (const mod of candidateModels) {
     try {
       const response = await runtimeAi.models.generateContent({

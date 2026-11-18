@@ -192,7 +192,7 @@ export async function POST(request: Request) {
 반드시 100% 공인된 실제 사실(Fact)을 기반으로 바이럴 카드뉴스, 썸네일, 카피라이팅 패키지를 작성하세요.
 반드시 JSON 형식으로 응답하세요.`;
 
-  const candidateModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash'];
+  const candidateModels = ['gemini-4-neon', 'gemini-flash-latest', 'gemini-3.5-flash-lite', 'gemini-3.5-flash'];
   for (const mod of candidateModels) {
     try {
       const response = await ai.models.generateContent({

@@ -56,8 +56,9 @@ export const DEFAULT_SINSOO_SETTINGS: SinsooSettings = {
   ttsProvider: 'gemini',
   elevenLabsModel: 'eleven_v4',
   elevenLabsVoiceId: 'JBFqnCBsd6RMkjVDRZzb',
-  model: 'gemini-flash-latest',
+  model: 'gemini-4-neon',
   models: [
+    'gemini-4-neon',
     'gemini-flash-latest',
     'gemini-flash-lite-latest',
     'gemini-3.8-flash',
@@ -105,6 +106,7 @@ export const DEFAULT_SINSOO_SETTINGS: SinsooSettings = {
 
 export const GEMINI_FALLBACK_CATALOG = {
   text: [
+    'gemini-4-neon',
     'gemini-flash-latest',
     'gemini-flash-lite-latest',
     'gemini-3.8-flash',
@@ -117,6 +119,7 @@ export const GEMINI_FALLBACK_CATALOG = {
     'gemini-2.5-flash',
   ],
   textLite: [
+    'gemini-4-neon',
     'gemini-flash-lite-latest',
     'gemini-3.1-flash-lite',
     'gemini-flash-latest',
@@ -637,6 +640,7 @@ export async function listGeminiModels(apiKey?: string) {
 
   // Rank live/newest models before deprecated 2.5 series
   const priorityScore = (name: string) => {
+    if (name === 'gemini-4-neon') return -1;
     if (name === 'gemini-flash-latest') return 0;
     if (name === 'gemini-flash-lite-latest') return 1;
     if (name === 'gemini-3.8-flash') return 2;

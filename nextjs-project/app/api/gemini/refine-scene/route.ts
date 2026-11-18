@@ -36,7 +36,7 @@ export async function POST(request: Request) {
 수정 요청: "${instruction || '더 자극적이고 극적인 표현으로 다듬어줘'}"
 결과를 오직 JSON { "narration": "수정된 문장", "imageSearchKeyword": "추천 이미지 검색어" } 형식으로만 답하세요.`;
 
-  const candidateModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash'];
+  const candidateModels = ['gemini-4-neon', 'gemini-flash-latest', 'gemini-3.5-flash-lite', 'gemini-3.5-flash'];
   for (const mod of candidateModels) {
     try {
       const response = await ai.models.generateContent({

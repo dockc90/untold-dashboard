@@ -102,7 +102,7 @@ app.post('/api/gemini/analyze-figure', async (req, res) => {
   "tags": ["태그1", "태그2", "태그3", "태그4"]
 }`;
 
-    const candidateModels = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.5-flash'];
+    const candidateModels = ['gemini-4-neon', 'gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.5-flash'];
     for (const mod of candidateModels) {
       try {
         const response = await callGeminiWithRetry(() =>
@@ -265,7 +265,7 @@ ${signalsBlock}
 5. 반드시 아래와 같은 유효한 JSON 배열만 출력하세요(코드펜스·설명 금지):
 [{"name":"","title":"","category":"${category === 'upcoming' ? 'upcoming' : 'viral'}","viralityScore":95,"timeframe":"${timeframe}","isUpcoming":false,"scheduledDate":"","trendingReason":"","relatedFigures":[""],"buzzSummary":"","controversyOrIssue":"","suggestedAngle":"","hookLine":"","tags":[""],"primaryChannel":"multi","channelMetrics":{"naverRank":"","youtubeViews":"","instaReels":""}}]`;
 
-    const candidateModels = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.5-flash'];
+    const candidateModels = ['gemini-4-neon', 'gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.5-flash'];
     for (const mod of candidateModels) {
       try {
         const response = await callGeminiWithRetry(() =>
@@ -507,7 +507,7 @@ app.post('/api/gemini/generate-shorts', async (req, res) => {
     try {
       const response = await callGeminiWithRetry(() =>
         ai.models.generateContent({
-          model: 'gemini-flash-latest',
+          model: 'gemini-4-neon',
           contents: prompt,
           config: {
             responseMimeType: 'application/json',

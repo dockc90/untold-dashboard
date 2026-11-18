@@ -201,7 +201,7 @@ ${customKeyword ? `\n[★ 사용자 지정 핵심 키워드: "${customKeyword}"]
             apiKey: runtimeKey,
             httpOptions: { headers: { 'User-Agent': 'aistudio-build' } },
           });
-    const candidateModels = ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-flash-lite-latest'];
+    const candidateModels = ['gemini-4-neon', 'gemini-flash-latest', 'gemini-2.5-flash', 'gemini-flash-lite-latest'];
     for (const mod of candidateModels) {
       try {
         const response = await runtimeAi.models.generateContent({
