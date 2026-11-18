@@ -1696,7 +1696,15 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     precomputedBackdrop?: HTMLCanvasElement | null,
     videoConfig?: {
       videoFit?: 'cover' | 'contain';
-      videoCrop?: { xPercent: number; yPercent: number; zoom: number };
+      videoCrop?: {
+        xPercent: number;
+        yPercent: number;
+        zoom: number;
+        cropTop?: number;
+        cropBottom?: number;
+        cropLeft?: number;
+        cropRight?: number;
+      };
     }
   ) => {
     ctx.save();
@@ -1709,8 +1717,18 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     const clampedP = Math.max(0, Math.min(1, progress));
     const easedProgress = clampedP * clampedP * (3 - 2 * clampedP);
 
-    const imgW = (img as HTMLVideoElement).videoWidth || (img as HTMLImageElement).naturalWidth || (img as any).width || 1080;
-    const imgH = (img as HTMLVideoElement).videoHeight || (img as HTMLImageElement).naturalHeight || (img as any).height || 1920;
+    const rawW = (img as HTMLVideoElement).videoWidth || (img as HTMLImageElement).naturalWidth || (img as any).width || 1080;
+    const rawH = (img as HTMLVideoElement).videoHeight || (img as HTMLImageElement).naturalHeight || (img as any).height || 1920;
+    const cTop = Math.max(0, Math.min(40, videoConfig?.videoCrop?.cropTop ?? 0)) / 100;
+    const cBottom = Math.max(0, Math.min(40, videoConfig?.videoCrop?.cropBottom ?? 0)) / 100;
+    const cLeft = Math.max(0, Math.min(40, videoConfig?.videoCrop?.cropLeft ?? 0)) / 100;
+    const cRight = Math.max(0, Math.min(40, videoConfig?.videoCrop?.cropRight ?? 0)) / 100;
+    const sx = Math.round(rawW * cLeft);
+    const sy = Math.round(rawH * cTop);
+    const sw = Math.max(10, Math.round(rawW * (1 - cLeft - cRight)));
+    const sh = Math.max(10, Math.round(rawH * (1 - cTop - cBottom)));
+    const imgW = sw;
+    const imgH = sh;
     const imgAspect = imgW / (imgH || 1);
 
     if (photoAspectRatio === '9:16') {
@@ -1767,7 +1785,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
           drawH = w / imgAspect;
         }
       }
-      ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+      ctx.drawImage(img, sx, sy, sw, sh, -drawW / 2, -drawH / 2, drawW, drawH);
       ctx.restore();
       return;
     }
@@ -1922,7 +1940,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       }
     }
 
-    ctx.drawImage(img, -imgDrawW / 2, -imgDrawH / 2, imgDrawW, imgDrawH);
+    ctx.drawImage(img, sx, sy, sw, sh, -imgDrawW / 2, -imgDrawH / 2, imgDrawW, imgDrawH);
     ctx.restore();
 
     // 7. Subtle Border Stroke around Card
@@ -3950,6 +3968,39 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         } catch (e) {
           console.warn('Audio scheduling error for scene', i, e);
         }
+      }
+    }
+
+    // 7-2. Schedule Separated Video Audio Stems (음성만 남김 / BGM만 남김) when enabled
+    for (let i = 0; i < scenes.length; i++) {
+      const sc = scenes[i];
+      if (!sc || sc.mediaType !== 'video' || sc.videoMuted) continue;
+      const stemUrl =
+        sc.videoAudioMode === 'vocals_only'
+          ? sc.separatedVocalsUrl
+          : sc.videoAudioMode === 'bgm_only'
+          ? sc.separatedBgmUrl
+          : undefined;
+      if (!stemUrl) continue;
+      try {
+        const stemRes = await fetch(stemUrl);
+        const stemAb = await stemRes.arrayBuffer();
+        const stemBuf = await audioCtx.decodeAudioData(stemAb);
+        const stemSrc = audioCtx.createBufferSource();
+        stemSrc.buffer = stemBuf;
+        stemSrc.playbackRate.value = sc.videoPlaybackRate || 1.0;
+        const stemGain = audioCtx.createGain();
+        stemGain.gain.setValueAtTime(
+          Math.max(0, Math.min(1, (sc.videoVolume ?? 100) / 100)),
+          audioCtx.currentTime
+        );
+        stemSrc.connect(stemGain);
+        stemGain.connect(audioDest);
+        const offsetSec = Math.max(0, Math.min(stemBuf.duration - 0.1, sc.videoStartTime || 0));
+        const maxPlaySec = Math.max(0.2, sceneDurationsSec[i] * (sc.videoPlaybackRate || 1.0));
+        stemSrc.start(masterStartAudioTime + sceneStartTimesSec[i], offsetSec, maxPlaySec);
+      } catch (e) {
+        console.warn('Separated video stem scheduling error for scene', i, e);
       }
     }
 

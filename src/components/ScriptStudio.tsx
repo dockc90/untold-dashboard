@@ -242,7 +242,18 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
     volume: number;
     muted: boolean;
     fit: 'cover' | 'contain';
-    crop: { xPercent: number; yPercent: number; zoom: number };
+    crop: {
+      xPercent: number;
+      yPercent: number;
+      zoom: number;
+      cropTop?: number;
+      cropBottom?: number;
+      cropLeft?: number;
+      cropRight?: number;
+    };
+    audioMode?: 'original' | 'vocals_only' | 'bgm_only';
+    separatedVocalsUrl?: string;
+    separatedBgmUrl?: string;
   }) => {
     if (videoEditorSceneIdx === null) return;
     const updated = [...editableScenes];
@@ -255,6 +266,9 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
       videoPlaybackRate: config.playbackRate,
       videoVolume: config.volume,
       videoMuted: config.muted,
+      videoAudioMode: config.audioMode || 'original',
+      separatedVocalsUrl: config.separatedVocalsUrl,
+      separatedBgmUrl: config.separatedBgmUrl,
       videoFit: config.fit,
       videoCrop: config.crop,
     };
@@ -1840,6 +1854,9 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
               initialMuted={editableScenes[videoEditorSceneIdx].videoMuted}
               initialFit={editableScenes[videoEditorSceneIdx].videoFit}
               initialCrop={editableScenes[videoEditorSceneIdx].videoCrop}
+              initialAudioMode={editableScenes[videoEditorSceneIdx].videoAudioMode}
+              initialSeparatedVocalsUrl={editableScenes[videoEditorSceneIdx].separatedVocalsUrl}
+              initialSeparatedBgmUrl={editableScenes[videoEditorSceneIdx].separatedBgmUrl}
               onApplyVideo={handleApplyVideoConfig}
               onChangeVideoFile={(file) => {
                 const newUrl = URL.createObjectURL(file);

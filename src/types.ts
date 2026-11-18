@@ -273,10 +273,21 @@ export interface SceneItem {
   videoPlaybackRate?: number; // 재생 배속 (0.5x ~ 2.0x, 기본 1.0)
   videoVolume?: number; // 원본 비디오 볼륨 (0 ~ 100, 기본 0)
   videoMuted?: boolean; // 음소거 여부 (기본 true - 내레이션 TTS 우선)
+  videoAudioMode?: 'original' | 'vocals_only' | 'bgm_only'; // 동영상 오디오 트랙 선택 (원본 / 음성만 / 배경음악만)
+  separatedVocalsUrl?: string; // 분리된 음성(보컬) WAV Blob URL
+  separatedBgmUrl?: string; // 분리된 배경음악(BGM) WAV Blob URL
   narrationVolume?: number; // 씬별 내레이션/오디오 볼륨 (0 ~ 150, 기본 100)
   narrationMuted?: boolean; // 씬별 내레이션/오디오 음소거 여부 (기본 false)
   videoFit?: 'cover' | 'contain'; // 9:16 화면 채움 or 비율 유지
-  videoCrop?: { xPercent: number; yPercent: number; zoom: number }; // 캡컷식 줌 및 위치 이동
+  videoCrop?: {
+    xPercent: number;
+    yPercent: number;
+    zoom: number;
+    cropTop?: number;    // 상단 잘라내기 (0 ~ 40%)
+    cropBottom?: number; // 하단 잘라내기 (0 ~ 40%)
+    cropLeft?: number;   // 좌측 잘라내기 (0 ~ 40%)
+    cropRight?: number;  // 우측 잘라내기 (0 ~ 40%)
+  }; // 캡컷식 줌, 위치 이동 및 상하좌우 화면 자르기(Crop)
   motionEffect?: MotionEffectType; // 선택된 카메라 무빙 효과
 }
 
