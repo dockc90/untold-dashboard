@@ -1039,43 +1039,43 @@ export const CarouselStudio: React.FC<CarouselStudioProps> = ({
 
       {/* Modal for URL input */}
       {urlModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-[#FBFBFA] rounded-2xl max-w-md w-full p-6 shadow-2xl border border-[#EDEDEB] space-y-4 text-[#37352F]">
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center space-x-2 text-indigo-700 font-black text-sm">
-                <LinkIcon className="w-4 h-4" />
+              <div className="flex items-center space-x-2 text-[#191919] font-bold text-sm">
+                <LinkIcon className="w-4 h-4 text-indigo-600" />
                 <span>이미지 웹 주소(URL) 입력</span>
               </div>
               <button
                 type="button"
                 onClick={() => setUrlModalOpen(false)}
-                className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-100 text-slate-600 hover:text-rose-600 font-black text-xs transition cursor-pointer active:scale-95"
+                className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-[#F1F1EF] hover:bg-rose-50 text-[#787774] hover:text-rose-600 font-semibold text-xs border border-[#E3E2DE] transition cursor-pointer active:scale-95 shadow-2xs"
                 title="닫기"
               >
-                <X className="w-4 h-4 text-slate-600" />
+                <X className="w-4 h-4" />
                 <span>닫기</span>
               </button>
             </div>
-            <p className="text-xs text-slate-500">
-              구글 이미지에서 '이미지 주소 복사' 후 붙여넣으시면 고화질로 반영됩니다.
+            <p className="text-xs text-[#787774] font-normal">
+              구글 이미지에서 &apos;이미지 주소 복사&apos; 후 붙여넣으시면 고화질로 반영됩니다.
             </p>
             <input
               type="text"
               value={customUrlInput}
               onChange={(e) => setCustomUrlInput(e.target.value)}
               placeholder="https://images.unsplash.com/... 또는 웹 이미지 URL"
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-[#E3E2DE] bg-white text-xs font-medium text-[#37352F] focus:outline-none focus:border-[#23272A]"
             />
             <div className="flex items-center justify-end space-x-2 pt-2">
               <button
                 onClick={() => setUrlModalOpen(false)}
-                className="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                className="px-3.5 py-2 rounded-xl text-xs font-medium text-[#787774] hover:text-[#191919] bg-[#F1F1EF] border border-[#E3E2DE] cursor-pointer"
               >
                 취소
               </button>
               <button
                 onClick={() => handleApplySlideCustomUrl(customUrlInput)}
-                className="px-4 py-2 rounded-xl text-xs font-black bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer"
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-[#23272A] hover:bg-[#111213] text-white shadow-xs cursor-pointer active:scale-95"
               >
                 적용하기
               </button>

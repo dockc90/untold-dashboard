@@ -76,7 +76,11 @@ function normalizePeak(buffer: AudioBuffer, targetPeak = 0.88): AudioBuffer {
   return buffer;
 }
 
-export async function separateVideoAudioStems(videoUrl: string): Promise<SeparatedAudioStems> {
+export async function separateVideoAudioStems(
+  videoUrl: string,
+  onProgress?: (progress: number) => void
+): Promise<SeparatedAudioStems> {
+  onProgress?.(0.1);
   const res = await fetch(videoUrl);
   if (!res.ok) {
     throw new Error(`동영상 오디오를 불러올 수 없습니다 (${res.status}).`);

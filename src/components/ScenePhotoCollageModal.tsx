@@ -1005,41 +1005,41 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
-        {/* Header (Fully Responsive on Mobile & Desktop) */}
-        <div className="px-3.5 sm:px-5 py-3 border-b border-slate-200 bg-slate-50/95 flex items-center justify-between gap-2 shrink-0">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="bg-[#FBFBFA] w-full max-w-5xl rounded-2xl sm:rounded-3xl shadow-2xl border border-[#EDEDEB] overflow-hidden flex flex-col max-h-[92vh] text-[#37352F]">
+        {/* Header: Notion Minimalist Style */}
+        <div className="px-3.5 sm:px-5 py-3 border-b border-[#EDEDEB] bg-white flex items-center justify-between gap-2 shrink-0">
           <div className="flex items-center space-x-2 min-w-0 flex-1">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-xs shrink-0">
-              <LayoutGrid className="w-4 h-4 sm:w-5 sm:h-5" />
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-[#1E1E1E] via-[#2A2B32] to-[#4338CA] flex items-center justify-center text-white shadow-xs shrink-0">
+              <LayoutGrid className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center space-x-1.5 min-w-0">
-                <h3 className="text-sm sm:text-base font-black text-slate-900 truncate">
+                <h3 className="text-sm sm:text-base font-bold text-[#191919] truncate">
                   씬 {sceneNumber} 사진 편집
                 </h3>
-                <span className="px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-extrabold shrink-0">
+                <span className="px-1.5 py-0.5 rounded-full bg-[#F1F1EF] text-[#37352F] border border-[#E3E2DE] text-[10px] font-bold shrink-0">
                   {timeRange}
                 </span>
-                <span className="hidden md:inline-flex px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-[10px] font-extrabold items-center gap-1 shrink-0">
-                  <Sparkles className="w-2.5 h-2.5" />
+                <span className="hidden md:inline-flex px-2 py-0.5 rounded-full bg-[#F1F1EF] text-[#787774] border border-[#E3E2DE] text-[10px] font-medium items-center gap-1 shrink-0">
+                  <Sparkles className="w-2.5 h-2.5 text-indigo-600" />
                   단일 줌/위치 & 다중 분할
                 </span>
               </div>
-              <p className="text-[11px] sm:text-xs text-slate-500 font-medium truncate max-w-[220px] sm:max-w-md mt-0.5">
-                대사: "{narrationSnippet}"
+              <p className="text-[11px] sm:text-xs text-[#787774] font-normal truncate max-w-[220px] sm:max-w-md mt-0.5">
+                대사: &quot;{narrationSnippet}&quot;
               </p>
             </div>
           </div>
 
-          {/* Right Top Close Button - Guaranteed Visible on Mobile */}
+          {/* Right Top Close Button */}
           <button
             type="button"
             onClick={onClose}
-            className="flex items-center space-x-1 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-slate-200 hover:bg-rose-100 text-slate-700 hover:text-rose-600 font-black text-xs transition cursor-pointer shrink-0 active:scale-95 shadow-2xs"
+            className="flex items-center space-x-1 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-[#F1F1EF] hover:bg-rose-50 text-[#787774] hover:text-rose-600 font-semibold text-xs border border-[#E3E2DE] transition cursor-pointer shrink-0 active:scale-95 shadow-2xs"
             title="창 닫기"
           >
-            <X className="w-4 h-4 text-slate-600" />
+            <X className="w-4 h-4" />
             <span>닫기</span>
           </button>
         </div>
@@ -1752,16 +1752,16 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
             </div>
 
             {/* Bottom Actions */}
-            <div className="w-full space-y-2 pt-2 border-t border-slate-800/80">
+            <div className="w-full space-y-2 pt-2 border-t border-[#EDEDEB]">
               <div className="flex items-center space-x-2">
                 <button
                   type="button"
                   onClick={handleDownload}
                   disabled={images.length === 0}
-                  className="flex-1 flex items-center justify-center space-x-1.5 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-200 font-bold text-xs transition border border-slate-700 cursor-pointer"
+                  className="flex-1 flex items-center justify-center space-x-1.5 py-2.5 px-3 rounded-xl bg-[#F1F1EF] hover:bg-white disabled:opacity-40 text-[#37352F] font-semibold text-xs transition border border-[#E3E2DE] cursor-pointer shadow-2xs"
                   title="편집된 이미지 파일 다운로드"
                 >
-                  <Download className="w-3.5 h-3.5" />
+                  <Download className="w-3.5 h-3.5 text-[#787774]" />
                   <span>이미지 다운로드</span>
                 </button>
 
@@ -1769,14 +1769,14 @@ export const ScenePhotoCollageModal: React.FC<ScenePhotoCollageModalProps> = ({
                   type="button"
                   onClick={handleApply}
                   disabled={images.length === 0 || isProcessing}
-                  className="flex-[2] flex items-center justify-center space-x-1.5 py-2.5 px-4 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-indigo-700 hover:from-purple-500 hover:to-indigo-600 text-white font-black text-xs shadow-md transition disabled:opacity-50 cursor-pointer"
+                  className="flex-[2] flex items-center justify-center space-x-1.5 py-2.5 px-4 rounded-xl bg-[#23272A] hover:bg-[#111213] text-white font-bold text-xs shadow-xs transition disabled:opacity-50 cursor-pointer active:scale-95"
                 >
-                  <Check className="w-4 h-4 stroke-[3]" />
+                  <Check className="w-4 h-4 stroke-[2.5]" />
                   <span>사진 적용</span>
                 </button>
               </div>
 
-              <p className="text-[10px] text-slate-400 text-center font-medium">
+              <p className="text-[10px] text-[#787774] text-center font-normal">
                 조정한 위치와 크기가 그대로 1080x1920 단일 쇼츠 이미지로 렌더링되어 적용됩니다.
               </p>
             </div>

@@ -1489,7 +1489,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                                   <button
                                     type="button"
                                     onClick={() => handleOpenVideoEditor(idx)}
-                                    className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-extrabold text-[11px] shadow-xs transition cursor-pointer"
+                                    className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-[#23272A] hover:bg-[#111213] text-white font-semibold text-[11px] shadow-xs transition cursor-pointer active:scale-95"
                                     title="캡컷 스타일 동영상 편집기 (구간 자르기, 줌, 배속, 볼륨)"
                                   >
                                     <Scissors className="w-3 h-3" />
@@ -1499,17 +1499,17 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                                   <button
                                     type="button"
                                     onClick={() => videoFileInputRefs.current[idx]?.click()}
-                                    className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] border border-slate-200 transition cursor-pointer"
+                                    className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-[#F1F1EF] hover:bg-white text-[#37352F] font-medium text-[11px] border border-[#E3E2DE] transition cursor-pointer shadow-2xs"
                                     title="다른 동영상 파일로 교체"
                                   >
-                                    <Upload className="w-3 h-3" />
+                                    <Upload className="w-3 h-3 text-[#787774]" />
                                     <span>영상 교체</span>
                                   </button>
 
                                   <button
                                     type="button"
                                     onClick={() => handleRemoveSceneVideo(idx)}
-                                    className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-[11px] border border-slate-200 transition cursor-pointer"
+                                    className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-[#F1F1EF] hover:bg-white text-[#787774] hover:text-[#37352F] font-medium text-[11px] border border-[#E3E2DE] transition cursor-pointer shadow-2xs"
                                     title="사진 모드로 전환"
                                   >
                                     <ImageIcon className="w-3 h-3" />
@@ -1521,30 +1521,46 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
                                   <button
                                     type="button"
                                     onClick={() => fileInputRefs.current[idx]?.click()}
-                                    className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-[11px] border border-indigo-200 transition cursor-pointer"
+                                    className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-[#F1F1EF] hover:bg-white text-[#37352F] font-semibold text-[11px] border border-[#E3E2DE] transition cursor-pointer shadow-2xs"
                                     title="단일 사진 파일 업로드"
                                   >
-                                    <Upload className="w-3 h-3" />
+                                    <Upload className="w-3 h-3 text-[#787774]" />
                                     <span>{scene.uploadedImageUrl ? '파일 교체' : '사진 업로드'}</span>
                                   </button>
 
                                   <button
                                     type="button"
                                     onClick={() => handleOpenCollageModal(idx)}
-                                    className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-purple-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 text-purple-700 font-bold text-[11px] border border-purple-300 shadow-2xs transition cursor-pointer"
+                                    className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-white hover:bg-[#F1F1EF] text-[#37352F] font-semibold text-[11px] border border-[#E3E2DE] shadow-2xs transition cursor-pointer"
                                     title="위치/크기 조절 및 사진 편집"
                                   >
-                                    <LayoutGrid className="w-3 h-3 text-purple-600" />
+                                    <LayoutGrid className="w-3 h-3 text-[#787774]" />
                                     <span>사진 편집</span>
                                   </button>
 
                                   <button
                                     type="button"
+                                    onClick={() => {
+                                      if (scene.uploadedVideoUrl) {
+                                        handleOpenVideoEditor(idx);
+                                      } else {
+                                        videoFileInputRefs.current[idx]?.click();
+                                      }
+                                    }}
+                                    className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-[#23272A] hover:bg-[#111213] text-white font-semibold text-[11px] shadow-xs transition cursor-pointer active:scale-95"
+                                    title="동영상 컷/줌/배속 편집기 열기 (동영상 없으면 파일 선택 후 즉시 편집)"
+                                  >
+                                    <Scissors className="w-3 h-3" />
+                                    <span>동영상 편집</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
                                     onClick={() => videoFileInputRefs.current[idx]?.click()}
-                                    className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-cyan-50 to-blue-50 hover:from-cyan-100 hover:to-blue-100 text-cyan-800 font-extrabold text-[11px] border border-cyan-300 shadow-2xs transition cursor-pointer"
+                                    className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-[#F1F1EF] hover:bg-white text-[#37352F] font-medium text-[11px] border border-[#E3E2DE] transition cursor-pointer shadow-2xs"
                                     title="이 씬에 동영상 클립 첨부하기 (캡컷 스타일 편집)"
                                   >
-                                    <Video className="w-3 h-3 text-cyan-600" />
+                                    <Video className="w-3 h-3 text-indigo-600" />
                                     <span>동영상 첨부</span>
                                   </button>
                                 </>

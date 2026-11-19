@@ -958,6 +958,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   const [zipExportBusy, setZipExportBusy] = useState(false);
   const [isRendering, setIsRendering] = useState(false);
   const [renderProgress, setRenderProgress] = useState(0); // 0 - 100
+  const renderCancelledRef = useRef<boolean>(false);
   const [currentRenderingScene, setCurrentRenderingScene] = useState(1);
   const [statusMessage, setStatusMessage] = useState('렌더링 준비 완료');
   const [videoBlobUrl, setVideoBlobUrl] = useState<string | null>(null);
@@ -3615,8 +3616,32 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     }
   };
 
+  const cancelRendering = async () => {
+    renderCancelledRef.current = true;
+    try {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.stop();
+      }
+    } catch {}
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    try {
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        await audioContextRef.current.close();
+      }
+    } catch {}
+    recordedChunksRef.current = [];
+    setIsRendering(false);
+    setRenderProgress(0);
+    await releaseWakeLock();
+    setStatusMessage('쇼츠 영상 제작이 취소되었습니다.');
+  };
+
   const startRendering = async () => {
     if (!canvasRef.current || scenes.length === 0) return;
+    renderCancelledRef.current = false;
     setIsRendering(true);
     await requestWakeLock();
     setRenderProgress(0);
@@ -3755,6 +3780,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
     }
 
     for (let i = 0; i < scenes.length; i++) {
+      if (renderCancelledRef.current) return;
       setStatusMessage(`에셋 및 렌더링 최적화 중... (${i + 1}/${scenes.length})`);
       const sc = scenes[i];
       let media: HTMLImageElement | HTMLVideoElement;
@@ -3785,6 +3811,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       }
       setRenderProgress(30 + Math.round(((i + 1) / scenes.length) * 15));
     }
+    if (renderCancelledRef.current) return;
 
     // 4. Calculate dynamic scene durations based on audio length & speed multiplier
     const sceneSpokenDurationsSec: number[] = [];
@@ -3882,6 +3909,14 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
           } catch {}
         }
       });
+      if (renderCancelledRef.current) {
+        recordedChunksRef.current = [];
+        setIsRendering(false);
+        setRenderProgress(0);
+        await releaseWakeLock();
+        setStatusMessage('쇼츠 영상 제작이 취소되었습니다.');
+        return;
+      }
       const finalBlobType = chosenMime || 'video/mp4';
       let blob = new Blob(recordedChunksRef.current, { type: finalBlobType });
       const durationMs = totalVideoSec * 1000;
@@ -4196,6 +4231,13 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
     // Fallback interval ONLY steps the frame if requestAnimationFrame was frozen by an inactive/background tab
     renderIntervalId = setInterval(() => {
+      if (renderCancelledRef.current) {
+        try {
+          if (mediaRecorder.state === 'recording') mediaRecorder.stop();
+        } catch {}
+        clearInterval(renderIntervalId);
+        return;
+      }
       if (isStopped || mediaRecorder.state !== 'recording') return;
       const now = performance.now();
       if (now - lastRenderTime > 50) {
@@ -4275,21 +4317,21 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
   };
 
   const modalHeaderContent = (
-    <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 px-3 sm:px-7 py-2.5 sm:py-3.5 flex items-center justify-between gap-2 shrink-0">
+    <div className="sticky top-0 z-30 bg-[#FBFBFA]/95 backdrop-blur-md border-b border-[#EDEDEB] px-3 sm:px-7 py-2.5 sm:py-3.5 flex items-center justify-between gap-2 shrink-0">
       <div className="flex items-center space-x-2 sm:space-x-2.5 min-w-0">
-        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-rose-500 via-amber-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 shrink-0">
-          <Film className="w-4 h-4 sm:w-5 sm:h-5" />
+        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-[#1E1E1E] via-[#2A2B32] to-[#4338CA] flex items-center justify-center text-white shadow-xs shrink-0">
+          <Film className="w-4 h-4 text-white" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 min-w-0">
-            <h3 className="text-xs sm:text-base font-black text-slate-900 truncate">
+            <h3 className="text-xs sm:text-base font-bold text-[#191919] truncate">
               {project.figureName} 쇼츠 제작
             </h3>
-            <span className="text-[9px] sm:text-[11px] font-black px-1.5 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-200 shrink-0">
+            <span className="text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#F1F1EF] text-[#37352F] border border-[#E3E2DE] shrink-0">
               9:16
             </span>
           </div>
-          <p className="hidden sm:block text-xs text-slate-500 font-medium truncate">
+          <p className="hidden sm:block text-xs text-[#787774] font-normal truncate">
             음성-화면 100% 싱크 동기화 + 긴 자막 화면 유지 자동 넘김
           </p>
         </div>
@@ -4301,7 +4343,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
             type="button"
             onClick={handleSaveToVault}
             disabled={isSavingToVault}
-            className="flex items-center space-x-1 px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs transition cursor-pointer shadow-xs active:scale-95 disabled:opacity-50"
+            className="flex items-center space-x-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-[#23272A] hover:bg-[#111213] text-white font-semibold text-xs transition cursor-pointer shadow-xs active:scale-95 disabled:opacity-50"
             title="현재 설정을 보관함에 저장합니다"
           >
             <span>💾</span>
@@ -4313,10 +4355,10 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
           type="button"
           onClick={onBackToEditor || onClose}
           disabled={isRendering}
-          className="flex items-center space-x-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs transition disabled:opacity-50 cursor-pointer shadow-2xs shrink-0"
+          className="flex items-center space-x-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-[#F1F1EF] hover:bg-white text-[#37352F] font-semibold text-xs border border-[#E3E2DE] transition disabled:opacity-50 cursor-pointer shadow-2xs shrink-0"
           title="대본 스튜디오로 돌아가기"
         >
-          <ArrowLeft className="w-3.5 h-3.5 text-indigo-600" />
+          <ArrowLeft className="w-3.5 h-3.5 text-[#787774]" />
           <span className="hidden sm:inline">대본 복귀</span>
         </button>
 
@@ -4324,16 +4366,16 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
           type="button"
           onClick={onClose}
           disabled={isRendering}
-          className="flex items-center space-x-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 font-black text-xs transition disabled:opacity-50 cursor-pointer shadow-2xs shrink-0 active:scale-95"
+          className="flex items-center space-x-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-[#F1F1EF] hover:bg-rose-50 text-[#787774] hover:text-rose-600 border border-[#E3E2DE] font-semibold text-xs transition disabled:opacity-50 cursor-pointer shadow-2xs shrink-0 active:scale-95"
           title="창 닫기"
         >
-          <X className="w-3.5 h-3.5 text-rose-600" />
+          <X className="w-3.5 h-3.5" />
           <span>닫기</span>
         </button>
       </div>
 
       {saveSuccessMsg && (
-        <div className="sm:hidden w-full p-2 bg-emerald-50 text-emerald-800 text-xs font-bold rounded-xl border border-emerald-200 text-center animate-fadeIn">
+        <div className="sm:hidden w-full p-2 bg-emerald-50 text-emerald-800 text-xs font-semibold rounded-xl border border-emerald-200 text-center animate-fadeIn">
           {saveSuccessMsg}
         </div>
       )}
@@ -4380,14 +4422,14 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
           5대 항목 보기
         </button>
       </div>
-          {/* Settings Navigation Tabs (6 Sections) */}
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200 text-xs font-bold">
+          {/* Settings Navigation Tabs (6 Sections): Notion Pill Bar */}
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-1 bg-[#F1F1EF] p-1 rounded-xl border border-[#E3E2DE] text-xs font-medium">
             <button
               onClick={() => setActiveSettingsSection('ratio')}
-              className={`py-2 px-1.5 rounded-xl transition flex items-center justify-center space-x-1 cursor-pointer ${
+              className={`py-2 px-1.5 rounded-lg transition flex items-center justify-center space-x-1 cursor-pointer ${
                 activeSettingsSection === 'ratio'
-                  ? 'bg-white text-indigo-700 shadow-2xs font-black ring-1 ring-slate-200'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white text-[#191919] shadow-xs font-semibold'
+                  : 'text-[#787774] hover:text-[#191919]'
               }`}
             >
               <Square className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
@@ -4396,10 +4438,10 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
             <button
               onClick={() => setActiveSettingsSection('overlay')}
-              className={`py-2 px-1.5 rounded-xl transition flex items-center justify-center space-x-1 cursor-pointer relative ${
+              className={`py-2 px-1.5 rounded-lg transition flex items-center justify-center space-x-1 cursor-pointer relative ${
                 activeSettingsSection === 'overlay'
-                  ? 'bg-white text-indigo-700 shadow-2xs font-black ring-1 ring-slate-200'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white text-[#191919] shadow-xs font-semibold'
+                  : 'text-[#787774] hover:text-[#191919]'
               }`}
             >
               <Layers className="w-3.5 h-3.5 text-rose-500 shrink-0" />
@@ -4408,10 +4450,10 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
             <button
               onClick={() => setActiveSettingsSection('subtitle')}
-              className={`py-2 px-1.5 rounded-xl transition flex items-center justify-center space-x-1 cursor-pointer ${
+              className={`py-2 px-1.5 rounded-lg transition flex items-center justify-center space-x-1 cursor-pointer ${
                 activeSettingsSection === 'subtitle'
-                  ? 'bg-white text-indigo-700 shadow-2xs font-black ring-1 ring-slate-200'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white text-[#191919] shadow-xs font-semibold'
+                  : 'text-[#787774] hover:text-[#191919]'
               }`}
             >
               <Type className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
@@ -4420,10 +4462,10 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
             <button
               onClick={() => setActiveSettingsSection('voice')}
-              className={`py-2 px-1.5 rounded-xl transition flex items-center justify-center space-x-1 cursor-pointer ${
+              className={`py-2 px-1.5 rounded-lg transition flex items-center justify-center space-x-1 cursor-pointer ${
                 activeSettingsSection === 'voice'
-                  ? 'bg-white text-indigo-700 shadow-2xs font-black ring-1 ring-slate-200'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white text-[#191919] shadow-xs font-semibold'
+                  : 'text-[#787774] hover:text-[#191919]'
               }`}
             >
               <Mic className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
@@ -4432,10 +4474,10 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
             <button
               onClick={() => setActiveSettingsSection('thumbnail')}
-              className={`py-2 px-1.5 rounded-xl transition flex items-center justify-center space-x-1 cursor-pointer ${
+              className={`py-2 px-1.5 rounded-lg transition flex items-center justify-center space-x-1 cursor-pointer ${
                 activeSettingsSection === 'thumbnail'
-                  ? 'bg-white text-amber-700 shadow-2xs font-black ring-1 ring-amber-300'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white text-[#191919] shadow-xs font-semibold'
+                  : 'text-[#787774] hover:text-[#191919]'
               }`}
             >
               <ImageIcon className="w-3.5 h-3.5 text-amber-500 shrink-0" />
@@ -4444,10 +4486,10 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
             <button
               onClick={() => setActiveSettingsSection('output')}
-              className={`py-2 px-1.5 rounded-xl transition flex items-center justify-center space-x-1 cursor-pointer ${
+              className={`py-2 px-1.5 rounded-lg transition flex items-center justify-center space-x-1 cursor-pointer ${
                 activeSettingsSection === 'output'
-                  ? 'bg-white text-indigo-700 shadow-2xs font-black ring-1 ring-slate-200'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white text-[#191919] shadow-xs font-semibold'
+                  : 'text-[#787774] hover:text-[#191919]'
               }`}
             >
               <Monitor className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
@@ -7266,13 +7308,20 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
                       style={{ width: `${renderProgress}%` }}
                     />
                   </div>
-                  {/* Screen Wake Lock Status Badge */}
-                  <div className="flex items-center justify-between pt-1 border-t border-slate-800 text-[10px]">
+                  {/* Screen Wake Lock Status Badge + Cancel Button */}
+                  <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-slate-800 text-[10px]">
                     <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-300 font-bold">
                       <Zap className="w-3 h-3 text-amber-400 animate-pulse" />
                       <span>{isWakeLockActive ? '화면 켜짐 유지' : '절전 방지 준비'}</span>
                     </div>
-                    <span className="text-slate-400 font-medium">화면 꺼짐 방지</span>
+                    <button
+                      type="button"
+                      onClick={cancelRendering}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-black transition shadow-sm cursor-pointer active:scale-95"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      <span>제작 취소</span>
+                    </button>
                   </div>
                 </div>
               )}
@@ -8163,14 +8212,14 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
     return (
       <div 
-        className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-slate-900/80 backdrop-blur-md animate-fade-in"
+        className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-xs animate-fade-in"
         onMouseDown={(e) => {
           if (e.target === e.currentTarget) handleCloseSnsShareModal();
         }}
       >
-        <div className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-slate-200 space-y-4 animate-scale-in text-slate-800">
+        <div className="bg-[#FBFBFA] rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-[#EDEDEB] space-y-4 animate-scale-in text-[#37352F]">
           {/* Header */}
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div className="flex items-center justify-between pb-3 border-b border-[#EDEDEB]">
             <div className="flex items-center space-x-2.5">
               <span className="text-2xl">📱</span>
               <div className="text-left">
@@ -8371,7 +8420,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-fadeIn"
+      className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-fadeIn"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget && !isRendering) {
           onClose();
@@ -8382,14 +8431,14 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         type="button"
         onClick={onClose}
         disabled={isRendering}
-        className="fixed top-3 right-3 sm:top-5 sm:right-5 z-[80] bg-slate-900/90 hover:bg-rose-600 text-white px-3.5 py-2 rounded-2xl shadow-2xl flex items-center space-x-1.5 font-black text-xs transition cursor-pointer border border-white/20 backdrop-blur-md hover:scale-105 disabled:opacity-50"
+        className="fixed top-3 right-3 sm:top-5 sm:right-5 z-[80] bg-[#23272A]/90 hover:bg-[#111213] text-white px-3.5 py-2 rounded-xl shadow-2xl flex items-center space-x-1.5 font-semibold text-xs transition cursor-pointer border border-[#EDEDEB] backdrop-blur-md hover:scale-105 disabled:opacity-50"
         title="이 창 닫기 (ESC)"
       >
-        <X className="w-4 h-4 text-rose-400 group-hover:text-white" />
+        <X className="w-4 h-4 text-white" />
         <span>이 창 닫기 (ESC)</span>
       </button>
 
-      <div className="bg-white rounded-3xl border border-slate-200 max-w-5xl w-full max-h-[92vh] flex flex-col shadow-2xl relative text-slate-800 overflow-hidden my-auto">
+      <div className="bg-[#FBFBFA] rounded-2xl sm:rounded-3xl border border-[#EDEDEB] max-w-5xl w-full max-h-[92vh] flex flex-col shadow-2xl relative text-[#37352F] overflow-hidden my-auto">
         {modalHeaderContent}
         {modalBodyContent}
       </div>
