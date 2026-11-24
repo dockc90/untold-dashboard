@@ -9,6 +9,7 @@ import {
   Video,
   Briefcase,
   Zap,
+  BookOpen,
 } from 'lucide-react';
 import { UserAccountState } from '../utils/subscription';
 import {
@@ -27,6 +28,7 @@ interface HeaderProps {
   onOpenApiSettings?: () => void;
   onOpenMediaCollector?: () => void;
   onOpenSponsorKit?: () => void;
+  onOpenManual?: () => void;
   onOpenPricing?: () => void;
   account?: UserAccountState;
 }
@@ -39,6 +41,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenApiSettings,
   onOpenMediaCollector,
   onOpenSponsorKit,
+  onOpenManual,
   onOpenPricing,
   account,
 }) => {
@@ -91,6 +94,17 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Mobile Right: Tools, API Keys & Quick Saved */}
           <div className="flex items-center sm:hidden space-x-1">
+            {onOpenManual && (
+              <button
+                type="button"
+                onClick={onOpenManual}
+                className="p-1.5 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 cursor-pointer"
+                title="쇼츠 제작 매뉴얼 · 다운로드"
+              >
+                <BookOpen className="w-3.5 h-3.5" />
+              </button>
+            )}
+
             {onOpenSponsorKit && (
               <button
                 type="button"
@@ -210,6 +224,18 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </button>
             </div>
+
+            {onOpenManual && (
+              <button
+                type="button"
+                onClick={onOpenManual}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-xs font-bold text-indigo-800 transition cursor-pointer"
+                title="제작 실전 매뉴얼 보기 & 다운로드"
+              >
+                <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
+                <span>제작 매뉴얼</span>
+              </button>
+            )}
 
             {onOpenSponsorKit && (
               <button

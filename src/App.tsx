@@ -21,6 +21,7 @@ const ApiSettingsModal = lazy(() => import('./components/ApiSettingsModal').then
 const NewsletterModal = lazy(() => import('./components/NewsletterModal').then(m => ({ default: m.NewsletterModal })));
 const SponsorKitModal = lazy(() => import('./components/SponsorKitModal').then(m => ({ default: m.SponsorKitModal })));
 const PricingModal = lazy(() => import('./components/PricingModal').then(m => ({ default: m.PricingModal })));
+const ManualModal = lazy(() => import('./components/ManualModal').then(m => ({ default: m.ManualModal })));
 
 const StudioLoadingFallback: React.FC<{ label?: string }> = ({ label = '스튜디오 로딩 중...' }) => (
   <div className="flex-1 flex flex-col items-center justify-center p-8 min-h-[360px] text-slate-500 space-y-3 animate-fade-in">
@@ -156,6 +157,7 @@ export default function App() {
   const [isApiSettingsOpen, setIsApiSettingsOpen] = useState(false);
   const [isNewsletterOpen, setIsNewsletterOpen] = useState(false);
   const [isSponsorKitOpen, setIsSponsorKitOpen] = useState(false);
+  const [isManualOpen, setIsManualOpen] = useState(false);
   const [isPricingOpen, setIsPricingOpen] = useState(false);
   const [account, setAccount] = useState<UserAccountState>(() => loadAccountState());
   const [showQuickstartBanner, setShowQuickstartBanner] = useState<boolean>(() => {
@@ -1008,6 +1010,7 @@ export default function App() {
         setCurrentTab={setCurrentTab}
         savedCount={savedProjects.length}
         onResetToHome={handleResetToHome}
+        onOpenManual={() => setIsManualOpen(true)}
         onOpenSponsorKit={() => setIsSponsorKitOpen(true)}
         onOpenMediaCollector={() => {
           setMediaCollectorQuery(selectedFigure?.name || '');
@@ -1581,6 +1584,15 @@ export default function App() {
             isOpen={isSponsorKitOpen}
             onClose={() => setIsSponsorKitOpen(false)}
             channelBranding={channelBranding}
+          />
+        </Suspense>
+      )}
+
+      {isManualOpen && (
+        <Suspense fallback={null}>
+          <ManualModal
+            isOpen={isManualOpen}
+            onClose={() => setIsManualOpen(false)}
           />
         </Suspense>
       )}
