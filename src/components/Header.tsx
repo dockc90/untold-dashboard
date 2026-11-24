@@ -10,6 +10,7 @@ import {
   Briefcase,
   Zap,
   BookOpen,
+  Compass,
 } from 'lucide-react';
 import { UserAccountState } from '../utils/subscription';
 import {
@@ -18,7 +19,7 @@ import {
   getActiveElevenLabsKey,
 } from '../services/sinsooApi';
 
-export type AppTab = 'studio' | 'carousel' | 'viral' | 'saved';
+export type AppTab = 'studio' | 'carousel' | 'viral' | 'saved' | 'about';
 
 interface HeaderProps {
   currentTab: AppTab;
@@ -222,6 +223,18 @@ export const Header: React.FC<HeaderProps> = ({
                   {savedCount}
                 </span>
               )}
+            </button>
+
+            <button
+              onClick={() => setCurrentTab('about')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg font-medium transition-all whitespace-nowrap cursor-pointer ${
+                currentTab === 'about'
+                  ? 'bg-white text-[#37352F] shadow-xs font-semibold'
+                  : 'text-[#787774] hover:text-[#37352F] hover:bg-white/60'
+              }`}
+            >
+              <Compass className="w-3.5 h-3.5 text-emerald-600" />
+              <span>프로그램 소개</span>
             </button>
             </div>
 

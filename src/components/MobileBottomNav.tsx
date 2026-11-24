@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, Layers, Flame, FolderHeart } from 'lucide-react';
+import { Sparkles, Layers, Flame, FolderHeart, Compass } from 'lucide-react';
 import { AppTab } from './Header';
 
 interface MobileBottomNavProps {
@@ -18,7 +18,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       aria-label="모바일 하단 내비게이션"
       className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#FBFBFA]/95 backdrop-blur-xl border-t border-[#EDEDEB] shadow-[0_-2px_16px_rgba(0,0,0,0.03)] pb-safe transition-transform"
     >
-      <div className="grid grid-cols-4 h-14 max-w-md mx-auto px-1">
+      <div className="grid grid-cols-5 h-14 max-w-md mx-auto px-1">
         {/* 1. 쇼츠 제작 */}
         <button
           type="button"
@@ -95,10 +95,29 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           </div>
           <span className="text-[10px] tracking-tight leading-none">보관함</span>
           {savedCount > 0 && (
-            <span className="absolute top-1.5 right-3 px-1.5 py-0.2 min-w-[16px] text-center text-[9px] font-bold bg-rose-500 text-white rounded-full">
+            <span className="absolute top-1.5 right-2 px-1.5 py-0.2 min-w-[16px] text-center text-[9px] font-bold bg-rose-500 text-white rounded-full">
               {savedCount}
             </span>
           )}
+        </button>
+
+        {/* 5. 소개 */}
+        <button
+          type="button"
+          onClick={() => {
+            setCurrentTab('about');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          className={`flex flex-col items-center justify-center gap-0.5 transition active:scale-95 cursor-pointer touch-manipulation ${
+            currentTab === 'about'
+              ? 'text-[#191919] font-bold'
+              : 'text-[#787774] font-medium hover:text-[#37352F]'
+          }`}
+        >
+          <div className={`p-1 rounded-xl transition ${currentTab === 'about' ? 'bg-[#F1F1EF] text-emerald-600 shadow-2xs' : ''}`}>
+            <Compass className="w-4 h-4" />
+          </div>
+          <span className="text-[10px] tracking-tight leading-none">소개</span>
         </button>
       </div>
     </nav>

@@ -22,6 +22,7 @@ const NewsletterModal = lazy(() => import('./components/NewsletterModal').then(m
 const SponsorKitModal = lazy(() => import('./components/SponsorKitModal').then(m => ({ default: m.SponsorKitModal })));
 const PricingModal = lazy(() => import('./components/PricingModal').then(m => ({ default: m.PricingModal })));
 const ManualModal = lazy(() => import('./components/ManualModal').then(m => ({ default: m.ManualModal })));
+const AboutProgramView = lazy(() => import('./components/AboutProgramView').then(m => ({ default: m.AboutProgramView })));
 
 const StudioLoadingFallback: React.FC<{ label?: string }> = ({ label = '스튜디오 로딩 중...' }) => (
   <div className="flex-1 flex flex-col items-center justify-center p-8 min-h-[360px] text-slate-500 space-y-3 animate-fade-in">
@@ -1437,6 +1438,19 @@ export default function App() {
               onDeleteProject={handleDeleteProject}
               onSyncRefresh={handleSyncRefresh}
               onImportProjects={handleImportProjects}
+            />
+          </Suspense>
+        )}
+
+        {currentTab === 'about' && (
+          <Suspense fallback={<StudioLoadingFallback label="프로그램 소개 불러오는 중..." />}>
+            <AboutProgramView
+              onStartStudio={() => {
+                setCurrentTab('studio');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              onOpenManual={() => setIsManualOpen(true)}
+              onOpenSponsorKit={() => setIsSponsorKitOpen(true)}
             />
           </Suspense>
         )}
