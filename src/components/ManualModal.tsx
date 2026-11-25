@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, BookOpen, Download, Copy, Check } from 'lucide-react';
+import { X, BookOpen, Download, Copy, Check, Pencil, RotateCcw, Save } from 'lucide-react';
 
 interface ManualModalProps {
   isOpen: boolean;
@@ -91,22 +91,56 @@ export const MANUAL_MARKDOWN = `# 🎬 Untold 쇼츠·릴스·틱톡 제작 및 
 - **틱톡**: 동일 영상 업로드 + 틱톡 트렌딩 음원(볼륨 10% 내외) + 해시태그 3-5개
 `;
 
+const MANUAL_STORAGE_KEY = 'untold_custom_manual_v1';
+
 export const ManualModal: React.FC<ManualModalProps> = ({ isOpen, onClose }) => {
   const [copied, setCopied] = useState(false);
+  const [manualText, setManualText] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem(MANUAL_STORAGE_KEY);
+      if (saved && saved.trim()) return saved;
+    } catch {}
+    return MANUAL_MARKDOWN;
+  });
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftText, setDraftText] = useState(manualText);
+  const [saveToast, setSaveToast] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && !isEditing) onClose();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, isEditing, onClose]);
 
   if (!isOpen) return null;
 
+  const handleSaveEdit = () => {
+    const next = draftText.trim() || MANUAL_MARKDOWN;
+    setManualText(next);
+    try {
+      localStorage.setItem(MANUAL_STORAGE_KEY, next);
+    } catch {}
+    setIsEditing(false);
+    setSaveToast('✅ 매뉴얼 수정 내용이 저장되었습니다.');
+    setTimeout(() => setSaveToast(null), 2500);
+  };
+
+  const handleResetDefault = () => {
+    setManualText(MANUAL_MARKDOWN);
+    setDraftText(MANUAL_MARKDOWN);
+    try {
+      localStorage.removeItem(MANUAL_STORAGE_KEY);
+    } catch {}
+    setIsEditing(false);
+    setSaveToast('↺ 기본 매뉴얼 내용으로 복원했습니다.');
+    setTimeout(() => setSaveToast(null), 2500);
+  };
+
   const handleDownloadMarkdown = () => {
-    const blob = new Blob(['\uFEFF' + MANUAL_MARKDOWN], { type: 'text/markdown;charset=utf-8' });
+    const blob = new Blob(['\uFEFF' + manualText], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -118,7 +152,7 @@ export const ManualModal: React.FC<ManualModalProps> = ({ isOpen, onClose }) => 
   };
 
   const handleDownloadHtml = () => {
-    const escaped = MANUAL_MARKDOWN
+    const escaped = manualText
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
@@ -150,7 +184,7 @@ export const ManualModal: React.FC<ManualModalProps> = ({ isOpen, onClose }) => 
   };
 
   const handleCopy = () => {
-    navigator.clipboard?.writeText(MANUAL_MARKDOWN).catch(() => {});
+    navigator.clipboard?.writeText(manualText).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -180,6 +214,46 @@ export const ManualModal: React.FC<ManualModalProps> = ({ isOpen, onClose }) => 
           </div>
 
           <div className="flex items-center gap-1.5 flex-wrap">
+            {!isEditing ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setDraftText(manualText);
+                  setIsEditing(true);
+                }}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 text-xs font-bold transition cursor-pointer"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                <span>수정하기</span>
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={handleSaveEdit}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition cursor-pointer"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>저장</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(false)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#F1F1EF] hover:bg-[#E3E2DE] text-[#37352F] text-xs font-bold transition cursor-pointer"
+                >
+                  <span>취소</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResetDefault}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white hover:bg-rose-50 border border-[#E3E2DE] text-[#787774] hover:text-rose-700 text-xs font-bold transition cursor-pointer"
+                  title="기본 매뉴얼로 복원"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>복원</span>
+                </button>
+              </>
+            )}
             <button
               type="button"
               onClick={handleDownloadHtml}
@@ -230,10 +304,25 @@ export const ManualModal: React.FC<ManualModalProps> = ({ isOpen, onClose }) => 
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-          <pre className="whitespace-pre-wrap font-sans text-xs sm:text-[13px] leading-relaxed text-[#37352F] bg-[#FBFBFA] border border-[#E3E2DE] rounded-2xl p-4 sm:p-5">
-            {MANUAL_MARKDOWN}
-          </pre>
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3">
+          {saveToast && (
+            <div className="px-3.5 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold">
+              {saveToast}
+            </div>
+          )}
+          {isEditing ? (
+            <textarea
+              value={draftText}
+              onChange={(e) => setDraftText(e.target.value)}
+              rows={18}
+              className="w-full min-h-[380px] font-sans text-xs sm:text-[13px] leading-relaxed text-[#191919] bg-[#FBFBFA] border-2 border-indigo-400 rounded-2xl p-4 focus:outline-none"
+              placeholder="매뉴얼 내용을 자유롭게 수정하세요..."
+            />
+          ) : (
+            <pre className="whitespace-pre-wrap font-sans text-xs sm:text-[13px] leading-relaxed text-[#37352F] bg-[#FBFBFA] border border-[#E3E2DE] rounded-2xl p-4 sm:p-5">
+              {manualText}
+            </pre>
+          )}
         </div>
       </div>
     </div>
