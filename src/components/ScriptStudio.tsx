@@ -161,17 +161,11 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
 
   const handleOpenCollageModal = (sceneIdx: number) => {
     setCollageModalSceneIdx(sceneIdx);
-    if (typeof window !== 'undefined') {
-      window.history.pushState({ subModal: 'collage', sceneIdx }, '');
-    }
   };
 
   const handleCloseCollageModal = () => {
     if (collageModalSceneIdx !== null) {
       setCollageModalSceneIdx(null);
-      if (typeof window !== 'undefined' && window.history.state?.subModal === 'collage') {
-        window.history.back();
-      }
     }
   };
 
@@ -197,17 +191,11 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
 
   const handleOpenVideoEditor = (sceneIdx: number) => {
     setVideoEditorSceneIdx(sceneIdx);
-    if (typeof window !== 'undefined') {
-      window.history.pushState({ subModal: 'video-editor', sceneIdx }, '');
-    }
   };
 
   const handleCloseVideoEditor = () => {
     if (videoEditorSceneIdx !== null) {
       setVideoEditorSceneIdx(null);
-      if (typeof window !== 'undefined' && window.history.state?.subModal === 'video-editor') {
-        window.history.back();
-      }
     }
   };
 
@@ -505,6 +493,7 @@ export const ScriptStudio: React.FC<ScriptStudioProps> = ({
   // Scene photo file upload with smart resolution optimization (prevents memory exhaustion & photo loss)
   const handleImageFileUpload = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
 
     const reader = new FileReader();

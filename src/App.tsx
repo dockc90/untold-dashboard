@@ -242,8 +242,8 @@ export default function App() {
         return;
       }
 
-      // Normal navigation popstate
-      if (state && typeof state === 'object') {
+      // Normal navigation popstate (ignore null/unknown states so file pickers or external events never reset the current studio step)
+      if (state && typeof state === 'object' && (state.tab || state.step)) {
         if (state.tab) setCurrentTab(state.tab);
         if (state.step) setStudioStep(state.step);
         setIsVideoRendererOpen(Boolean(state.isModalOpen));
@@ -252,16 +252,6 @@ export default function App() {
           tab: state.tab || 'studio',
           step: state.step || 'trends',
           isModal: Boolean(state.isModalOpen),
-        };
-      } else {
-        // Fallback to Step 1 trends
-        setCurrentTab('studio');
-        setStudioStep('trends');
-        setIsVideoRendererOpen(false);
-        prevHistoryStateRef.current = {
-          tab: 'studio',
-          step: 'trends',
-          isModal: false,
         };
       }
 

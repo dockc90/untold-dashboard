@@ -1172,9 +1172,6 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
   const handleCloseSnsShareModal = () => {
     setIsSnsShareModalOpen(false);
-    if (typeof window !== 'undefined' && window.history.state?.subModal === 'sns-share') {
-      window.history.back();
-    }
   };
 
   // 1-Second Thumbnail Extractor & CTR Hooking Title Mode (Carousel-Style Full Customizer)
@@ -1215,6 +1212,7 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
 
   const handleThumbnailFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -1223,11 +1221,14 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
         setCustomThumbnailImageUrl(result);
         // Persist to current scene so switching scenes or re-rendering never loses this uploaded image
         if (scenes[thumbnailSceneIndex]) {
-          scenes[thumbnailSceneIndex].uploadedImageUrl = result;
-          scenes[thumbnailSceneIndex].userCropUrl = result;
+          const nextScenes = scenes.map((sc, sIdx) =>
+            sIdx === thumbnailSceneIndex
+              ? { ...sc, uploadedImageUrl: result, userCropUrl: result }
+              : sc
+          );
           onUpdateProject?.({
             ...project,
-            scenes: [...scenes],
+            scenes: nextScenes,
           });
         }
         setThumbnailToast('📸 표지 사진이 업로드한 이미지로 변경되었습니다!');
@@ -4296,9 +4297,6 @@ export const VideoRendererModal: React.FC<VideoRendererModalProps> = ({
       }
     } catch (e) {}
 
-    if (typeof window !== 'undefined') {
-      window.history.pushState({ subModal: 'sns-share' }, '');
-    }
     setIsSnsShareModalOpen(true);
     setStatusMessage('카카오톡 & SNS 바로 공유 안내창이 열렸습니다.');
   };
